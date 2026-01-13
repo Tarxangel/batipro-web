@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Bâti Pro - Consultation PLU/RNU sur carte interactive">
+  <title>Bâti Pro - Carte Interactive</title>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Barre de recherche -->
+  <div id="search-container">
+    <input
+      type="text"
+      id="search-input"
+      placeholder="🔍 Rechercher une adresse à Besançon..."
+      autocomplete="off"
+    />
+    <div id="search-results"></div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

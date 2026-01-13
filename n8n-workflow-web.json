@@ -1,0 +1,357 @@
+{
+  "name": "Bâti Pro - Analyse PLU/RNU (Web)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "batipro-analyse-plu",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "id": "webhook-web",
+      "name": "Webhook Web",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [400, 300],
+      "webhookId": "batipro-web-plu"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "lat",
+              "name": "latitude",
+              "value": "={{ $json.body.latitude }}",
+              "type": "string"
+            },
+            {
+              "id": "long",
+              "name": "longitude",
+              "value": "={{ $json.body.longitude }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-coords",
+      "name": "Extract Coordinates",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [620, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://apicarto.ign.fr/api/cadastre/parcelle",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "geom",
+              "value": "={{ `{\"type\":\"Point\",\"coordinates\":[${$json.longitude}, ${$json.latitude}]}` }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ign-parcelle",
+      "name": "IGN Parcelle",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [840, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://apicarto.ign.fr/api/gpu/zone-urba",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "geom",
+              "value": "={{ `{\"type\":\"Point\",\"coordinates\":[${$('Extract Coordinates').item.json.longitude}, ${$('Extract Coordinates').item.json.latitude}]}` }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ign-zone-urba",
+      "name": "IGN Zone Urba",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1060, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "url-parcelle",
+              "name": "url_parcelle",
+              "value": "={{ \"https://www.geoportail-urbanisme.gouv.fr/map/parcel-info/\" + [$('IGN Parcelle').item.json.features[0].properties.code_dep, $('IGN Parcelle').item.json.features[0].properties.code_com, $('IGN Parcelle').item.json.features[0].properties.com_abs, $('IGN Parcelle').item.json.features[0].properties.code_arr, $('IGN Parcelle').item.json.features[0].properties.section, $('IGN Parcelle').item.json.features[0].properties.numero].join('_') + \"/\" }}",
+              "type": "string"
+            },
+            {
+              "id": "commune",
+              "name": "commune",
+              "value": "={{ $('IGN Parcelle').item.json.features[0].properties.nom_com }}",
+              "type": "string"
+            },
+            {
+              "id": "section",
+              "name": "section",
+              "value": "={{ $('IGN Parcelle').item.json.features[0].properties.section }}",
+              "type": "string"
+            },
+            {
+              "id": "numero",
+              "name": "numero",
+              "value": "={{ $('IGN Parcelle').item.json.features[0].properties.numero }}",
+              "type": "string"
+            },
+            {
+              "id": "surface",
+              "name": "surface",
+              "value": "={{ $('IGN Parcelle').item.json.features[0].properties.contenance }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "build-parcel-info",
+      "name": "Build Parcel Info",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1280, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "check-rnu",
+              "leftValue": "={{ $('IGN Zone Urba').item.json.totalFeatures }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "is-rnu",
+      "name": "Est-ce RNU ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "messages": {
+          "message": [
+            {
+              "content": "=Tu es un expert en urbanisme. Je souhaite analyser la faisabilité d'un projet sur une parcelle située dans une commune qui ne dispose PAS de PLU (Plan Local d'Urbanisme), ni de carte communale.\n\nElle est donc soumise au RNU (Règlement National d'Urbanisme).\n\nVoici sa fiche de parcelle: {{ $('Build Parcel Info').item.json.url_parcelle }}\n\n📍 Informations localisation :\nCommune : {{ $('Build Parcel Info').item.json.commune }}\nParcelle : Section {{ $('Build Parcel Info').item.json.section }} Numéro {{ $('Build Parcel Info').item.json.numero }}\nSurface : {{ $('Build Parcel Info').item.json.surface }} m²\n\nTon objectif : Appliquer les règles du Code de l'Urbanisme (Articles R.111-1 et suivants) à ce contexte précis.\n\nFournis une synthèse opérationnelle stricte selon le modèle ci-dessous :\n\n0. En entête\nIndique clairement : \"⚠️ Zone sous RNU (Règlement National d'Urbanisme)\"\n\n1. Usages autorisés / interdits (Règle de la constructibilité limitée)\n🛑 C'est le point le plus critique.\n- Rappelle la règle de l'article L.111-3 : La construction n'est autorisée que dans les \"Parties Actuellement Urbanisées\" (PAU) de la commune.\n- D'après ta connaissance de la commune et les coordonnées GPS fournies, estime si la parcelle semble située dans le bourg/hameau densifié (constructible) ou en zone diffuse/agricole (inconstructible sauf exceptions).\n- Liste les exceptions majeures (intérêt public, agricole, extension mesurée).\n\n2. Implantation & distances (Règles supplétives du code)\nDonne les règles par défaut du Code de l'Urbanisme :\n- Limites séparatives : Citer l'article R.111-18 (généralement 3 mètres min. ou la moitié de la hauteur).\n- Retrait voirie : Règles générales d'alignement (R.111-17).\n- Entre deux bâtiments : Règle de non-contiguïté.\n\n3. Hauteurs & volumes\n- Mentionne l'article R.111-27 : Le projet ne doit pas porter atteinte au caractère ou à l'intérêt des lieux avoisinants.\n- Y a-t-il des monuments historiques proches qui imposeraient une hauteur spécifique ?\n\n4. Emprise au sol & densité\n- Précise qu'il n'y a pas de CES (Coefficient d'Emprise au Sol) fixe au niveau national, mais que l'insertion paysagère prime.\n- Règles sur la perméabilité des sols.\n\n5. Stationnement & Accès\n- Sécurité des accès (Article R.111-2).\n- Gestion des eaux pluviales et réseaux.\n\n6. Points de vigilance RNU\n- Risque majeur : Le refus de permis si la parcelle est considérée \"hors partie urbanisée\" (L.111-3).\n- Desserte par les réseaux (Eau/Électricité) : Si le terrain n'est pas desservi, le permis peut être refusé (L.111-11).\n- Avis conforme du Préfet souvent requis dans les zones RNU.\n\nFORME ATTENDUE :\nMaximum 10 à 15 lignes\nFormat bullet points avec icones pour bien identifier\nPas de reformulation inutile\nPas de résumé global, seulement les points qui impactent un projet\nLimite de caractères : 4000\n\nSi tu as un doute sur la localisation (dedans/dehors du bourg), précise : \"⚠️ À vérifier : La localisation dans la partie urbanisée (PAU) est la condition sine qua non.\""
+            }
+          ]
+        },
+        "options": {},
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-base.perplexity",
+      "typeVersion": 1,
+      "position": [1720, 200],
+      "id": "perplexity-rnu",
+      "name": "Perplexity RNU",
+      "credentials": {
+        "perplexityApi": {
+          "id": "dT6j0VApyglapeFN",
+          "name": "Batipro Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "messages": {
+          "message": [
+            {
+              "content": "=Voici un PLU\nVoici les informations sur la parcelle concernée ainsi que son zonage :\nCommune : {{ $('Build Parcel Info').item.json.commune }}\nZonage PLU : {{ $('IGN Zone Urba').item.json.features[0].properties.libelle }}\nURL PLU : https://data.geopf.fr/annexes/gpu/documents/{{ $('IGN Zone Urba').item.json.features[0].properties.partition }}/{{ $('IGN Zone Urba').item.json.features[0].properties.gpu_doc_id }}/{{ $('IGN Zone Urba').item.json.features[0].properties.nomfic }}\n\nTu es un expert en urbanisme je veux que tu analyse ce PLU\n\nTon objectif : identifier uniquement les règles qui impactent un projet.\n\nDans ta réponse, fournis une synthèse claire, concise, et exploitable en séparant les éléments essentiels :\n\n0. En entête le zonage\n\n1. Usages autorisés / interdits\nCe qui est autorisé, interdit, soumis à conditions, uniquement si indiqué dans le texte.\nMentionne clairement ce qui peut bloquer un projet (incompatibilités d'usage).\n\n2. Implantation & distances obligatoires\nDonne les distances chiffrées présentes dans le règlement :\nretraits aux limites séparatives\nretraits aux voies\nmarges de recul\nemprises obligatoires ou zones à préserver\nprescriptions particulières si mentionnées\n(Si aucune distance n'est donnée dans la zone → le préciser clairement.)\n\n3. Hauteurs & volumes\nhauteur max\nnombre d'étages ou équivalents si précisé\ncontraintes de gabarit, toitures, pente, alignement\n\n4. Emprise au sol & densité\nemprise maximale\nsurface minimale de terrain si indiquée\nrègles sur les espaces verts, plantations, traitement des sols\n\n5. Stationnement\nnombre de places par type de bâtiment\nobligations spécifiques (PMR, vélos, etc.)\n\n6. Points de vigilance\nListe seulement les éléments qui peuvent bloquer ou restreindre un permis :\nservitudes\nprotections (risques, ABF, zones sensibles)\nprescriptions architecturales contraignantes\nmentions du règlement qui indiquent « interdit », « doit », « obligatoire », « ne peut pas »\n\nFORME ATTENDUE :\nMaximum 10 à 15 lignes\nLimite de caractères : 4000\nFormat bullet points avec icones pour bien identifier\nPas de reformulation inutile\nPas de résumé global, seulement les points qui impactent un projet\n\nSi une information n'apparaît pas dans le texte :\nTu écris clairement : « Aucune indication donnée dans le règlement. »\n\nNE FAIS PAS :\npas de description du PLU\npas de blabla narratif\npas de phrases longues\npas de contenu inventé\npas de supposition"
+            }
+          ]
+        },
+        "options": {},
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-base.perplexity",
+      "typeVersion": 1,
+      "position": [1720, 400],
+      "id": "perplexity-plu",
+      "name": "Perplexity PLU",
+      "credentials": {
+        "perplexityApi": {
+          "id": "dT6j0VApyglapeFN",
+          "name": "Batipro Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupérer les données\nconst parcelInfo = $('Build Parcel Info').first().json;\nconst ignZoneUrba = $('IGN Zone Urba').first().json;\nconst perplexityResponse = $input.first().json;\n\n// Déterminer le type (RNU ou PLU)\nconst isRNU = ignZoneUrba.totalFeatures === 0;\nconst zonage = isRNU ? 'RNU' : (ignZoneUrba.features[0]?.properties?.libelle || 'Inconnu');\n\n// Construire la réponse structurée\nconst response = {\n  success: true,\n  data: {\n    parcelle: {\n      commune: parcelInfo.commune,\n      section: parcelInfo.section,\n      numero: parcelInfo.numero,\n      surface: parcelInfo.surface,\n      url_geoportail: parcelInfo.url_parcelle\n    },\n    zonage: {\n      type: isRNU ? 'RNU' : 'PLU',\n      libelle: zonage,\n      url_document: isRNU ? null : `https://data.geopf.fr/annexes/gpu/documents/${ignZoneUrba.features[0].properties.partition}/${ignZoneUrba.features[0].properties.gpu_doc_id}/${ignZoneUrba.features[0].properties.nomfic}`\n    },\n    analyse: {\n      texte: perplexityResponse.choices[0].message.content,\n      source: 'Perplexity AI'\n    },\n    timestamp: new Date().toISOString()\n  }\n};\n\nreturn response;"
+      },
+      "id": "format-response",
+      "name": "Format Response JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1940, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2160, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Web": {
+      "main": [
+        [
+          {
+            "node": "Extract Coordinates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Coordinates": {
+      "main": [
+        [
+          {
+            "node": "IGN Parcelle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IGN Parcelle": {
+      "main": [
+        [
+          {
+            "node": "IGN Zone Urba",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IGN Zone Urba": {
+      "main": [
+        [
+          {
+            "node": "Build Parcel Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Parcel Info": {
+      "main": [
+        [
+          {
+            "node": "Est-ce RNU ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Est-ce RNU ?": {
+      "main": [
+        [
+          {
+            "node": "Perplexity RNU",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Perplexity PLU",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perplexity RNU": {
+      "main": [
+        [
+          {
+            "node": "Format Response JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perplexity PLU": {
+      "main": [
+        [
+          {
+            "node": "Format Response JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response JSON": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}

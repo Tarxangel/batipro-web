@@ -1,0 +1,422 @@
+/* Reset & Base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  overflow: hidden;
+  /* Désactiver la sélection de texte sur mobile */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  /* Désactiver le callout iOS (menu qui apparaît sur appui long) */
+  -webkit-touch-callout: none;
+  /* Désactiver le tap highlight */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile-first: carte plein écran */
+#map {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  /* Désactiver sélection sur la carte aussi */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  /* Améliorer les performances tactiles */
+  touch-action: pan-x pan-y;
+}
+
+/* Boutons tactiles terrain (56x56px pour usage avec gants) */
+.map-controls {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  z-index: 1000;
+}
+
+.map-button {
+  width: 56px;
+  height: 56px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  border: none;
+  cursor: pointer;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s ease, background 0.1s ease;
+}
+
+/* Contraste élevé pour usage extérieur */
+.map-button:active {
+  transform: scale(0.95);
+  background: #f0f0f0;
+}
+
+.map-button:hover {
+  background: #f8f8f8;
+}
+
+/* Highlight parcelle sélectionnée */
+.parcel-highlight {
+  fill: #FFD700;
+  fill-opacity: 0.4;
+  stroke: #FFA500;
+  stroke-width: 3;
+  stroke-opacity: 1;
+}
+
+/* Optimisation GPU pour animations fluides */
+.leaflet-marker-pane,
+.leaflet-tile-pane {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Fix icônes Leaflet par défaut */
+.leaflet-default-icon-path {
+  background-image: url('https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png');
+}
+
+/* Barre de recherche */
+#search-container {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: 90%;
+  max-width: 500px;
+}
+
+#search-input {
+  width: 100%;
+  padding: 14px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  background: white;
+  outline: none;
+  transition: box-shadow 0.2s ease;
+  /* Permettre sélection dans l'input */
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+}
+
+#search-input:focus {
+  box-shadow: 0 6px 30px rgba(0,0,0,0.25);
+}
+
+#search-input::placeholder {
+  color: #999;
+}
+
+#search-results {
+  display: none;
+  position: absolute;
+  top: 60px;
+  left: 0;
+  right: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.search-result-item {
+  padding: 12px 20px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.2s ease;
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-item:hover {
+  background: #f8f8f8;
+}
+
+.search-result-label {
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.search-result-context {
+  font-size: 13px;
+  color: #666;
+}
+
+.search-result-item.no-results,
+.search-result-item.error {
+  cursor: default;
+  color: #999;
+  text-align: center;
+}
+
+.search-result-item.error {
+  color: #d32f2f;
+}
+
+/* Responsive mobile */
+@media (max-width: 600px) {
+  #search-container {
+    width: 95%;
+    top: 10px;
+  }
+
+  #search-input {
+    padding: 12px 16px;
+    font-size: 15px;
+  }
+}
+
+/* Card de résultats */
+.results-card {
+  position: fixed;
+  bottom: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 600px;
+  max-height: 70vh;
+  background: white;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 30px rgba(0,0,0,0.3);
+  z-index: 2000;
+  overflow-y: auto;
+  transition: bottom 0.3s ease;
+}
+
+.results-card.visible {
+  bottom: 0;
+}
+
+.results-card-header {
+  position: sticky;
+  top: 0;
+  background: white;
+  padding: 20px;
+  border-bottom: 2px solid #f0f0f0;
+  z-index: 1;
+}
+
+.results-card-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  color: #666;
+}
+
+.results-card-close:hover {
+  background: #e0e0e0;
+}
+
+.zone-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.zone-badge.blue {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.zone-badge.orange {
+  background: #fff3e0;
+  color: #f57c00;
+}
+
+.results-card-header h3 {
+  margin: 8px 0 4px 0;
+  font-size: 20px;
+  color: #333;
+}
+
+.parcelle-ref {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.results-card-body {
+  padding: 20px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.info-label {
+  font-weight: 500;
+  color: #666;
+}
+
+.info-value {
+  font-weight: 600;
+  color: #333;
+}
+
+.results-card-body hr {
+  border: none;
+  border-top: 2px solid #f0f0f0;
+  margin: 20px 0;
+}
+
+.analyse-content h4 {
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.analyse-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #444;
+  /* Permettre sélection du texte de l'analyse */
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+}
+
+.analyse-text p {
+  margin: 8px 0;
+}
+
+.bullet-point {
+  padding-left: 8px;
+  margin: 6px 0;
+}
+
+.card-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.btn-link {
+  flex: 1;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 10px;
+  text-align: center;
+  text-decoration: none;
+  color: #333;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+.btn-link:hover {
+  background: #e8e8e8;
+}
+
+/* Card de chargement */
+.results-card.loading {
+  bottom: 0 !important;
+}
+
+.results-card.loading .results-card-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border-bottom: none;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f0f0f0;
+  border-top-color: #1976d2;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 14px;
+  color: #666;
+  padding: 8px 0;
+  opacity: 0.3;
+  transition: opacity 0.3s ease;
+}
+
+.loading-text.active {
+  opacity: 1;
+  font-weight: 500;
+  color: #1976d2;
+}
+
+/* Card d'erreur */
+.results-card.error {
+  bottom: 0 !important;
+}
+
+.results-card.error .results-card-header h3 {
+  color: #d32f2f;
+}
+
+.error-hint {
+  font-size: 13px;
+  color: #999;
+  margin-top: 10px;
+}
+
+/* Responsive mobile pour la card */
+@media (max-width: 600px) {
+  .results-card {
+    width: 100%;
+    max-width: none;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .card-actions {
+    flex-direction: column;
+  }
+
+  .btn-link {
+    width: 100%;
+  }
+}
