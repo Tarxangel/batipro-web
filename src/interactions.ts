@@ -1,6 +1,7 @@
 import L from 'leaflet';
 import { analyserPLU } from './api';
 import { showLoadingCard, showResultsCard, showErrorCard } from './resultsCard';
+import { saveAnalysis } from './database';
 
 let touchTimer: number | null = null;
 let currentMarker: L.Marker | null = null;
@@ -86,17 +87,50 @@ async function onLongPress(map: L.Map, latlng: L.LatLng): Promise<void> {
     // Appeler l'API n8n pour analyser le PLU
     const resultat = await analyserPLU(latlng.lat, latlng.lng);
 
-    // Afficher les résultats
-    showResultsCard(resultat);
+    // Sauvegarder dans la DB
+    try {
+      const savedAnalysis = await saveAnalysis({
+        ...resultat,
+        data: {
+          ...resultat.data,
+          latitude: latlng.lat,
+          longitude: latlng.lng
+        }
+      });
 
-    // Mettre à jour la popup
-    currentMarker.bindPopup(`✅ Analyse terminée<br>${resultat.data.parcelle.commune}`).openPopup();
+      // Remplacer marker temporaire par marker sauvegardé
+      if (currentMarker) {
+        map.removeLayer(currentMarker);
+      }
+
+      const savedPinsManager = (window as any).savedPinsManager;
+      if (savedPinsManager) {
+        currentMarker = savedPinsManager.addSavedMarker(savedAnalysis);
+        if (currentMarker) {
+          currentMarker.bindPopup(`✅ Analyse sauvegardée<br>${resultat.data.parcelle.commune}`).openPopup();
+        }
+      }
+
+      // Afficher les résultats avec l'ID de la DB
+      showResultsCard(savedAnalysis);
+
+      console.log('✅ Analyse sauvegardée:', savedAnalysis.id);
+    } catch (dbError) {
+      console.error('⚠️ Erreur sauvegarde DB (non bloquant):', dbError);
+      // Ne pas bloquer l'UX si la DB échoue
+      showResultsCard(resultat);
+      if (currentMarker) {
+        currentMarker.bindPopup(`✅ Analyse terminée<br>${resultat.data.parcelle.commune}`).openPopup();
+      }
+    }
   } catch (error) {
     console.error('Erreur analyse PLU:', error);
     showErrorCard('Impossible d\'analyser cette parcelle. Vérifiez que vous avez cliqué sur une zone cadastrée.');
 
     // Mettre à jour la popup
-    currentMarker.bindPopup(`❌ Erreur d'analyse`).openPopup();
+    if (currentMarker) {
+      currentMarker.bindPopup(`❌ Erreur d'analyse`).openPopup();
+    }
   }
 }
 

@@ -27,12 +27,15 @@ export interface AnalyseDonnees {
 }
 
 export interface AnalysePLUResponse {
+  id?: string; // ID de l'analyse sauvegardée (si provient de la DB)
   success: boolean;
   data: {
     parcelle: ParcelleDonnees;
     zonage: ZonageDonnees;
     analyse: AnalyseDonnees;
     timestamp: string;
+    latitude?: number;  // Coordonnées pour analyses sauvegardées
+    longitude?: number; // Coordonnées pour analyses sauvegardées
   };
 }
 

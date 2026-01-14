@@ -1,4 +1,5 @@
 import type { AnalysePLUResponse } from './api';
+import { deleteAnalysis } from './database';
 
 let currentCard: HTMLElement | null = null;
 
@@ -50,6 +51,13 @@ export function showResultsCard(data: AnalysePLUResponse): void {
   // Déterminer couleur selon type de zonage
   const zoneColor = zonage.type === 'RNU' ? 'orange' : 'blue';
 
+  // Bouton supprimer si c'est une analyse sauvegardée
+  const deleteButtonHtml = data.id ? `
+    <button class="btn-delete" data-analysis-id="${data.id}">
+      🗑️ Supprimer cette analyse
+    </button>
+  ` : '';
+
   // Créer card de résultats
   const card = document.createElement('div');
   card.className = 'results-card';
@@ -74,6 +82,7 @@ export function showResultsCard(data: AnalysePLUResponse): void {
         <h4>📋 Analyse Urbanistique</h4>
         <div class="analyse-text">${formatAnalyseText(analyse.texte)}</div>
       </div>
+      ${deleteButtonHtml}
       <div class="card-actions">
         <a href="${parcelle.url_geoportail}" target="_blank" class="btn-link">
           🗺️ Voir sur Géoportail
@@ -89,6 +98,32 @@ export function showResultsCard(data: AnalysePLUResponse): void {
 
   document.body.appendChild(card);
   currentCard = card;
+
+  // Ajouter handler de suppression
+  if (data.id) {
+    const deleteBtn = card.querySelector('.btn-delete') as HTMLButtonElement;
+    deleteBtn?.addEventListener('click', async () => {
+      if (!confirm('Supprimer cette analyse définitivement ?')) return;
+
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = '⏳ Suppression...';
+
+      try {
+        await deleteAnalysis(data.id!);
+        const savedPinsManager = (window as any).savedPinsManager;
+        if (savedPinsManager) {
+          savedPinsManager.removeSavedMarker(data.id!);
+        }
+        card.remove();
+        console.log('✅ Analyse supprimée:', data.id);
+      } catch (error) {
+        console.error('❌ Erreur suppression:', error);
+        alert('Erreur lors de la suppression. Réessayez.');
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = '🗑️ Supprimer cette analyse';
+      }
+    });
+  }
 
   // Animation d'entrée
   setTimeout(() => {

@@ -420,3 +420,113 @@ body {
     width: 100%;
   }
 }
+
+/* ===== NOUVEAUX STYLES - BASE DE DONNÉES ===== */
+
+/* Bouton toggle pins sauvegardés */
+.pins-toggle-button {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  border: none;
+  cursor: pointer;
+  font-size: 24px;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s ease, background 0.2s ease;
+  touch-action: manipulation;
+}
+
+.pins-toggle-button:active {
+  transform: scale(0.95);
+}
+
+.pins-toggle-button.active {
+  background: #1976d2;
+  color: white;
+}
+
+.pins-toggle-button .count-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #f57c00;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Marker sauvegardé (style différent) */
+.saved-marker {
+  background: transparent !important;
+  border: none !important;
+  width: 16px !important;
+  height: 16px !important;
+  margin-left: -8px !important;
+  margin-top: -8px !important;
+}
+
+.saved-marker-inner {
+  width: 16px;
+  height: 16px;
+  background-color: #1976d2;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.saved-marker-inner:hover {
+  transform: scale(1.2);
+}
+
+/* Bouton supprimer dans results card */
+.btn-delete {
+  width: 100%;
+  padding: 12px;
+  background: #ffebee;
+  color: #d32f2f;
+  border: none;
+  border-radius: 10px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  margin-top: 15px;
+  margin-bottom: 10px;
+  transition: background 0.2s ease;
+  touch-action: manipulation;
+}
+
+.btn-delete:hover:not(:disabled) {
+  background: #ffcdd2;
+}
+
+.btn-delete:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive pour bouton toggle sur mobile */
+@media (max-width: 600px) {
+  .pins-toggle-button {
+    top: 70px;
+    right: 15px;
+  }
+}

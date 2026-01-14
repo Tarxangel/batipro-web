@@ -5,6 +5,9 @@ import { initializeMap } from './map';
 import { loadCadastreLayer } from './cadastre';
 import { setupLongPressInteraction } from './interactions';
 import { setupSearchBar } from './search';
+import { SavedPinsManager } from './savedPins';
+import { createToggleButton, updateToggleButtonState } from './ui/toggleButton';
+import { testDatabaseConnection } from './database';
 
 // Initialisation au chargement DOM
 document.addEventListener('DOMContentLoaded', async () => {
@@ -20,6 +23,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialiser la carte
   const map = initializeMap();
   console.log('Carte initialisée');
+
+  // Initialiser saved pins manager
+  const savedPinsManager = new SavedPinsManager(map);
+  (window as any).savedPinsManager = savedPinsManager; // Pour accès global
+
+  // Tester connexion DB et charger pins sauvegardés
+  try {
+    const connected = await testDatabaseConnection();
+    if (connected) {
+      console.log('✅ Connexion Supabase établie');
+
+      // Charger pins sauvegardés
+      await savedPinsManager.loadSavedPins();
+      const count = savedPinsManager.getAnalysesCount();
+      console.log(`✅ ${count} analyses chargées`);
+    } else {
+      console.warn('⚠️ DB non disponible - mode dégradé');
+    }
+  } catch (error) {
+    console.error('⚠️ Erreur initialisation DB:', error);
+  }
+
+  // Créer bouton toggle
+  const toggleButton = createToggleButton(() => {
+    savedPinsManager.togglePinsVisibility();
+    updateToggleButtonState(
+      savedPinsManager.isPinsVisible(),
+      savedPinsManager.getAnalysesCount()
+    );
+  });
+  document.body.appendChild(toggleButton);
+  updateToggleButtonState(true, savedPinsManager.getAnalysesCount());
 
   // Setup barre de recherche
   setupSearchBar(map);

@@ -10,3 +10,8 @@ export const MAINTENANCE_MESSAGE = {
   description: 'Notre équipe travaille actuellement sur des améliorations du système d\'analyse PLU/RNU. L\'application sera de nouveau disponible très prochainement.',
   contact: 'Pour toute urgence, contactez-nous à contact@batiproconcept.fr'
 };
+
+// Configuration Supabase
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+export const ENABLE_DATABASE = SUPABASE_URL && SUPABASE_ANON_KEY;
