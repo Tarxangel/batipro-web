@@ -8,6 +8,8 @@ import { setupSearchBar } from './search';
 import { SavedPinsManager } from './savedPins';
 import { createToggleButton, updateToggleButtonState } from './ui/toggleButton';
 import { testDatabaseConnection } from './database';
+import { PinsListPanel } from './ui/pinsList';
+import { showResultsCard } from './resultsCard';
 
 // Initialisation au chargement DOM
 document.addEventListener('DOMContentLoaded', async () => {
@@ -45,13 +47,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.error('⚠️ Erreur initialisation DB:', error);
   }
 
-  // Créer bouton toggle
+  // Créer panneau de liste des pins
+  const pinsListPanel = new PinsListPanel((analysis) => {
+    // Callback appelé quand on clique sur un pin dans la liste
+    // 1. Zoomer sur le pin
+    const { latitude, longitude } = analysis.data;
+    map.setView([latitude, longitude], 18, {
+      animate: true,
+      duration: 0.5
+    });
+
+    // 2. Afficher les résultats
+    showResultsCard(analysis);
+
+    // 3. Fermer le panneau
+    pinsListPanel.hide();
+  });
+  (window as any).pinsListPanel = pinsListPanel;
+
+  // Créer bouton toggle qui ouvre maintenant le panneau
   const toggleButton = createToggleButton(() => {
-    savedPinsManager.togglePinsVisibility();
-    updateToggleButtonState(
-      savedPinsManager.isPinsVisible(),
-      savedPinsManager.getAnalysesCount()
-    );
+    const analyses = savedPinsManager.getAllAnalyses();
+    pinsListPanel.toggle(analyses);
   });
   document.body.appendChild(toggleButton);
   updateToggleButtonState(true, savedPinsManager.getAnalysesCount());

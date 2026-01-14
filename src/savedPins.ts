@@ -129,4 +129,9 @@ export class SavedPinsManager {
   getAnalysis(id: string): SavedAnalysis | undefined {
     return this.analyses.get(id);
   }
+
+  // Obtenir toutes les analyses (pour la liste)
+  getAllAnalyses(): SavedAnalysis[] {
+    return Array.from(this.analyses.values());
+  }
 }

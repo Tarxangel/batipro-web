@@ -93,6 +93,9 @@ export function showResultsCard(data: AnalysePLUResponse): void {
           </a>
         ` : ''}
       </div>
+      <button class="btn-share">
+        📤 Partager
+      </button>
     </div>
   `;
 
@@ -125,6 +128,12 @@ export function showResultsCard(data: AnalysePLUResponse): void {
     });
   }
 
+  // Ajouter handler de partage
+  const shareBtn = card.querySelector('.btn-share') as HTMLButtonElement;
+  shareBtn?.addEventListener('click', () => {
+    handleShare(data);
+  });
+
   // Animation d'entrée
   setTimeout(() => {
     card.classList.add('visible');
@@ -145,6 +154,108 @@ function formatAnalyseText(text: string): string {
       return line ? `<p>${line}</p>` : '';
     })
     .join('');
+}
+
+// Fonction de partage
+function handleShare(data: AnalysePLUResponse): void {
+  const { parcelle, zonage, analyse } = data.data;
+
+  // Créer le texte à partager
+  const shareText = `📍 Analyse PLU - ${parcelle.commune}
+
+Section ${parcelle.section} - N° ${parcelle.numero}
+Surface: ${parcelle.surface} m²
+Zone: ${zonage.libelle} (${zonage.type})
+
+${analyse.texte.substring(0, 200)}...
+
+Plus d'infos: ${parcelle.url_geoportail}`;
+
+  // Créer un élément de dialogue personnalisé
+  const shareDialog = document.createElement('div');
+  shareDialog.className = 'share-dialog';
+  shareDialog.innerHTML = `
+    <div class="share-dialog-content">
+      <div class="share-dialog-header">
+        <h3>Partager l'analyse</h3>
+        <button class="share-dialog-close">×</button>
+      </div>
+      <div class="share-dialog-body">
+        <button class="share-option" data-method="email">
+          📧 Email
+        </button>
+        <button class="share-option" data-method="sms">
+          💬 SMS
+        </button>
+        <button class="share-option" data-method="copy">
+          📋 Copier le texte
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(shareDialog);
+
+  // Animation d'entrée
+  setTimeout(() => {
+    shareDialog.classList.add('visible');
+  }, 10);
+
+  // Gestionnaires d'événements
+  const closeBtn = shareDialog.querySelector('.share-dialog-close');
+  closeBtn?.addEventListener('click', () => {
+    shareDialog.classList.remove('visible');
+    setTimeout(() => shareDialog.remove(), 300);
+  });
+
+  const shareOptions = shareDialog.querySelectorAll('.share-option');
+  shareOptions.forEach(option => {
+    option.addEventListener('click', () => {
+      const method = option.getAttribute('data-method');
+
+      switch (method) {
+        case 'email':
+          const emailSubject = encodeURIComponent(`Analyse PLU - ${parcelle.commune}`);
+          const emailBody = encodeURIComponent(shareText);
+          window.location.href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
+          break;
+
+        case 'sms':
+          const smsBody = encodeURIComponent(shareText);
+          // iOS et Android supportent tous deux le protocole sms:
+          window.location.href = `sms:?body=${smsBody}`;
+          break;
+
+        case 'copy':
+          navigator.clipboard.writeText(shareText).then(() => {
+            alert('✅ Texte copié dans le presse-papier !');
+          }).catch(err => {
+            console.error('❌ Erreur copie:', err);
+            // Fallback: afficher le texte pour copie manuelle
+            const textarea = document.createElement('textarea');
+            textarea.value = shareText;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('✅ Texte copié dans le presse-papier !');
+          });
+          break;
+      }
+
+      // Fermer le dialogue après action
+      shareDialog.classList.remove('visible');
+      setTimeout(() => shareDialog.remove(), 300);
+    });
+  });
+
+  // Fermer si on clique en dehors
+  shareDialog.addEventListener('click', (e) => {
+    if (e.target === shareDialog) {
+      shareDialog.classList.remove('visible');
+      setTimeout(() => shareDialog.remove(), 300);
+    }
+  });
 }
 
 export function showErrorCard(error: string): void {
