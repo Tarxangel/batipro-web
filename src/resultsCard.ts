@@ -167,9 +167,10 @@ Section ${parcelle.section} - N° ${parcelle.numero}
 Surface: ${parcelle.surface} m²
 Zone: ${zonage.libelle} (${zonage.type})
 
-${analyse.texte.substring(0, 200)}...
+📋 ANALYSE COMPLÈTE:
+${analyse.texte}
 
-Plus d'infos: ${parcelle.url_geoportail}`;
+🔗 Plus d'infos: ${parcelle.url_geoportail}${zonage.url_document ? `\n📄 Document PLU: ${zonage.url_document}` : ''}`;
 
   // Créer un élément de dialogue personnalisé
   const shareDialog = document.createElement('div');
