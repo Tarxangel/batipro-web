@@ -3,23 +3,118 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="description" content="Bâti Pro - Consultation PLU/RNU sur carte interactive">
-  <title>Bâti Pro - Carte Interactive</title>
+  <meta name="description" content="Batipro Concept - Outils digitaux pour professionnels du bâtiment">
+  <title>Batipro Concept</title>
+  <link rel="stylesheet" href="/src/styles/home.css">
 </head>
 <body>
-  <div id="map"></div>
+  <!-- Navigation -->
+  <nav class="nav">
+    <div class="nav-content">
+      <div class="nav-logo">Batipro Concept</div>
+    </div>
+  </nav>
 
-  <!-- Barre de recherche -->
-  <div id="search-container">
-    <input
-      type="text"
-      id="search-input"
-      placeholder="🔍 Rechercher une adresse à Besançon..."
-      autocomplete="off"
-    />
-    <div id="search-results"></div>
-  </div>
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1 class="hero-title">Des outils pensés<br>pour le terrain.</h1>
+      <p class="hero-subtitle">
+        Une suite d'applications professionnelles pour simplifier<br>
+        le travail des commerciaux et techniciens du bâtiment.
+      </p>
+      <a href="/map.html" class="hero-cta">
+        Découvrir Batipro Map
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path d="M1 6H11M11 6L6 1M11 6L6 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+    </div>
+  </section>
 
-  <script type="module" src="/src/main.ts"></script>
+  <!-- Tools Section -->
+  <section class="tools">
+    <div class="tools-container">
+
+      <!-- Batipro Map -->
+      <a href="/map.html" class="tool-card featured">
+        <div class="tool-card-content">
+          <div class="tool-badge">Disponible maintenant</div>
+          <h2 class="tool-title">Batipro Map</h2>
+          <p class="tool-description">
+            Consultation instantanée des règles PLU et RNU sur carte interactive.
+            Analyse IA en 30 secondes pour chaque parcelle.
+          </p>
+          <div class="tool-features-list">
+            <div class="feature-item">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M5 10L8.5 13.5L15 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Carte interactive IGN</span>
+            </div>
+            <div class="feature-item">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M5 10L8.5 13.5L15 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Analyse IA PLU/RNU</span>
+            </div>
+            <div class="feature-item">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M5 10L8.5 13.5L15 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Partage instantané</span>
+            </div>
+          </div>
+          <div class="tool-link">
+            Ouvrir l'outil
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        <div class="tool-visual">
+          <div class="visual-placeholder map"></div>
+        </div>
+      </a>
+
+      <!-- Future Tools -->
+      <div class="tool-card upcoming">
+        <div class="tool-card-content">
+          <div class="tool-badge upcoming">Bientôt disponible</div>
+          <h2 class="tool-title">Nouvel outil</h2>
+          <p class="tool-description">
+            Un nouvel outil professionnel arrive prochainement pour enrichir
+            votre suite Batipro Concept.
+          </p>
+        </div>
+        <div class="tool-visual">
+          <div class="visual-placeholder"></div>
+        </div>
+      </div>
+
+      <div class="tool-card upcoming">
+        <div class="tool-card-content">
+          <div class="tool-badge upcoming">Bientôt disponible</div>
+          <h2 class="tool-title">Nouvel outil</h2>
+          <p class="tool-description">
+            Un nouvel outil professionnel arrive prochainement pour enrichir
+            votre suite Batipro Concept.
+          </p>
+        </div>
+        <div class="tool-visual">
+          <div class="visual-placeholder"></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <p>&copy; 2026 Batipro Concept. Tous droits réservés.</p>
+    </div>
+  </footer>
+
 </body>
 </html>

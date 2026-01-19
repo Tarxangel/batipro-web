@@ -98,7 +98,7 @@ body {
 /* Barre de recherche */
 #search-container {
   position: fixed;
-  top: 20px;
+  top: 15px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
@@ -180,11 +180,20 @@ body {
   color: #d32f2f;
 }
 
+/* Cacher les contrôles Leaflet (zoom et layers) */
+.leaflet-control-zoom {
+  display: none !important;
+}
+
+.leaflet-control-layers {
+  display: none !important;
+}
+
 /* Responsive mobile */
 @media (max-width: 600px) {
   #search-container {
     width: 95%;
-    top: 10px;
+    top: 15px;
   }
 
   #search-input {
@@ -426,7 +435,7 @@ body {
 /* Bouton toggle pins sauvegardés */
 .pins-toggle-button {
   position: fixed;
-  top: 80px;
+  top: 85px;
   right: 20px;
   width: 56px;
   height: 56px;
@@ -526,7 +535,7 @@ body {
 /* Responsive pour bouton toggle sur mobile */
 @media (max-width: 600px) {
   .pins-toggle-button {
-    top: 70px;
+    top: 85px;
     right: 15px;
   }
 }
@@ -806,4 +815,407 @@ body {
 
 .share-option:active {
   transform: scale(0.98);
+}
+
+/* Bouton retour à l'accueil */
+.back-home-btn {
+  position: fixed;
+  bottom: 30px;
+  left: 20px;
+  z-index: 2000;
+  width: 56px;
+  height: 56px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.back-home-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.back-home-btn:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+  .back-home-btn {
+    width: 50px;
+    height: 50px;
+    font-size: 24px;
+    bottom: 20px;
+    left: 15px;
+  }
+}
+
+/* ===== GESTION DES COUCHES ===== */
+
+/* Bouton toggle couches */
+.layers-toggle-btn {
+  position: fixed;
+  bottom: 90px;
+  left: 20px;
+  width: 56px;
+  height: 56px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: none;
+  cursor: pointer;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.layers-toggle-btn svg {
+  width: 24px;
+  height: 24px;
+  stroke: #333;
+}
+
+.layers-toggle-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.layers-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+/* Panneau gestion couches */
+.layers-panel {
+  position: fixed;
+  bottom: -400px;
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  height: 350px;
+  background: white;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.3);
+  z-index: 2500;
+  transition: bottom 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.layers-panel.visible {
+  bottom: 0;
+}
+
+.layers-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 2px solid #f0f0f0;
+  background: #f8f9fa;
+  border-radius: 20px 20px 0 0;
+}
+
+.layers-panel-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.layers-panel-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #e0e0e0;
+  border-radius: 50%;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+  color: #666;
+}
+
+.layers-panel-close:hover {
+  background: #d0d0d0;
+}
+
+.layers-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* Layer item */
+.layer-item {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.layer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.layer-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.layer-opacity-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #007AFF;
+  min-width: 45px;
+  text-align: right;
+}
+
+.layer-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Slider custom */
+.layer-opacity-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, #e0e0e0 0%, #007AFF 100%);
+  outline: none;
+  cursor: pointer;
+}
+
+.layer-opacity-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  border: 2px solid #007AFF;
+  transition: transform 0.1s ease;
+}
+
+.layer-opacity-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.layer-opacity-slider::-webkit-slider-thumb:active {
+  transform: scale(0.95);
+}
+
+.layer-opacity-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  border: 2px solid #007AFF;
+  transition: transform 0.1s ease;
+}
+
+.layer-opacity-slider::-moz-range-thumb:hover {
+  transform: scale(1.1);
+}
+
+.layer-opacity-slider::-moz-range-thumb:active {
+  transform: scale(0.95);
+}
+
+/* Responsive mobile */
+@media (max-width: 768px) {
+  .layers-toggle-btn {
+    width: 50px;
+    height: 50px;
+    bottom: 80px;
+    left: 15px;
+  }
+
+  .layers-panel {
+    max-width: 100%;
+    height: 400px;
+  }
+}
+
+/* ===== GÉOLOCALISATION ===== */
+
+/* Bouton Ma Position */
+.geolocation-btn {
+  position: fixed;
+  bottom: 160px;
+  left: 20px;
+  width: 56px;
+  height: 56px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: none;
+  cursor: pointer;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  color: #333;
+}
+
+.geolocation-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.geolocation-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.geolocation-btn:active {
+  transform: scale(0.95);
+}
+
+/* État actif (tracking) */
+.geolocation-btn.active {
+  background: #4285F4;
+  color: white;
+}
+
+/* État chargement */
+.geolocation-btn.loading {
+  pointer-events: none;
+}
+
+.geolocation-btn.loading svg {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Marker position utilisateur */
+.user-location-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.user-location-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  background: #4285F4;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(66, 133, 244, 0.5);
+  z-index: 2;
+}
+
+.user-location-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  background: rgba(66, 133, 244, 0.3);
+  border-radius: 50%;
+  animation: location-pulse 2s ease-out infinite;
+  z-index: 1;
+}
+
+@keyframes location-pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.5);
+    opacity: 0;
+  }
+}
+
+/* Toast notification géolocalisation */
+.geolocation-toast {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: white;
+  padding: 12px 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  transition: all 0.3s ease;
+  max-width: 90%;
+}
+
+.geolocation-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.geolocation-toast.error {
+  background: #fff3e0;
+  border-left: 4px solid #f57c00;
+}
+
+.toast-icon {
+  font-size: 20px;
+}
+
+.toast-message {
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
+
+/* Responsive mobile */
+@media (max-width: 768px) {
+  .geolocation-btn {
+    width: 50px;
+    height: 50px;
+    bottom: 140px;
+    left: 15px;
+  }
+
+  .geolocation-toast {
+    bottom: 80px;
+    font-size: 13px;
+  }
 }
