@@ -101,14 +101,30 @@ async function handleGeolocationClick(map: L.Map, button: HTMLButtonElement): Pr
   }
 }
 
-// Obtenir la position actuelle (Promise wrapper)
+// Obtenir la position actuelle (Promise wrapper avec fallback)
 function getCurrentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,  // Haute précision pour usage terrain
-      timeout: 10000,            // 10 secondes max
-      maximumAge: 0              // Pas de cache, position fraîche
-    });
+    // D'abord essayer haute précision (GPS mobile)
+    navigator.geolocation.getCurrentPosition(resolve,
+      (error) => {
+        // Si haute précision échoue, essayer basse précision (WiFi/IP pour desktop)
+        if (error.code === error.POSITION_UNAVAILABLE) {
+          console.log('📍 GPS non disponible, tentative WiFi/IP...');
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,  // Basse précision (WiFi/IP)
+            timeout: 15000,
+            maximumAge: 60000           // Cache 1 minute OK pour desktop
+          });
+        } else {
+          reject(error);
+        }
+      },
+      {
+        enableHighAccuracy: true,  // Haute précision pour usage terrain
+        timeout: 10000,            // 10 secondes max
+        maximumAge: 0              // Pas de cache, position fraîche
+      }
+    );
   });
 }
 
