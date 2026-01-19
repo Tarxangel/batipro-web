@@ -245,9 +245,18 @@ body {
 }
 
 .btn-loading {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 8px;
+}
+
+/* Quand le bouton est en loading */
+.btn-primary.loading .btn-text {
+  display: none;
+}
+
+.btn-primary.loading .btn-loading {
+  display: flex;
 }
 
 .spinner-small {
