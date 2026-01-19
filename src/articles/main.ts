@@ -62,12 +62,19 @@ const elements = {
   draftsList: document.getElementById('drafts-list')!
 };
 
+// Détecter si on est sur mobile
+function isMobile(): boolean {
+  return window.innerWidth <= 768 || 'ontouchstart' in window;
+}
+
 // Initialiser l'éditeur Quill
 function initQuillEditor() {
   if (state.quillEditor) return;
 
+  const mobile = isMobile();
+
   state.quillEditor = new Quill('#quill-editor', {
-    theme: 'snow',
+    theme: mobile ? 'bubble' : 'snow',
     placeholder: 'Contenu de l\'article...',
     modules: {
       toolbar: [
