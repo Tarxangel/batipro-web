@@ -13,5 +13,5 @@ export const MAINTENANCE_MESSAGE = {
 
 // Configuration Supabase
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://awhbjbuxbcxszlxcbpjb.supabase.co';
-export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3aGJqYnV4YmN4c3pseGNicGpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzOTM5NTgsImV4cCI6MjA4Mzk2OTk1OH0.za0Cg7EbcPYGlVckQf_8CNmRY9FbaDB-20OCLFZzSV0';
 export const ENABLE_DATABASE = SUPABASE_URL && SUPABASE_ANON_KEY;
