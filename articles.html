@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#6366f1" />
+  <title>Articles Chantier - Batipro</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <!-- Quill Editor -->
+  <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+  <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="app-header">
+      <a href="/" class="back-btn" title="Retour à l'accueil">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <h1>Articles Chantier</h1>
+    </header>
+
+    <!-- Main Content -->
+    <main class="app-main">
+      <!-- Étape 1: Upload -->
+      <section id="step-upload" class="step active">
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" id="photo-input" accept="image/*" capture="environment" hidden />
+          <div class="upload-placeholder">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
+              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <p>Ajouter une photo</p>
+            <span>ou glisser-déposer</span>
+          </div>
+          <div class="upload-preview" id="upload-preview" hidden>
+            <img id="preview-image" src="" alt="Preview" />
+            <button class="remove-photo" id="remove-photo" title="Supprimer">×</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Description du chantier</label>
+          <textarea
+            id="description"
+            placeholder="Ex: Pose de la charpente métallique sur le bâtiment logistique Zone Lafayette..."
+            rows="4"
+          ></textarea>
+        </div>
+
+        <button id="btn-generate" class="btn-primary" disabled>
+          <span class="btn-text">Générer l'article</span>
+          <span class="btn-loading" hidden>
+            <span class="spinner-small"></span>
+            Génération en cours...
+          </span>
+        </button>
+      </section>
+
+      <!-- Étape 2: Loading -->
+      <section id="step-loading" class="step">
+        <div class="loading-card">
+          <div class="loading-steps">
+            <div class="loading-step" data-step="upload">
+              <div class="step-icon">📤</div>
+              <div class="step-info">
+                <span class="step-title">Upload de l'image</span>
+                <span class="step-status">En attente</span>
+              </div>
+            </div>
+            <div class="loading-step" data-step="ai">
+              <div class="step-icon">🤖</div>
+              <div class="step-info">
+                <span class="step-title">Génération IA</span>
+                <span class="step-status">En attente</span>
+              </div>
+            </div>
+            <div class="loading-step" data-step="save">
+              <div class="step-icon">💾</div>
+              <div class="step-info">
+                <span class="step-title">Sauvegarde du brouillon</span>
+                <span class="step-status">En attente</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Étape 3: Éditeur -->
+      <section id="step-editor" class="step">
+        <div class="editor-container">
+          <!-- Image preview -->
+          <div class="editor-image">
+            <img id="editor-image" src="" alt="Photo chantier" />
+          </div>
+
+          <!-- Title -->
+          <div class="form-group">
+            <label for="article-title">Titre de l'article</label>
+            <input type="text" id="article-title" placeholder="Titre généré par l'IA..." />
+          </div>
+
+          <!-- Content Editor -->
+          <div class="form-group">
+            <label>Contenu de l'article</label>
+            <div id="quill-editor"></div>
+            <input type="hidden" id="article-content" />
+          </div>
+
+          <!-- Actions -->
+          <div class="editor-actions">
+            <button id="btn-save-draft" class="btn-secondary">
+              💾 Sauvegarder
+            </button>
+            <button id="btn-publish" class="btn-primary">
+              🚀 Publier sur le site
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Étape 4: Succès -->
+      <section id="step-success" class="step">
+        <div class="success-card">
+          <div class="success-icon">✅</div>
+          <h2>Article publié !</h2>
+          <p>Votre article est maintenant en ligne sur le site Batipro Concept.</p>
+          <a id="published-url" href="#" target="_blank" class="btn-primary">
+            Voir l'article
+          </a>
+          <button id="btn-new-article" class="btn-secondary">
+            Créer un nouvel article
+          </button>
+        </div>
+      </section>
+
+      <!-- Liste des brouillons -->
+      <section id="drafts-section" class="drafts-section">
+        <div class="drafts-header">
+          <h2>Brouillons</h2>
+          <span id="drafts-count" class="badge">0</span>
+        </div>
+        <div id="drafts-list" class="drafts-list">
+          <!-- Populated dynamically -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="/src/articles/main.ts"></script>
+</body>
+</html>

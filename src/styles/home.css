@@ -280,6 +280,22 @@ body {
   z-index: 1;
 }
 
+.visual-placeholder.articles {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.visual-placeholder.articles::before {
+  content: 'Articles';
+  position: absolute;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 28px;
+  font-weight: 600;
+  z-index: 1;
+}
+
 /* Footer */
 .footer {
   background: #fafafa;
@@ -432,6 +448,10 @@ body {
   }
 
   .visual-placeholder.map::before {
+    font-size: 24px;
+  }
+
+  .visual-placeholder.articles::before {
     font-size: 24px;
   }
 

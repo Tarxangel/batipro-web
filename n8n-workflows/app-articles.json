@@ -1,0 +1,190 @@
+{
+  "name": "App articles",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "batipro-article-generator",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Convertir base64 en binaire pour WordPress\nconst base64Data = $input.first().json.body.photo;\nconst description = $input.first().json.body.description;\n\n// Générer un nom de fichier unique\nconst filename = `chantier-${Date.now()}.jpg`;\n\n// Retourner avec les données binaires (champ 'data' pour compatibilité n8n)\nreturn {\n  json: {\n    description: description,\n    filename: filename\n  },\n  binary: {\n    data: {\n      data: base64Data,\n      mimeType: 'image/jpeg',\n      fileName: filename\n    }\n  }\n};"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000008",
+      "name": "Convert Base64 to Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.batiproconcept.fr/wp-json/wp/v2/media",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Disposition",
+              "value": "=attachment; filename=\"{{ $json.filename }}\""
+            },
+            {
+              "name": "Content-Type",
+              "value": "image/jpeg"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000002",
+      "name": "Upload Image WP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-1.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-1.5-flash"
+        },
+        "text": "=Tu es un rédacteur web expert pour Batipro Concept, une entreprise spécialisée dans les vérandas, pergolas, carports et menuiseries.\n\nAnalyse cette image de chantier et génère un article de blog professionnel.\n\nDescription fournie par le technicien : {{ $('Convert Base64 to Binary').item.json.description }}\n\nURL de l'image : {{ $json.source_url }}\n\nGénère un article au format HTML avec :\n1. Un titre accrocheur (balise h2)\n2. Une introduction engageante\n3. 2-3 sections détaillant le projet, les matériaux, les techniques\n4. Une conclusion avec appel à l'action\n\nUtilise un ton professionnel mais accessible. Mets en valeur l'expertise de Batipro Concept.\n\nRéponds UNIQUEMENT avec un JSON valide au format :\n{\"title\": \"Le titre de l'article\", \"content\": \"<h2>...</h2><p>...</p>...\"}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000003",
+      "name": "Gemini Generate Article",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse la réponse Gemini\nconst geminiResponse = $input.first().json.text || $input.first().json.response || '';\n\n// Extraire le JSON de la réponse\nlet parsed;\ntry {\n  // Nettoyer la réponse (enlever markdown si présent)\n  let cleanResponse = geminiResponse.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  \n  // Chercher le JSON dans la réponse\n  const jsonMatch = cleanResponse.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) {\n    parsed = JSON.parse(jsonMatch[0]);\n  } else {\n    throw new Error('Pas de JSON trouvé');\n  }\n} catch (e) {\n  // Fallback si parsing échoue\n  parsed = {\n    title: 'Nouveau chantier Batipro Concept',\n    content: '<h2>Réalisation en cours</h2><p>' + geminiResponse.substring(0, 500) + '</p>'\n  };\n}\n\n// Récupérer les infos de l'image WordPress\nconst wpMedia = $('Upload Image WP').first().json;\n\nreturn {\n  success: true,\n  title: parsed.title,\n  content: parsed.content,\n  image_url: wpMedia.source_url,\n  wp_media_id: wpMedia.id\n};"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000004",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000005",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "return {\n  success: false,\n  error: $input.first().json.message || 'Erreur lors de la génération',\n  title: '',\n  content: '',\n  image_url: '',\n  wp_media_id: 0\n};"
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000006",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1130, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000007",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 500]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Convert Base64 to Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Base64 to Binary": {
+      "main": [
+        [
+          {
+            "node": "Upload Image WP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Image WP": {
+      "main": [
+        [
+          {
+            "node": "Gemini Generate Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Generate Article": {
+      "main": [
+        [
+          {
+            "node": "Parse Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Handler": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
