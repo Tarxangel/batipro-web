@@ -1,0 +1,93 @@
+# BMM Workflow Status - Batipro
+# This tracks progress through BMM methodology Analysis, Planning, and Solutioning phases.
+# Implementation phase is tracked separately in sprint-status.yaml
+
+# STATUS DEFINITIONS:
+# ==================
+# Initial Status (before completion):
+#   - required: Must be completed to progress
+#   - optional: Can be completed but not required
+#   - recommended: Strongly suggested but not required
+#   - conditional: Required only if certain conditions met (e.g., if_has_ui)
+#
+# Completion Status:
+#   - {file-path}: File created/found (e.g., "docs/product-brief.md")
+#   - skipped: Optional/conditional workflow that was skipped
+
+generated: "2026-01-19"
+project: "Batipro"
+project_type: "Plateforme web consultation PLU/RNU avec carte interactive"
+selected_track: "bmad-method"
+field_type: "brownfield"
+workflow_path: "method-brownfield.yaml"
+
+workflow_status:
+  # Phase 0: Documentation (Prerequisite for brownfield)
+  phase_0_documentation:
+    document-project:
+      status: required
+      agent: analyst
+      command: /bmad:bmm:workflows:document-project
+      purpose: "Comprendre le codebase existant avant planification"
+
+  # Phase 1: Analysis (Optional)
+  phase_1_analysis:
+    brainstorm:
+      status: "_bmad-output/analysis/brainstorming-session-2026-01-13.md"
+      note: "Session complète - 33 idées, 5 phases, stack validée"
+    research:
+      status: skipped
+    product-brief:
+      status: skipped
+
+  # Phase 2: Planning
+  phase_2_planning:
+    prd:
+      status: required
+      agent: pm
+      command: /bmad:bmm:workflows:prd
+      purpose: "Product Requirements Document avec FRs et NFRs"
+    create-ux-design:
+      status: conditional
+      condition: if_has_ui
+      agent: ux-designer
+      command: /bmad:bmm:workflows:create-ux-design
+      note: "À déterminer après PRD - app web avec carte = probablement requis"
+
+  # Phase 3: Solutioning
+  phase_3_solutioning:
+    create-architecture:
+      status: required
+      agent: architect
+      command: /bmad:bmm:workflows:create-architecture
+      purpose: "Document d'architecture système"
+    create-epics-and-stories:
+      status: required
+      agent: pm
+      command: /bmad:bmm:workflows:create-epics-and-stories
+      purpose: "Décomposition PRD en epics et stories implémentables"
+    test-design:
+      status: optional
+      agent: tea
+      command: /bmad:bmm:workflows:testarch-test-design
+      purpose: "Revue de testabilité au niveau système"
+    implementation-readiness:
+      status: required
+      agent: architect
+      command: /bmad:bmm:workflows:check-implementation-readiness
+      purpose: "Validation PRD + Architecture + Epics + UX"
+
+  # Phase 4: Implementation
+  phase_4_implementation:
+    sprint-planning:
+      status: required
+      agent: sm
+      command: /bmad:bmm:workflows:sprint-planning
+      purpose: "Création du plan de sprint - suivi détaillé ensuite"
+
+# Session notes
+notes:
+  - "Brainstorming déjà complet avec vision claire du produit"
+  - "Stack validée: Leaflet + IGN + Supabase + n8n"
+  - "Usage: Outil de vente terrain pour commerciaux Bâti Pro"
+  - "Prochaine étape: document-project pour analyser le codebase web-app/"

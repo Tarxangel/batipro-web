@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(bmad:bmm:workflows:workflow-init)",
+      "Bash(npm run type-check:*)",
+      "Bash(chmod:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npm run build:*)",
+      "Bash(git push)",
+      "mcp__n8n-mcp__n8n_health_check",
+      "mcp__n8n-mcp__n8n_list_workflows",
+      "mcp__n8n-mcp__search_nodes",
+      "mcp__n8n-mcp__get_node",
+      "mcp__n8n-mcp__n8n_update_partial_workflow",
+      "mcp__n8n-mcp__tools_documentation",
+      "mcp__n8n-mcp__n8n_get_workflow",
+      "mcp__n8n-mcp__n8n_validate_workflow",
+      "mcp__n8n-mcp__n8n_autofix_workflow",
+      "Bash(curl:*)",
+      "Bash(brew install:*)",
+      "Bash(/opt/homebrew/bin/brew install:*)",
+      "Bash(/usr/local/bin/brew install:*)",
+      "mcp__n8n-mcp__n8n_executions",
+      "mcp__n8n-mcp__n8n_create_workflow"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "n8n-mcp"
+  ]
+}
