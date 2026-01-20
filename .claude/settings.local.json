@@ -22,7 +22,8 @@
       "Bash(/opt/homebrew/bin/brew install:*)",
       "Bash(/usr/local/bin/brew install:*)",
       "mcp__n8n-mcp__n8n_executions",
-      "mcp__n8n-mcp__n8n_create_workflow"
+      "mcp__n8n-mcp__n8n_create_workflow",
+      "Bash(git pull:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

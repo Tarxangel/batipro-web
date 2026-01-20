@@ -15,8 +15,9 @@
 #   - skipped: Optional/conditional workflow that was skipped
 
 generated: "2026-01-19"
+last_updated: "2026-01-20"
 project: "Batipro"
-project_type: "Plateforme web consultation PLU/RNU avec carte interactive"
+project_type: "Plateforme web consultation PLU/RNU avec carte interactive + Module articles chantier"
 selected_track: "bmad-method"
 field_type: "brownfield"
 workflow_path: "method-brownfield.yaml"
@@ -85,9 +86,97 @@ workflow_status:
       command: /bmad:bmm:workflows:sprint-planning
       purpose: "Création du plan de sprint - suivi détaillé ensuite"
 
+# ============================================
+# IMPLEMENTATION COMPLETED - Session 2026-01-20
+# ============================================
+completed_features:
+  module_articles_chantier:
+    description: "Module de génération et publication d'articles de chantier avec IA"
+    status: "completed"
+    date: "2026-01-20"
+
+    components:
+      frontend:
+        - file: "web-app/articles.html"
+          description: "Page principale du module articles"
+        - file: "web-app/src/articles/main.ts"
+          description: "Logique TypeScript - upload, génération, édition, publication"
+        - file: "web-app/src/articles/api.ts"
+          description: "Appels API vers n8n (génération + publication)"
+        - file: "web-app/src/articles/database.ts"
+          description: "Gestion brouillons Supabase (CRUD)"
+        - file: "web-app/src/articles/config.ts"
+          description: "URLs webhooks n8n"
+        - file: "web-app/src/articles/styles.css"
+          description: "Styles du module"
+
+      supabase_functions:
+        - file: "supabase/functions/n8n-proxy/index.ts"
+          description: "Proxy CORS pour webhook génération n8n"
+          endpoint: "https://awhbjbuxbcxszlxcbpjb.supabase.co/functions/v1/n8n-proxy"
+        - file: "supabase/functions/smart-endpoint/index.ts"
+          description: "Proxy CORS pour webhook publication n8n"
+          endpoint: "https://awhbjbuxbcxszlxcbpjb.supabase.co/functions/v1/smart-endpoint"
+
+      n8n_workflows:
+        - name: "App articles"
+          id: "IULapfdKsRAdnEEP"
+          webhook: "https://n8n.batiproconcept.fr/webhook/batipro-article-generator"
+          description: "Génération article: upload image WP + Gemini AI + création brouillon WP"
+        - name: "App articles - Publish"
+          id: "OHPfQ9OSX9QEa1g1"
+          webhook: "https://n8n.batiproconcept.fr/webhook/batipro-article-publish"
+          description: "Publication: met à jour contenu + passe brouillon WP en publié"
+
+      database:
+        table: "article_drafts"
+        fields:
+          - "id (uuid)"
+          - "title (text)"
+          - "content (text)"
+          - "description (text)"
+          - "image_url (text)"
+          - "wp_media_id (integer)"
+          - "wp_post_id (integer)"
+          - "wp_post_url (text)"
+          - "status (draft/published)"
+          - "created_at, updated_at"
+
+    flow:
+      1: "Utilisateur upload photo + description"
+      2: "App envoie à n8n via Supabase proxy (CORS)"
+      3: "n8n: Upload image WordPress + Gemini génère article"
+      4: "n8n: Crée brouillon WordPress + retourne données"
+      5: "App sauvegarde brouillon dans Supabase"
+      6: "Utilisateur édite dans Quill editor"
+      7: "Publication: envoie titre/contenu modifiés à n8n"
+      8: "n8n: Met à jour WP et publie"
+
+    fixes_applied:
+      - "CORS: Supabase Edge Functions comme proxy"
+      - "Mobile photo: Retrait capture='environment' pour galerie"
+      - "Supabase config: Clé anon ajoutée en fallback"
+      - "Bouton loading: CSS display control"
+      - "Mobile editor: Quill bubble theme pour sélection tactile"
+
 # Session notes
 notes:
   - "Brainstorming déjà complet avec vision claire du produit"
   - "Stack validée: Leaflet + IGN + Supabase + n8n"
   - "Usage: Outil de vente terrain pour commerciaux Bâti Pro"
-  - "Prochaine étape: document-project pour analyser le codebase web-app/"
+  - "Module articles: Génération IA + publication WordPress via n8n"
+  - "Site WordPress cible: https://www.thibautlab.fr"
+  - "Prochaine étape suggérée: document-project ou continuer implémentation"
+
+# Repositories
+git:
+  repo: "https://github.com/Tarxangel/batipro-web"
+  branch: "main"
+  last_commit: "c695cc6 - Fix: Mobile text editor - use bubble theme"
+
+# External services
+services:
+  n8n: "https://n8n.batiproconcept.fr"
+  supabase: "https://awhbjbuxbcxszlxcbpjb.supabase.co"
+  wordpress: "https://www.thibautlab.fr"
+  vercel: "Déploiement automatique depuis GitHub"
