@@ -8,14 +8,16 @@
 html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
 }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-  background: #ffffff;
+  background: #f2f2f7;
   color: #1d1d1f;
   line-height: 1.6;
   overflow-x: hidden;
+  min-height: 100vh;
 }
 
 /* Navigation */
@@ -24,7 +26,7 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(242, 242, 247, 0.8);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   z-index: 1000;
@@ -32,441 +34,176 @@ body {
 }
 
 .nav-content {
-  max-width: 1200px;
+  max-width: 700px;
   margin: 0 auto;
-  padding: 20px 40px;
+  padding: 16px 20px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
 }
 
 .nav-logo {
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: #1d1d1f;
 }
 
-/* Hero Section */
-.hero {
-  padding: 140px 40px 100px;
-  text-align: center;
-  min-height: 80vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.hero-content {
-  max-width: 980px;
+/* Tools Section */
+.tools {
+  padding: 80px 20px 40px;
+  max-width: 700px;
   margin: 0 auto;
 }
 
-.hero-title {
-  font-size: 72px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.08;
+.tools-header {
+  margin-bottom: 20px;
+  padding: 0 4px;
+}
+
+.tools-header h1 {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   color: #1d1d1f;
-  margin-bottom: 24px;
-  animation: fadeInUp 0.8s ease-out;
-}
-
-.hero-subtitle {
-  font-size: 24px;
-  font-weight: 400;
-  line-height: 1.4;
-  color: #6e6e73;
-  margin-bottom: 40px;
-  animation: fadeInUp 0.8s ease-out 0.1s both;
-}
-
-.hero-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 28px;
-  background: #007AFF;
-  color: white;
-  text-decoration: none;
-  font-size: 17px;
-  font-weight: 500;
-  border-radius: 980px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: fadeInUp 0.8s ease-out 0.2s both;
-}
-
-.hero-cta:hover {
-  background: #0051D5;
-  transform: scale(1.02);
-}
-
-.hero-cta svg {
-  transition: transform 0.3s ease;
-}
-
-.hero-cta:hover svg {
-  transform: translateX(3px);
-}
-
-/* Tools Section */
-.tools {
-  padding: 80px 40px 120px;
-  background: #fafafa;
 }
 
 .tools-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-/* Tool Cards */
+/* Tool Cards - Style iOS Settings */
 .tool-card {
   background: white;
-  border-radius: 24px;
-  overflow: hidden;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  min-height: 500px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  position: relative;
-}
-
-.tool-card.featured {
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
   text-decoration: none;
   color: inherit;
-  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .tool-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+  transform: scale(1.01);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.tool-card.upcoming {
-  opacity: 0.5;
-  cursor: default;
+.tool-card:active {
+  transform: scale(0.99);
+  background: #f5f5f5;
 }
 
-.tool-card.upcoming:hover {
-  transform: none;
-  box-shadow: none;
-}
-
-.tool-card-content {
-  padding: 60px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.tool-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  background: #007AFF;
-  color: white;
-  font-size: 13px;
-  font-weight: 500;
+/* Tool Icon */
+.tool-icon {
+  width: 52px;
+  height: 52px;
   border-radius: 12px;
-  margin-bottom: 20px;
-  width: fit-content;
-  letter-spacing: 0.01em;
-}
-
-.tool-badge.upcoming {
-  background: #86868b;
-}
-
-.tool-title {
-  font-size: 48px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  line-height: 1.1;
-  color: #1d1d1f;
-  margin-bottom: 20px;
-}
-
-.tool-description {
-  font-size: 19px;
-  line-height: 1.5;
-  color: #6e6e73;
-  margin-bottom: 32px;
-}
-
-.tool-features-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 32px;
-}
-
-.feature-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 17px;
-  color: #1d1d1f;
-}
-
-.feature-item svg {
+  justify-content: center;
   flex-shrink: 0;
-  stroke: #007AFF;
 }
 
-.tool-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #007AFF;
-  font-size: 17px;
-  font-weight: 500;
-  width: fit-content;
-  transition: gap 0.3s ease;
+.tool-icon svg {
+  stroke: white;
 }
 
-.tool-card:hover .tool-link {
-  gap: 10px;
-}
-
-.tool-visual {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  background: linear-gradient(135deg, #f5f5f7 0%, #e8e8ed 100%);
-}
-
-.visual-placeholder {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #d1d1d6 0%, #b8b8bd 100%);
-  border-radius: 16px;
-  position: relative;
-  overflow: hidden;
-}
-
-.visual-placeholder::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg,
-    transparent,
-    rgba(255, 255, 255, 0.3),
-    transparent
-  );
-  animation: shimmer 2s infinite;
-}
-
-.visual-placeholder.map {
+.tool-icon.map {
   background: linear-gradient(135deg, #007AFF 0%, #0051D5 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.visual-placeholder.map::before {
-  content: 'Batipro Map';
-  position: absolute;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 28px;
+.tool-icon.articles {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+}
+
+.tool-icon.icpe-carte {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.tool-icon.icpe-simulateur {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+}
+
+/* Tool Info */
+.tool-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-info h2 {
+  font-size: 17px;
   font-weight: 600;
-  z-index: 1;
+  color: #1d1d1f;
+  margin-bottom: 2px;
+  letter-spacing: -0.01em;
 }
 
-.visual-placeholder.articles {
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.tool-info p {
+  font-size: 14px;
+  color: #8e8e93;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.visual-placeholder.articles::before {
-  content: 'Articles';
-  position: absolute;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 28px;
-  font-weight: 600;
-  z-index: 1;
+/* Tool Arrow */
+.tool-arrow {
+  flex-shrink: 0;
+}
+
+.tool-arrow svg {
+  stroke: #c7c7cc;
 }
 
 /* Footer */
 .footer {
-  background: #fafafa;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-  padding: 40px;
-}
-
-.footer-content {
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 40px 20px;
   text-align: center;
 }
 
 .footer-content p {
-  font-size: 14px;
-  color: #86868b;
-}
-
-/* Animations */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes shimmer {
-  to {
-    left: 100%;
-  }
-}
-
-/* Responsive - Tablet */
-@media (max-width: 1024px) {
-  .hero-title {
-    font-size: 56px;
-  }
-
-  .hero-subtitle {
-    font-size: 21px;
-  }
-
-  .tool-card {
-    grid-template-columns: 1fr;
-    min-height: auto;
-  }
-
-  .tool-card-content {
-    padding: 40px;
-  }
-
-  .tool-title {
-    font-size: 40px;
-  }
-
-  .tool-description {
-    font-size: 17px;
-  }
-
-  .tool-visual {
-    min-height: 300px;
-  }
+  font-size: 13px;
+  color: #8e8e93;
 }
 
 /* Responsive - Mobile */
-@media (max-width: 768px) {
-  .nav-content {
-    padding: 16px 20px;
-  }
-
-  .nav-logo {
-    font-size: 18px;
-  }
-
-  .hero {
-    padding: 100px 20px 60px;
-    min-height: 70vh;
-  }
-
-  .hero-title {
-    font-size: 40px;
-  }
-
-  .hero-subtitle {
-    font-size: 19px;
-    margin-bottom: 32px;
-  }
-
-  .hero-subtitle br {
-    display: none;
-  }
-
-  .hero-cta {
-    padding: 12px 24px;
-    font-size: 16px;
-  }
-
+@media (max-width: 500px) {
   .tools {
-    padding: 60px 20px 80px;
+    padding: 70px 16px 30px;
+  }
+
+  .tools-header h1 {
+    font-size: 28px;
   }
 
   .tool-card {
-    border-radius: 20px;
+    padding: 14px;
+    gap: 14px;
   }
 
-  .tool-card-content {
-    padding: 32px 24px;
+  .tool-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 10px;
   }
 
-  .tool-badge {
-    font-size: 12px;
-    margin-bottom: 16px;
+  .tool-icon svg {
+    width: 24px;
+    height: 24px;
   }
 
-  .tool-title {
-    font-size: 32px;
-    margin-bottom: 16px;
-  }
-
-  .tool-description {
-    font-size: 16px;
-    margin-bottom: 24px;
-  }
-
-  .tool-features-list {
-    gap: 10px;
-    margin-bottom: 24px;
-  }
-
-  .feature-item {
-    font-size: 15px;
-  }
-
-  .feature-item svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  .tool-link {
+  .tool-info h2 {
     font-size: 16px;
   }
 
-  .tool-visual {
-    padding: 32px 24px;
-    min-height: 250px;
-  }
-
-  .visual-placeholder.map::before {
-    font-size: 24px;
-  }
-
-  .visual-placeholder.articles::before {
-    font-size: 24px;
-  }
-
-  .footer {
-    padding: 32px 20px;
-  }
-
-  .footer-content p {
+  .tool-info p {
     font-size: 13px;
   }
-}
-
-/* Smooth scrolling */
-html {
-  scroll-behavior: smooth;
 }
 
 /* Selection color */
