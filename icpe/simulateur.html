@@ -4,8 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Simulateur ICPE Pro - Batipro</title>
-  <script src="config.js"></script>
-  <style>
+    <style>
     .back-button {
       display: inline-flex;
       align-items: center;
@@ -709,13 +708,8 @@
   </div>
 
   <script>
-    // Clé API depuis config.js (ne pas commit ce fichier)
-    const GEMINI_API_KEY = (typeof ICPE_CONFIG !== 'undefined') ? ICPE_CONFIG.GEMINI_API_KEY : '';
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'VOTRE_CLE_API_ICI') {
-      console.warn('⚠️ Clé API Gemini non configurée. Éditez icpe/config.js');
-    }
+    // Utilise l'API proxy Vercel (la clé est dans les variables d'environnement Vercel)
+    const GEMINI_URL = '/api/gemini';
 
     // Base de données des URLs AIDA
     const AIDA_URLS = {
