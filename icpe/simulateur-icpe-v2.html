@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulateur ICPE Pro - Batipro</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 30px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      opacity: 0.8;
+      font-size: 14px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e3a5f;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-title span {
+      background: #1e3a5f;
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    /* Formulaire projet */
+    .form-section {
+      margin-bottom: 20px;
+    }
+
+    .form-section h3 {
+      font-size: 14px;
+      color: #374151;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+    }
+
+    .form-group {
+      margin-bottom: 0;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+      margin-bottom: 5px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-group.full-width {
+      grid-column: 1 / -1;
+    }
+
+    /* Checkboxes produits */
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+    }
+
+    .product-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .product-checkbox:hover {
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+
+    .product-checkbox input {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .product-checkbox span {
+      font-size: 13px;
+      color: #374151;
+    }
+
+    /* Bouton simuler */
+    .btn-simulate {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .btn-simulate:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(59, 130, 246, 0.4);
+    }
+
+    .btn-simulate:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* Loading */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .loading.visible {
+      display: block;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid #e5e7eb;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Résultat */
+    .result {
+      display: none;
+    }
+
+    .result.visible {
+      display: block;
+    }
+
+    /* Rubriques identifiées */
+    .rubriques-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .rubrique-tag {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 15px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .rubrique-tag.autorisation {
+      background: #fef2f2;
+      color: #dc2626;
+      border: 2px solid #fecaca;
+    }
+
+    .rubrique-tag.enregistrement {
+      background: #fff7ed;
+      color: #ea580c;
+      border: 2px solid #fed7aa;
+    }
+
+    .rubrique-tag.declaration {
+      background: #fefce8;
+      color: #ca8a04;
+      border: 2px solid #fef08a;
+    }
+
+    .rubrique-tag.non-icpe {
+      background: #f0fdf4;
+      color: #16a34a;
+      border: 2px solid #bbf7d0;
+    }
+
+    /* Tableau prescriptions */
+    .table-container {
+      overflow-x: auto;
+      margin: 20px 0;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+    }
+
+    .prescriptions-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      min-width: 800px;
+    }
+
+    .prescriptions-table th,
+    .prescriptions-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+      vertical-align: top;
+    }
+
+    .prescriptions-table thead th {
+      background: #1e3a5f;
+      color: white;
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+    }
+
+    .prescriptions-table thead th:first-child {
+      border-radius: 11px 0 0 0;
+    }
+
+    .prescriptions-table thead th:last-child {
+      border-radius: 0 11px 0 0;
+    }
+
+    .prescriptions-table tbody tr:hover {
+      background: #f9fafb;
+    }
+
+    .prescriptions-table .category {
+      background: #f3f4f6;
+      font-weight: 700;
+      color: #1e3a5f;
+    }
+
+    .prescriptions-table .category td {
+      padding: 8px 12px;
+    }
+
+    .prescriptions-table .sub-item td:first-child {
+      padding-left: 25px;
+      color: #6b7280;
+    }
+
+    .prescription-cell {
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .prescription-cell.empty {
+      color: #9ca3af;
+      font-style: italic;
+    }
+
+    .prescription-cell.important {
+      background: #fef3c7;
+    }
+
+    /* Export buttons */
+    .export-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+
+    .btn-export {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .btn-export.primary {
+      background: #1e3a5f;
+      color: white;
+    }
+
+    .btn-export.primary:hover {
+      background: #2d5a87;
+    }
+
+    .btn-export.secondary {
+      background: white;
+      color: #374151;
+      border: 1px solid #d1d5db;
+    }
+
+    .btn-export.secondary:hover {
+      background: #f9fafb;
+    }
+
+    /* Analyse détaillée */
+    .analysis-section {
+      background: #f9fafb;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+
+    .analysis-section h4 {
+      font-size: 14px;
+      color: #1e3a5f;
+      margin-bottom: 10px;
+    }
+
+    .analysis-section p {
+      font-size: 13px;
+      color: #4b5563;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    /* Documents */
+    .documents-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .doc-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 15px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      text-decoration: none;
+      color: #1e3a5f;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .doc-link:hover {
+      background: #e5e7eb;
+    }
+
+    .doc-link .icon {
+      font-size: 18px;
+    }
+
+    /* Reset */
+    .btn-reset {
+      width: 100%;
+      padding: 12px;
+      background: white;
+      color: #6b7280;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+
+    .btn-reset:hover {
+      background: #f9fafb;
+    }
+
+    /* Print styles */
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+
+      .card {
+        box-shadow: none;
+        border: 1px solid #e5e7eb;
+      }
+
+      .btn-simulate, .btn-export, .btn-reset, #step1, #step2 {
+        display: none !important;
+      }
+
+      .result {
+        display: block !important;
+      }
+
+      .prescriptions-table {
+        font-size: 10px;
+      }
+
+      .prescriptions-table th,
+      .prescriptions-table td {
+        padding: 6px 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🏭 Simulateur ICPE Pro</h1>
+      <p>Analyse complète et tableau des prescriptions techniques</p>
+    </div>
+
+    <!-- Étape 1 : Informations projet -->
+    <div class="card" id="step1">
+      <div class="card-title">
+        <span>1</span>
+        Informations du projet
+      </div>
+
+      <div class="form-section">
+        <h3>📋 Identification</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nom du projet</label>
+            <input type="text" id="nomProjet" placeholder="Ex: Entrepôt LogiNord">
+          </div>
+          <div class="form-group">
+            <label>Client</label>
+            <input type="text" id="client" placeholder="Ex: LogiNord SAS">
+          </div>
+          <div class="form-group">
+            <label>Localisation</label>
+            <input type="text" id="localisation" placeholder="Ex: ZI Nord, Besançon">
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="dateAnalyse" value="">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>📐 Caractéristiques du bâtiment</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Surface totale (m²)</label>
+            <input type="number" id="surface" placeholder="Ex: 15000">
+          </div>
+          <div class="form-group">
+            <label>Hauteur sous plafond (m)</label>
+            <input type="number" id="hauteur" placeholder="Ex: 12">
+          </div>
+          <div class="form-group">
+            <label>Volume total (m³)</label>
+            <input type="number" id="volume" placeholder="Calculé auto" readonly>
+          </div>
+          <div class="form-group">
+            <label>Nombre de cellules</label>
+            <input type="number" id="nbCellules" placeholder="Ex: 4">
+          </div>
+          <div class="form-group">
+            <label>Surface par cellule (m²)</label>
+            <input type="number" id="surfaceCellule" placeholder="Ex: 3000">
+          </div>
+          <div class="form-group">
+            <label>Hauteur de stockage (m)</label>
+            <input type="number" id="hauteurStockage" placeholder="Ex: 10">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>📦 Types de produits stockés</h3>
+        <div class="products-grid">
+          <label class="product-checkbox">
+            <input type="checkbox" name="produits" value="combustibles">
+            <span>Matières combustibles</span>
+          </label>
+          <label class="product-checkbox">
+            <input type="checkbox" name="produits" value="papier_carton">
+            <span>Papier / Carton</span>
+          </label>
+          <label class="product-checkbox">
+            <input type="checkbox" name="produits" value="bois">
+            <span>Bois</span>
+          </label>
+          <label class="product-checkbox">
+            <input type="checkbox" name="produits" value="plastiques">
+            <span>Plastiques / Polymères</span>
+          </label>
+          <label class="product-checkbox">
+            <input type="checkbox" name="produits" value="liquides_inflammables">
+            <span>Liquides inflammables</span>
+          </label>
+          <label class="product-checkbox">
+            <input type="checkbox" name="produits" value="aerosols">
+            <span>Aérosols</span>
+          </label>
+          <label class="product-checkbox">
+            <input type="checkbox" name="produits" value="produits_chimiques">
+            <span>Produits chimiques</span>
+          </label>
+          <label class="product-checkbox">
+            <input type="checkbox" name="produits" value="denrees_alimentaires">
+            <span>Denrées alimentaires</span>
+          </label>
+          <label class="product-checkbox">
+            <input type="checkbox" name="produits" value="batteries">
+            <span>Batteries / Accumulateurs</span>
+          </label>
+          <label class="product-checkbox">
+            <input type="checkbox" name="produits" value="gaz">
+            <span>Gaz comprimés</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>⚡ Équipements techniques</h3>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Puissance chaufferie (MW)</label>
+            <input type="number" id="puissanceChaufferie" placeholder="Ex: 2" step="0.1">
+          </div>
+          <div class="form-group">
+            <label>Puissance charge batteries (kW)</label>
+            <input type="number" id="puissanceCharge" placeholder="Ex: 50">
+          </div>
+          <div class="form-group">
+            <label>Groupe électrogène (kVA)</label>
+            <input type="number" id="groupeElectrogene" placeholder="Ex: 500">
+          </div>
+          <div class="form-group">
+            <label>Tonnage total stocké (t)</label>
+            <input type="number" id="tonnage" placeholder="Ex: 5000">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>💬 Informations complémentaires</h3>
+        <div class="form-group full-width">
+          <textarea id="complement" rows="3" placeholder="Sprinklage prévu, quais de chargement, particularités du site..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bouton simulation -->
+    <button class="btn-simulate" id="btnSimulate" onclick="simuler()">
+      🤖 Générer l'analyse ICPE complète
+    </button>
+
+    <!-- Loading -->
+    <div class="card loading" id="loading">
+      <div class="spinner"></div>
+      <p>Analyse en cours avec l'IA...</p>
+      <p style="font-size: 12px; color: #9ca3af; margin-top: 10px;">Identification des rubriques et extraction des prescriptions</p>
+    </div>
+
+    <!-- Résultat -->
+    <div class="card result" id="result">
+      <div class="card-title">
+        <span>✓</span>
+        Analyse ICPE - <span id="resultNomProjet">Projet</span>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
+        <div>
+          <p style="font-size: 12px; color: #6b7280;">Client: <strong id="resultClient">-</strong></p>
+          <p style="font-size: 12px; color: #6b7280;">Date: <strong id="resultDate">-</strong></p>
+        </div>
+        <div id="rubriquesContainer" class="rubriques-list">
+          <!-- Rubriques ajoutées dynamiquement -->
+        </div>
+      </div>
+
+      <div class="analysis-section">
+        <h4>📋 Synthèse de l'analyse</h4>
+        <p id="syntheseText">-</p>
+      </div>
+
+      <!-- Tableau des prescriptions -->
+      <h4 style="margin: 20px 0 10px; color: #1e3a5f;">📊 Tableau des prescriptions techniques</h4>
+      <div class="table-container">
+        <table class="prescriptions-table" id="prescriptionsTable">
+          <thead>
+            <tr id="tableHeader">
+              <th style="min-width: 180px;">Thème</th>
+              <!-- Colonnes rubriques ajoutées dynamiquement -->
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+            <!-- Lignes ajoutées dynamiquement -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Export buttons -->
+      <div class="export-buttons">
+        <button class="btn-export primary" onclick="window.print()">
+          🖨️ Imprimer / PDF
+        </button>
+        <button class="btn-export secondary" onclick="copierTableau()">
+          📋 Copier pour Excel
+        </button>
+        <button class="btn-export secondary" onclick="exporterCSV()">
+          📄 Exporter CSV
+        </button>
+      </div>
+
+      <!-- Documents -->
+      <h4 style="margin: 30px 0 10px; color: #1e3a5f;">📁 Documents de référence</h4>
+      <div class="documents-grid" id="documentsGrid">
+        <!-- Documents ajoutés dynamiquement -->
+      </div>
+
+      <button class="btn-reset" onclick="reset()">↩️ Nouvelle analyse</button>
+    </div>
+  </div>
+
+  <script>
+    const GEMINI_API_KEY = 'AIzaSyA99D6nApO2p9FTGTGzR6wxTc3PmmXBZSU';
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+    // Base de données des URLs AIDA
+    const AIDA_URLS = {
+      '1510': {
+        fiche: 'https://aida.ineris.fr/reglementation/1510-stockage-matieres-produits-substances-combustibles-entrepots-couverts',
+        arrete: 'https://aida.ineris.fr/reglementation/arrete-110417-relatif-prescriptions-generales-applicables-entrepots-couverts-soumis'
+      },
+      '1530': {
+        fiche: 'https://aida.ineris.fr/reglementation/1530-depots-papiers-cartons-materiaux-combustibles-analogues',
+        arrete: 'https://aida.ineris.fr/reglementation/arrete-150410-relatif-prescriptions-generales-applicables-depots-papier-carton'
+      },
+      '1532': {
+        fiche: 'https://aida.ineris.fr/reglementation/1532-stockage-bois-materiaux-combustibles-analogues',
+        arrete: 'https://aida.ineris.fr/reglementation/arrete-110913-relatif-prescriptions-generales-applicables-installations-relevant'
+      },
+      '1435': {
+        fiche: 'https://aida.ineris.fr/reglementation/1435-stations-service-installations-ouvertes-non-public-carburants-sont-transferes',
+        arrete: 'https://aida.ineris.fr/reglementation/arrete-150410-relatif-prescriptions-generales-applicables-stations-service-relevant'
+      },
+      '2910': {
+        fiche: 'https://aida.ineris.fr/reglementation/2910-combustion-a-lexclusion-installations-visees-rubriques-2770-2771-2971-2931',
+        arrete: 'https://aida.ineris.fr/reglementation/arrete-030818-relatif-installations-combustion-dune-puissance-thermique-nominale'
+      },
+      '2925': {
+        fiche: 'https://aida.ineris.fr/reglementation/2925-ateliers-charge-daccumulateurs-electriques',
+        arrete: 'https://aida.ineris.fr/reglementation/arrete-290500-relatif-prescriptions-generales-applicables-installations-classees'
+      },
+      '2662': {
+        fiche: 'https://aida.ineris.fr/reglementation/2662-stockage-polymeres',
+        arrete: null
+      },
+      '2663': {
+        fiche: 'https://aida.ineris.fr/reglementation/2663-stockage-pneumatiques-produits-caoutchouc',
+        arrete: null
+      },
+      '1432': {
+        fiche: 'https://aida.ineris.fr/thematiques/1432-stockage-reservoirs-manufactures-liquides-inflammables',
+        arrete: null
+      },
+      '4331': {
+        fiche: 'https://aida.ineris.fr/thematiques/4331-liquides-inflammables-categorie-1-2',
+        arrete: null
+      }
+    };
+
+    // Catégories de prescriptions
+    const CATEGORIES_PRESCRIPTIONS = [
+      { id: 'reseaux', label: 'Réseaux', items: ['Documents', 'Eaux pluviales', 'Eaux usées'] },
+      { id: 'divers', label: 'Divers', items: [] },
+      { id: 'dechets', label: 'Déchets', items: [] },
+      { id: 'implantation', label: 'Implantation', items: ['Distances limites', 'Distances inter-bâtiments'] },
+      { id: 'accessibilite', label: 'Accessibilité', items: ['Accessibilité au site', 'Voie "engin"', 'Mise en station des échelles', 'Accès aux issues et quais'] },
+      { id: 'locaux_risques', label: 'Locaux à risques', items: [] },
+      { id: 'construction', label: 'Prescriptions construction', items: ['Structure', 'Toiture', 'Façades', 'Portes et fermetures'] },
+      { id: 'cantonnement', label: 'Cantonnement', items: ['Surface cellules', 'Murs séparatifs', 'Écrans de cantonnement'] },
+      { id: 'stockage', label: 'Aménagement stockage', items: ['Hauteur stockage', 'Allées de circulation', 'Distance aux parois'] },
+      { id: 'desenfumage', label: 'Désenfumage', items: ['Surface utile', 'Commandes', 'Exutoires'] },
+      { id: 'lutte_incendie', label: 'Moyens de lutte incendie', items: ['Extincteurs', 'RIA', 'Sprinkler', 'Colonnes sèches'] },
+      { id: 'eau_incendie', label: 'Gestion eau incendie', items: ['Besoins en eau', 'Rétention', 'Bassin'] },
+      { id: 'charge_accus', label: 'Locaux charge accumulateur', items: [] },
+      { id: 'ventilation', label: 'Ventilation', items: [] },
+      { id: 'elec', label: 'Installations électriques', items: ['Conformité', 'Coupure d\'urgence', 'Éclairage de sécurité'] },
+      { id: 'chauffage', label: 'Chauffage', items: ['Type autorisé', 'Implantation'] },
+      { id: 'retention', label: 'Rétention', items: ['Capacité', 'Étanchéité'] }
+    ];
+
+    // Init date
+    document.getElementById('dateAnalyse').value = new Date().toISOString().split('T')[0];
+
+    // Calcul auto du volume
+    document.getElementById('surface').addEventListener('input', calcVolume);
+    document.getElementById('hauteur').addEventListener('input', calcVolume);
+
+    function calcVolume() {
+      const surface = parseFloat(document.getElementById('surface').value) || 0;
+      const hauteur = parseFloat(document.getElementById('hauteur').value) || 0;
+      if (surface && hauteur) {
+        document.getElementById('volume').value = surface * hauteur;
+      }
+    }
+
+    // Simulation
+    async function simuler() {
+      // Collecter les données
+      const data = {
+        nomProjet: document.getElementById('nomProjet').value || 'Projet sans nom',
+        client: document.getElementById('client').value || '-',
+        localisation: document.getElementById('localisation').value || '-',
+        date: document.getElementById('dateAnalyse').value,
+        surface: document.getElementById('surface').value,
+        hauteur: document.getElementById('hauteur').value,
+        volume: document.getElementById('volume').value,
+        nbCellules: document.getElementById('nbCellules').value,
+        surfaceCellule: document.getElementById('surfaceCellule').value,
+        hauteurStockage: document.getElementById('hauteurStockage').value,
+        puissanceChaufferie: document.getElementById('puissanceChaufferie').value,
+        puissanceCharge: document.getElementById('puissanceCharge').value,
+        groupeElectrogene: document.getElementById('groupeElectrogene').value,
+        tonnage: document.getElementById('tonnage').value,
+        complement: document.getElementById('complement').value,
+        produits: Array.from(document.querySelectorAll('input[name="produits"]:checked')).map(cb => cb.value)
+      };
+
+      if (!data.surface && !data.volume) {
+        alert('Veuillez renseigner au moins la surface ou le volume du bâtiment.');
+        return;
+      }
+
+      // Afficher loading
+      document.getElementById('loading').classList.add('visible');
+      document.getElementById('result').classList.remove('visible');
+      document.getElementById('btnSimulate').disabled = true;
+
+      const prompt = `Tu es un expert en réglementation ICPE (Installations Classées pour la Protection de l'Environnement) en France, spécialisé dans les entrepôts et bâtiments industriels.
+
+Analyse ce projet et génère une analyse ICPE complète avec le tableau des prescriptions techniques.
+
+PROJET À ANALYSER:
+- Nom: ${data.nomProjet}
+- Surface: ${data.surface || 'non renseignée'} m²
+- Hauteur: ${data.hauteur || 'non renseignée'} m
+- Volume: ${data.volume || 'non renseigné'} m³
+- Nombre de cellules: ${data.nbCellules || 'non renseigné'}
+- Surface par cellule: ${data.surfaceCellule || 'non renseignée'} m²
+- Hauteur de stockage: ${data.hauteurStockage || 'non renseignée'} m
+- Tonnage total: ${data.tonnage || 'non renseigné'} tonnes
+- Produits stockés: ${data.produits.length > 0 ? data.produits.join(', ') : 'matières combustibles diverses'}
+- Puissance chaufferie: ${data.puissanceChaufferie || 'non renseignée'} MW
+- Puissance charge batteries: ${data.puissanceCharge || 'non renseignée'} kW
+- Informations complémentaires: ${data.complement || 'aucune'}
+
+RÉPONDS UNIQUEMENT avec un objet JSON valide (sans markdown, sans backticks) avec cette structure:
+
+{
+  "rubriques": [
+    {
+      "numero": "1510",
+      "intitule": "Entrepôts couverts",
+      "regime": "Enregistrement",
+      "seuil": "Volume > 50 000 m³"
+    }
+  ],
+  "synthese": "Ce projet d'entrepôt de X m³ est soumis à...",
+  "prescriptions": {
+    "reseaux": {
+      "Documents": {"1510": "Plan des réseaux EP/EU", "2663": "-"},
+      "Eaux pluviales": {"1510": "Séparateur hydrocarbures si parking > 500m²", "2663": "-"},
+      "Eaux usées": {"1510": "Raccordement réseau ou traitement", "2663": "-"}
+    },
+    "implantation": {
+      "Distances limites": {"1510": "20m des limites ou mur REI 120", "2663": "Selon étude dangers"},
+      "Distances inter-bâtiments": {"1510": "10m ou mur REI 120", "2663": "-"}
+    },
+    "accessibilite": {
+      "Accessibilité au site": {"1510": "2 accès éloignés", "2663": "-"},
+      "Voie engin": {"1510": "Largeur 6m, force portante 320 kN", "2663": "-"},
+      "Mise en station des échelles": {"1510": "Face à chaque cellule", "2663": "-"},
+      "Accès aux issues et quais": {"1510": "Dégagement > 10m devant issues", "2663": "-"}
+    },
+    "locaux_risques": {"prescription": {"1510": "Isolés REI 120", "2663": "-"}},
+    "construction": {
+      "Structure": {"1510": "R60 ou sprinkler", "2663": "-"},
+      "Toiture": {"1510": "Classe Broof t3", "2663": "-"},
+      "Façades": {"1510": "M0 ou B-s3,d0", "2663": "-"},
+      "Portes et fermetures": {"1510": "EI 120 entre cellules", "2663": "-"}
+    },
+    "cantonnement": {
+      "Surface cellules": {"1510": "6000 m² max ou 12000 si sprinkler", "2663": "3000 m² max"},
+      "Murs séparatifs": {"1510": "REI 120, dépassement 1m", "2663": "-"},
+      "Écrans de cantonnement": {"1510": "DH minimale selon surface", "2663": "-"}
+    },
+    "stockage": {
+      "Hauteur stockage": {"1510": "Selon type sprinkler", "2663": "-"},
+      "Allées de circulation": {"1510": "Largeur > 2m", "2663": "-"},
+      "Distance aux parois": {"1510": "1m minimum", "2663": "-"}
+    },
+    "desenfumage": {
+      "Surface utile": {"1510": "2% de la surface au sol", "2663": "-"},
+      "Commandes": {"1510": "Manuelles + automatiques", "2663": "-"},
+      "Exutoires": {"1510": "DENFC classe B300 T2", "2663": "-"}
+    },
+    "lutte_incendie": {
+      "Extincteurs": {"1510": "1 pour 150 m², 200 m² max", "2663": "-"},
+      "RIA": {"1510": "DN 33/8 tous les 15m si > 50000 m³", "2663": "-"},
+      "Sprinkler": {"1510": "Obligatoire si > 3000 m² ou H > 8m", "2663": "Obligatoire"},
+      "Colonnes sèches": {"1510": "Si H > 15m", "2663": "-"}
+    },
+    "eau_incendie": {
+      "Besoins en eau": {"1510": "Calcul D9 ou D9A", "2663": "-"},
+      "Rétention": {"1510": "Eaux extinction confinées", "2663": "-"},
+      "Bassin": {"1510": "Selon D9A", "2663": "-"}
+    },
+    "charge_accus": {"prescription": {"1510": "Local dédié, ventilation H > L/10", "2925": "Selon arrêté 2925"}},
+    "ventilation": {"prescription": {"1510": "Naturelle ou mécanique selon activité", "2663": "-"}},
+    "elec": {
+      "Conformité": {"1510": "NF C 15-100", "2663": "-"},
+      "Coupure d'urgence": {"1510": "Coupure générale accessible", "2663": "-"},
+      "Éclairage de sécurité": {"1510": "BAES selon ERP", "2663": "-"}
+    },
+    "chauffage": {
+      "Type autorisé": {"1510": "Eau chaude, air chaud, radiant si T° < 700°C", "2663": "-"},
+      "Implantation": {"1510": "Hors cellules stockage ou local isolé", "2663": "-"}
+    },
+    "retention": {
+      "Capacité": {"1510": "100% du plus grand ou 50% du total", "1432": "100% ou 50%"},
+      "Étanchéité": {"1510": "Sol imperméable, seuils", "1432": "Double peau ou cuvette"}
+    }
+  },
+  "alertes": ["Point d'attention 1", "Point d'attention 2"]
+}
+
+IMPORTANT:
+- Identifie TOUTES les rubriques applicables (1510, 1530, 1532, 2662, 2663, 2910, 2925, 1432, etc.)
+- Pour chaque prescription, indique la valeur pour CHAQUE rubrique applicable
+- Si une prescription ne s'applique pas à une rubrique, mettre "-"
+- Sois précis sur les valeurs (dimensions, résistances au feu, débits, etc.)
+- Les prescriptions doivent correspondre aux arrêtés ministériels en vigueur`;
+
+      try {
+        const response = await fetch(GEMINI_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 8000
+            }
+          })
+        });
+
+        const result = await response.json();
+        console.log('Réponse Gemini:', result);
+
+        if (result.error) {
+          throw new Error(result.error.message);
+        }
+
+        let textResponse = result.candidates[0].content.parts[0].text;
+        console.log('Texte brut:', textResponse);
+
+        // Parser le JSON
+        if (textResponse.startsWith('```json')) textResponse = textResponse.slice(7);
+        if (textResponse.startsWith('```')) textResponse = textResponse.slice(3);
+        if (textResponse.endsWith('```')) textResponse = textResponse.slice(0, -3);
+
+        const analyse = JSON.parse(textResponse.trim());
+        afficherResultat(data, analyse);
+
+      } catch (error) {
+        console.error('Erreur:', error);
+        alert('Erreur lors de l\'analyse: ' + error.message);
+      } finally {
+        document.getElementById('loading').classList.remove('visible');
+        document.getElementById('btnSimulate').disabled = false;
+      }
+    }
+
+    function afficherResultat(data, analyse) {
+      // Infos projet
+      document.getElementById('resultNomProjet').textContent = data.nomProjet;
+      document.getElementById('resultClient').textContent = data.client;
+      document.getElementById('resultDate').textContent = new Date(data.date).toLocaleDateString('fr-FR');
+
+      // Rubriques
+      const rubriquesContainer = document.getElementById('rubriquesContainer');
+      rubriquesContainer.innerHTML = '';
+      analyse.rubriques.forEach(r => {
+        const regimeClass = r.regime.toLowerCase().replace(' ', '-').replace('é', 'e').replace('û', 'u');
+        rubriquesContainer.innerHTML += `
+          <div class="rubrique-tag ${regimeClass}">
+            <strong>${r.numero}</strong> - ${r.regime}
+          </div>
+        `;
+      });
+
+      // Synthèse
+      document.getElementById('syntheseText').textContent = analyse.synthese;
+      if (analyse.alertes && analyse.alertes.length > 0) {
+        document.getElementById('syntheseText').textContent += '\n\n⚠️ Points d\'attention:\n• ' + analyse.alertes.join('\n• ');
+      }
+
+      // Tableau des prescriptions
+      const headerRow = document.getElementById('tableHeader');
+      const tableBody = document.getElementById('tableBody');
+
+      // Reset
+      headerRow.innerHTML = '<th style="min-width: 180px;">Thème</th>';
+      tableBody.innerHTML = '';
+
+      // Colonnes rubriques
+      analyse.rubriques.forEach(r => {
+        headerRow.innerHTML += `<th style="min-width: 150px;">Rubrique ${r.numero}<br><small style="font-weight:normal;opacity:0.8">(${r.regime})</small></th>`;
+      });
+
+      // Lignes prescriptions
+      CATEGORIES_PRESCRIPTIONS.forEach(cat => {
+        // Ligne catégorie
+        let catRow = `<tr class="category"><td colspan="${analyse.rubriques.length + 1}">${cat.label}</td></tr>`;
+        tableBody.innerHTML += catRow;
+
+        // Sous-items ou prescription unique
+        const prescData = analyse.prescriptions[cat.id];
+        if (!prescData) return;
+
+        if (cat.items.length === 0) {
+          // Prescription unique
+          let row = `<tr><td>${cat.label}</td>`;
+          const prescObj = prescData.prescription || prescData;
+          analyse.rubriques.forEach(r => {
+            const val = prescObj[r.numero] || '-';
+            row += `<td class="prescription-cell ${val === '-' ? 'empty' : ''}">${val}</td>`;
+          });
+          row += '</tr>';
+          tableBody.innerHTML += row;
+        } else {
+          // Plusieurs sous-items
+          cat.items.forEach(item => {
+            const itemKey = item.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+            const itemData = prescData[item] || prescData[itemKey] || {};
+
+            let row = `<tr class="sub-item"><td>${item}</td>`;
+            analyse.rubriques.forEach(r => {
+              const val = itemData[r.numero] || '-';
+              row += `<td class="prescription-cell ${val === '-' ? 'empty' : ''}">${val}</td>`;
+            });
+            row += '</tr>';
+            tableBody.innerHTML += row;
+          });
+        }
+      });
+
+      // Documents
+      const docsGrid = document.getElementById('documentsGrid');
+      docsGrid.innerHTML = '';
+
+      analyse.rubriques.forEach(r => {
+        const aidaData = AIDA_URLS[r.numero];
+        if (aidaData && aidaData.fiche) {
+          docsGrid.innerHTML += `
+            <a href="${aidaData.fiche}" target="_blank" class="doc-link">
+              <span class="icon">📄</span>
+              <span>Fiche AIDA ${r.numero}</span>
+            </a>
+          `;
+        }
+        if (aidaData && aidaData.arrete) {
+          docsGrid.innerHTML += `
+            <a href="${aidaData.arrete}" target="_blank" class="doc-link">
+              <span class="icon">📋</span>
+              <span>Arrêté ${r.numero}</span>
+            </a>
+          `;
+        }
+      });
+
+      docsGrid.innerHTML += `
+        <a href="https://aida.ineris.fr/sites/default/files/2023-03/BrochureNom_v53public.pdf" target="_blank" class="doc-link">
+          <span class="icon">📚</span>
+          <span>Nomenclature complète (PDF)</span>
+        </a>
+      `;
+
+      document.getElementById('result').classList.add('visible');
+    }
+
+    function copierTableau() {
+      const table = document.getElementById('prescriptionsTable');
+      let text = '';
+
+      // Header
+      const headers = table.querySelectorAll('thead th');
+      headers.forEach((th, i) => {
+        text += th.innerText.replace(/\n/g, ' ');
+        if (i < headers.length - 1) text += '\t';
+      });
+      text += '\n';
+
+      // Body
+      const rows = table.querySelectorAll('tbody tr');
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        cells.forEach((td, i) => {
+          text += td.innerText;
+          if (i < cells.length - 1) text += '\t';
+        });
+        text += '\n';
+      });
+
+      navigator.clipboard.writeText(text).then(() => {
+        alert('Tableau copié ! Vous pouvez le coller dans Excel.');
+      });
+    }
+
+    function exporterCSV() {
+      const table = document.getElementById('prescriptionsTable');
+      let csv = '';
+
+      // Header
+      const headers = table.querySelectorAll('thead th');
+      headers.forEach((th, i) => {
+        csv += '"' + th.innerText.replace(/\n/g, ' ').replace(/"/g, '""') + '"';
+        if (i < headers.length - 1) csv += ';';
+      });
+      csv += '\n';
+
+      // Body
+      const rows = table.querySelectorAll('tbody tr');
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        cells.forEach((td, i) => {
+          csv += '"' + td.innerText.replace(/"/g, '""') + '"';
+          if (i < cells.length - 1) csv += ';';
+        });
+        csv += '\n';
+      });
+
+      // Download
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'analyse_icpe_' + document.getElementById('nomProjet').value.replace(/\s/g, '_') + '.csv';
+      link.click();
+    }
+
+    function reset() {
+      document.getElementById('result').classList.remove('visible');
+      document.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(el => {
+        if (el.id !== 'dateAnalyse') el.value = '';
+      });
+      document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+    }
+  </script>
+</body>
+</html>

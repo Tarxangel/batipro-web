@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test API Géorisques - ICPE & Sites Pollués</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f3f4f6;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      height: 100vh;
+    }
+
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+        grid-template-rows: 50vh 1fr;
+      }
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    .sidebar {
+      background: white;
+      overflow-y: auto;
+      border-left: 1px solid #e5e7eb;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+      color: white;
+      padding: 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .header p {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .controls {
+      padding: 15px 20px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #f9fafb;
+    }
+
+    .controls label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .controls select, .controls input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .coords {
+      font-size: 12px;
+      color: #6b7280;
+      background: #f3f4f6;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-family: monospace;
+    }
+
+    .results {
+      padding: 20px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6b7280;
+    }
+
+    .loading .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #9ca3af;
+    }
+
+    .empty-state svg {
+      width: 60px;
+      height: 60px;
+      margin-bottom: 15px;
+      opacity: 0.5;
+    }
+
+    .section {
+      margin-bottom: 25px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    .section-header h2 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1f2937;
+    }
+
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      color: white;
+    }
+
+    .badge-icpe { background: #dc2626; }
+    .badge-casias { background: #f59e0b; }
+    .badge-basol { background: #7c3aed; }
+    .badge-sis { background: #059669; }
+
+    .card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      transition: all 0.2s;
+    }
+
+    .card:hover {
+      border-color: #3b82f6;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+    }
+
+    .card.clickable {
+      cursor: pointer;
+    }
+
+    .card.clickable:hover {
+      transform: translateY(-2px);
+    }
+
+    .card-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: #3b82f6;
+      margin-top: 8px;
+      text-decoration: none;
+    }
+
+    .card-link:hover {
+      text-decoration: underline;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 6px;
+    }
+
+    .card-meta {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+
+    .card-tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-right: 5px;
+      margin-top: 6px;
+    }
+
+    .tag-seveso-haut { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .tag-seveso-bas { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
+    .tag-autorisation { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+    .tag-enregistrement { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .tag-declaration { background: #f3f4f6; color: #4b5563; border: 1px solid #d1d5db; }
+
+    .error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1f2937;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    .stat-card.danger .stat-value { color: #dc2626; }
+    .stat-card.warning .stat-value { color: #f59e0b; }
+    .stat-card.info .stat-value { color: #3b82f6; }
+    .stat-card.success .stat-value { color: #059669; }
+
+    /* Leaflet custom markers */
+    .marker-icpe {
+      background: #dc2626;
+      border: 2px solid white;
+      border-radius: 50%;
+      width: 12px;
+      height: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .marker-casias {
+      background: #f59e0b;
+      border: 2px solid white;
+      border-radius: 50%;
+      width: 10px;
+      height: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .marker-basol {
+      background: #7c3aed;
+      border: 2px solid white;
+      border-radius: 50%;
+      width: 12px;
+      height: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="map"></div>
+
+    <div class="sidebar">
+      <div class="header">
+        <h1>🏭 Test API Géorisques</h1>
+        <p>Cliquez sur la carte pour analyser une zone</p>
+      </div>
+
+      <div class="controls">
+        <label>Rayon de recherche</label>
+        <select id="rayon">
+          <option value="500">500 m</option>
+          <option value="1000" selected>1 km</option>
+          <option value="2000">2 km</option>
+          <option value="5000">5 km</option>
+        </select>
+
+        <div class="coords" id="coords">
+          Coordonnées : --
+        </div>
+      </div>
+
+      <div class="results" id="results">
+        <div class="empty-state">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+          </svg>
+          <p>Cliquez sur la carte pour<br>lancer une recherche</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // Initialisation de la carte centrée sur Besançon
+    const map = L.map('map').setView([47.24, 6.02], 13);
+
+    // Couche OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap',
+      maxZoom: 19
+    }).addTo(map);
+
+    // Groupe de layers pour les marqueurs
+    const markersLayer = L.layerGroup().addTo(map);
+    let searchCircle = null;
+
+    // Éléments DOM
+    const resultsDiv = document.getElementById('results');
+    const coordsDiv = document.getElementById('coords');
+    const rayonSelect = document.getElementById('rayon');
+
+    // Clic sur la carte
+    map.on('click', async (e) => {
+      const { lat, lng } = e.latlng;
+      const rayon = parseInt(rayonSelect.value);
+
+      coordsDiv.textContent = `Coordonnées : ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+
+      // Nettoyer les anciens marqueurs
+      markersLayer.clearLayers();
+      if (searchCircle) {
+        map.removeLayer(searchCircle);
+      }
+
+      // Afficher le cercle de recherche
+      searchCircle = L.circle([lat, lng], {
+        radius: rayon,
+        color: '#3b82f6',
+        fillColor: '#3b82f6',
+        fillOpacity: 0.1,
+        weight: 2
+      }).addTo(map);
+
+      // Marqueur du point cliqué
+      L.marker([lat, lng]).addTo(markersLayer);
+
+      // Afficher le loading
+      resultsDiv.innerHTML = `
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>Recherche en cours...</p>
+        </div>
+      `;
+
+      try {
+        // Appels API en parallèle
+        const [icpeData, sspData] = await Promise.all([
+          fetchICPE(lat, lng, rayon),
+          fetchSSP(lat, lng, rayon)
+        ]);
+
+        displayResults(icpeData, sspData, lat, lng);
+      } catch (error) {
+        resultsDiv.innerHTML = `
+          <div class="error">
+            <strong>Erreur :</strong> ${error.message}
+          </div>
+        `;
+      }
+    });
+
+    // Fetch ICPE
+    async function fetchICPE(lat, lng, rayon) {
+      const url = `https://georisques.gouv.fr/api/v1/installations_classees?latlon=${lng},${lat}&rayon=${rayon}&page=1&page_size=100`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Erreur API ICPE');
+      return response.json();
+    }
+
+    // Fetch SSP (Sites et Sols Pollués)
+    async function fetchSSP(lat, lng, rayon) {
+      const url = `https://georisques.gouv.fr/api/v1/ssp?latlon=${lng},${lat}&rayon=${rayon}&page=1&page_size=100`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Erreur API SSP');
+      return response.json();
+    }
+
+    // Afficher les résultats
+    function displayResults(icpeData, sspData, centerLat, centerLng) {
+      // Filtrer pour ne garder que les vraies ICPE (exclure "Non ICPE" et "Autres régimes")
+      const allInstallations = icpeData.data || [];
+      const icpeList = allInstallations.filter(i =>
+        i.regime === 'Autorisation' ||
+        i.regime === 'Enregistrement' ||
+        i.regime === 'Déclaration'
+      );
+      const casiasList = sspData.data?.casias || [];
+      const basol = sspData.data?.instructions || [];
+      const sis = sspData.data?.sis || [];
+
+      console.log(`Total installations: ${allInstallations.length}, ICPE filtrées: ${icpeList.length}`);
+
+      // Stats
+      const seveso = icpeList.filter(i => i.statutSeveso && i.statutSeveso !== 'Non Seveso').length;
+
+      let html = `
+        <div class="stats">
+          <div class="stat-card danger">
+            <div class="stat-value">${icpeList.length}</div>
+            <div class="stat-label">ICPE</div>
+          </div>
+          <div class="stat-card warning">
+            <div class="stat-value">${casiasList.length}</div>
+            <div class="stat-label">Anciens sites</div>
+          </div>
+          <div class="stat-card info">
+            <div class="stat-value">${basol.length}</div>
+            <div class="stat-label">Sites pollués</div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-value">${sis.length}</div>
+            <div class="stat-label">SIS</div>
+          </div>
+        </div>
+      `;
+
+      // ICPE Section
+      if (icpeList.length > 0) {
+        html += `
+          <div class="section">
+            <div class="section-header">
+              <h2>Installations Classées</h2>
+              <span class="badge badge-icpe">${icpeList.length}</span>
+            </div>
+        `;
+
+        icpeList.forEach((icpe, index) => {
+          // Récupérer les coordonnées
+          const iLat = icpe.latitude;
+          const iLng = icpe.longitude;
+
+          // URL rapport Géorisques avec coordonnées (format complet)
+          const ficheUrl = (iLat && iLng)
+            ? `https://www.georisques.gouv.fr/mes-risques/connaitre-les-risques-pres-de-chez-moi/rapport2?form-adresse=true&isCadastre=false&city=${encodeURIComponent(icpe.commune || '')}&type=adresse&typeForm=adresse&codeInsee=${icpe.codeInsee || ''}&lon=${iLng}&lat=${iLat}&go_back=/&adresse=${encodeURIComponent((icpe.adresse1 || '') + ', ' + (icpe.codePostal || '') + ' ' + (icpe.commune || ''))}&longitude=${iLng}&latitude=${iLat}&commune=${encodeURIComponent(icpe.commune || '')}`
+            : null;
+
+          // Ajouter marqueur sur la carte
+          if (iLat && iLng) {
+            const marker = L.circleMarker([iLat, iLng], {
+              radius: 10,
+              fillColor: '#dc2626',
+              color: 'white',
+              weight: 3,
+              fillOpacity: 0.9
+            }).addTo(markersLayer);
+            marker.bindPopup(`
+              <b>${icpe.raisonSociale || 'ICPE'}</b><br>
+              ${icpe.regime || ''}<br>
+              ${ficheUrl ? `<a href="${ficheUrl}" target="_blank">Voir sur Géorisques →</a>` : ''}
+            `);
+          }
+
+          // Tags
+          let tags = '';
+          if (icpe.statutSeveso === 'Seuil haut') {
+            tags += '<span class="card-tag tag-seveso-haut">⚠️ SEVESO Haut</span>';
+          } else if (icpe.statutSeveso === 'Seuil bas') {
+            tags += '<span class="card-tag tag-seveso-bas">SEVESO Bas</span>';
+          }
+          if (icpe.regime === 'Autorisation') {
+            tags += '<span class="card-tag tag-autorisation">Autorisation</span>';
+          } else if (icpe.regime === 'Enregistrement') {
+            tags += '<span class="card-tag tag-enregistrement">Enregistrement</span>';
+          } else if (icpe.regime) {
+            tags += `<span class="card-tag tag-declaration">${icpe.regime}</span>`;
+          }
+
+          html += `
+            <div class="card clickable" onclick="${ficheUrl ? `window.open('${ficheUrl}', '_blank')` : ''}" data-lat="${iLat || ''}" data-lng="${iLng || ''}">
+              <div class="card-title">${icpe.raisonSociale || 'Sans nom'}</div>
+              <div class="card-meta">📍 ${icpe.adresse1 || ''} ${icpe.codePostal || ''} ${icpe.commune || ''}</div>
+              <div class="card-meta">🏭 ${icpe.activite || 'Activité non renseignée'}</div>
+              ${tags}
+              ${ficheUrl ? '<span class="card-link">📄 Voir sur Géorisques →</span>' : ''}
+            </div>
+          `;
+        });
+        html += '</div>';
+      }
+
+      // CASIAS Section (Anciens sites industriels)
+      if (casiasList.length > 0) {
+        html += `
+          <div class="section">
+            <div class="section-header">
+              <h2>Anciens Sites Industriels (CASIAS)</h2>
+              <span class="badge badge-casias">${casiasList.length}</span>
+            </div>
+        `;
+
+        casiasList.forEach(site => {
+          // Coordonnées
+          const sLat = site.latitude || site.y;
+          const sLng = site.longitude || site.x;
+
+          // URL rapport Géorisques (format complet)
+          const ficheUrl = (sLat && sLng)
+            ? `https://www.georisques.gouv.fr/mes-risques/connaitre-les-risques-pres-de-chez-moi/rapport2?form-adresse=true&isCadastre=false&city=${encodeURIComponent(site.commune || '')}&type=adresse&typeForm=adresse&lon=${sLng}&lat=${sLat}&go_back=/&adresse=${encodeURIComponent((site.adresse || '') + ', ' + (site.commune || ''))}&longitude=${sLng}&latitude=${sLat}&commune=${encodeURIComponent(site.commune || '')}`
+            : null;
+
+          if (sLat && sLng) {
+            const marker = L.circleMarker([sLat, sLng], {
+              radius: 8,
+              fillColor: '#f59e0b',
+              color: 'white',
+              weight: 3,
+              fillOpacity: 0.9
+            }).addTo(markersLayer);
+            marker.bindPopup(`
+              <b>${site.nom || site.raisonSociale || 'Ancien site'}</b><br>
+              ${site.activite || site.activitePrincipale || ''}<br>
+              ${ficheUrl ? `<a href="${ficheUrl}" target="_blank">Voir sur Géorisques →</a>` : ''}
+            `);
+          }
+
+          html += `
+            <div class="card ${ficheUrl ? 'clickable' : ''}" ${ficheUrl ? `onclick="window.open('${ficheUrl}', '_blank')"` : ''}>
+              <div class="card-title">${site.nom || site.raisonSociale || 'Site inconnu'}</div>
+              <div class="card-meta">📍 ${site.adresse || ''} ${site.commune || ''}</div>
+              <div class="card-meta">🏗️ ${site.activite || site.activitePrincipale || 'Activité inconnue'}</div>
+              ${ficheUrl ? '<span class="card-link">📄 Voir sur Géorisques →</span>' : ''}
+            </div>
+          `;
+        });
+        html += '</div>';
+      }
+
+      // BASOL Section (Sites pollués)
+      if (basol.length > 0) {
+        html += `
+          <div class="section">
+            <div class="section-header">
+              <h2>Sites Pollués (ex-BASOL)</h2>
+              <span class="badge badge-basol">${basol.length}</span>
+            </div>
+        `;
+
+        basol.forEach(site => {
+          // Coordonnées
+          const sLat = site.latitude || site.y;
+          const sLng = site.longitude || site.x;
+
+          // URL rapport Géorisques (format complet)
+          const ficheUrl = (sLat && sLng)
+            ? `https://www.georisques.gouv.fr/mes-risques/connaitre-les-risques-pres-de-chez-moi/rapport2?form-adresse=true&isCadastre=false&city=${encodeURIComponent(site.commune || '')}&type=adresse&typeForm=adresse&lon=${sLng}&lat=${sLat}&go_back=/&adresse=${encodeURIComponent((site.adresse || '') + ', ' + (site.commune || ''))}&longitude=${sLng}&latitude=${sLat}&commune=${encodeURIComponent(site.commune || '')}`
+            : null;
+
+          if (sLat && sLng) {
+            const marker = L.circleMarker([sLat, sLng], {
+              radius: 10,
+              fillColor: '#7c3aed',
+              color: 'white',
+              weight: 3,
+              fillOpacity: 0.9
+            }).addTo(markersLayer);
+            marker.bindPopup(`
+              <b>${site.nom || site.raisonSociale || 'Site pollué'}</b><br>
+              ${ficheUrl ? `<a href="${ficheUrl}" target="_blank">Voir sur Géorisques →</a>` : ''}
+            `);
+          }
+
+          html += `
+            <div class="card ${ficheUrl ? 'clickable' : ''}" ${ficheUrl ? `onclick="window.open('${ficheUrl}', '_blank')"` : ''}>
+              <div class="card-title">${site.nom || site.raisonSociale || 'Site inconnu'}</div>
+              <div class="card-meta">📍 ${site.adresse || ''} ${site.commune || ''}</div>
+              ${ficheUrl ? '<span class="card-link">📄 Voir sur Géorisques →</span>' : ''}
+            </div>
+          `;
+        });
+        html += '</div>';
+      }
+
+      // SIS Section
+      if (sis.length > 0) {
+        html += `
+          <div class="section">
+            <div class="section-header">
+              <h2>Secteurs d'Information sur les Sols</h2>
+              <span class="badge badge-sis">${sis.length}</span>
+            </div>
+        `;
+
+        sis.forEach(sector => {
+          // Coordonnées
+          const sLat = sector.latitude || sector.y;
+          const sLng = sector.longitude || sector.x;
+
+          // URL rapport Géorisques (format complet)
+          const ficheUrl = (sLat && sLng)
+            ? `https://www.georisques.gouv.fr/mes-risques/connaitre-les-risques-pres-de-chez-moi/rapport2?form-adresse=true&isCadastre=false&city=${encodeURIComponent(sector.commune || '')}&type=adresse&typeForm=adresse&lon=${sLng}&lat=${sLat}&go_back=/&adresse=${encodeURIComponent(sector.commune || '')}&longitude=${sLng}&latitude=${sLat}&commune=${encodeURIComponent(sector.commune || '')}`
+            : null;
+
+          if (sLat && sLng) {
+            const marker = L.circleMarker([sLat, sLng], {
+              radius: 8,
+              fillColor: '#059669',
+              color: 'white',
+              weight: 3,
+              fillOpacity: 0.9
+            }).addTo(markersLayer);
+            marker.bindPopup(`
+              <b>${sector.nom || 'SIS'}</b><br>
+              ${sector.commune || ''}<br>
+              ${ficheUrl ? `<a href="${ficheUrl}" target="_blank">Voir sur Géorisques →</a>` : ''}
+            `);
+          }
+
+          html += `
+            <div class="card ${ficheUrl ? 'clickable' : ''}" ${ficheUrl ? `onclick="window.open('${ficheUrl}', '_blank')"` : ''}>
+              <div class="card-title">${sector.nom || 'SIS'}</div>
+              <div class="card-meta">📍 ${sector.commune || ''}</div>
+              ${ficheUrl ? '<span class="card-link">📄 Voir sur Géorisques →</span>' : ''}
+            </div>
+          `;
+        });
+        html += '</div>';
+      }
+
+      // Si aucun résultat
+      if (icpeList.length === 0 && casiasList.length === 0 && basol.length === 0 && sis.length === 0) {
+        html += `
+          <div class="empty-state">
+            <p>✅ Aucun site à risque trouvé<br>dans cette zone</p>
+          </div>
+        `;
+      }
+
+      resultsDiv.innerHTML = html;
+    }
+  </script>
+</body>
+</html>

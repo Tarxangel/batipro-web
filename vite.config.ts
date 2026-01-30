@@ -10,7 +10,10 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         map: resolve(__dirname, 'map.html'),
-        articles: resolve(__dirname, 'articles.html')
+        articles: resolve(__dirname, 'articles.html'),
+        icpeCarte: resolve(__dirname, 'icpe/index.html'),
+        icpeSimulateur: resolve(__dirname, 'icpe/simulateur-icpe.html'),
+        icpeSimulateurPro: resolve(__dirname, 'icpe/simulateur-icpe-v2.html')
       }
     }
   },
