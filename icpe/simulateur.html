@@ -4,7 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Simulateur ICPE Pro - Batipro</title>
+  <script src="config.js"></script>
   <style>
+    .back-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: white;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 20px;
+      opacity: 0.9;
+      transition: opacity 0.2s;
+    }
+    .back-button:hover {
+      opacity: 1;
+    }
     * {
       margin: 0;
       padding: 0;
@@ -473,6 +489,12 @@
 </head>
 <body>
   <div class="container">
+    <a href="/" class="back-button">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      Retour à l'accueil
+    </a>
     <div class="header">
       <h1>🏭 Simulateur ICPE Pro</h1>
       <p>Analyse complète et tableau des prescriptions techniques</p>
@@ -687,8 +709,13 @@
   </div>
 
   <script>
-    const GEMINI_API_KEY = 'AIzaSyA99D6nApO2p9FTGTGzR6wxTc3PmmXBZSU';
+    // Clé API depuis config.js (ne pas commit ce fichier)
+    const GEMINI_API_KEY = (typeof ICPE_CONFIG !== 'undefined') ? ICPE_CONFIG.GEMINI_API_KEY : '';
     const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+    if (!GEMINI_API_KEY || GEMINI_API_KEY === 'VOTRE_CLE_API_ICI') {
+      console.warn('⚠️ Clé API Gemini non configurée. Éditez icpe/config.js');
+    }
 
     // Base de données des URLs AIDA
     const AIDA_URLS = {

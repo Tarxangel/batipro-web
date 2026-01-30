@@ -25,3 +25,9 @@ dist/
 # IDE
 .idea/
 .vscode/
+
+# Config avec clés API
+icpe/config.js
+
+# Fichiers client
+Info_client/
