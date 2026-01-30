@@ -28,6 +28,7 @@ dist/
 
 # Config avec clés API
 icpe/config.js
+public/icpe-config.js
 
 # Fichiers client
 Info_client/
