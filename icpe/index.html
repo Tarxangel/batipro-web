@@ -93,6 +93,80 @@
       font-family: monospace;
     }
 
+    .search-container {
+      position: relative;
+      margin-bottom: 15px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 10px 12px 10px 36px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #9ca3af;
+      pointer-events: none;
+    }
+
+    .search-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      max-height: 250px;
+      overflow-y: auto;
+      z-index: 1000;
+      display: none;
+    }
+
+    .search-results.active {
+      display: block;
+    }
+
+    .search-result-item {
+      padding: 10px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 13px;
+    }
+
+    .search-result-item:last-child {
+      border-bottom: none;
+    }
+
+    .search-result-item:hover {
+      background: #f3f4f6;
+    }
+
+    .search-result-item .main {
+      font-weight: 500;
+      color: #1f2937;
+    }
+
+    .search-result-item .context {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
     .results {
       padding: 20px;
     }
@@ -350,6 +424,16 @@
       </div>
 
       <div class="controls">
+        <label>Rechercher une adresse</label>
+        <div class="search-container">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="M21 21l-4.35-4.35"/>
+          </svg>
+          <input type="text" id="search-input" class="search-input" placeholder="Ex: 12 rue de la Paix, Paris" autocomplete="off">
+          <div id="search-results" class="search-results"></div>
+        </div>
+
         <label>Rayon de recherche</label>
         <select id="rayon">
           <option value="500">500 m</option>
@@ -394,10 +478,70 @@
     const resultsDiv = document.getElementById('results');
     const coordsDiv = document.getElementById('coords');
     const rayonSelect = document.getElementById('rayon');
+    const searchInput = document.getElementById('search-input');
+    const searchResultsDiv = document.getElementById('search-results');
 
-    // Clic sur la carte
-    map.on('click', async (e) => {
-      const { lat, lng } = e.latlng;
+    // Recherche d'adresse avec API Adresse gouv.fr
+    let searchTimeout = null;
+
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.trim();
+
+      if (searchTimeout) clearTimeout(searchTimeout);
+
+      if (query.length < 3) {
+        searchResultsDiv.classList.remove('active');
+        return;
+      }
+
+      searchTimeout = setTimeout(async () => {
+        try {
+          const response = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&limit=5`);
+          const data = await response.json();
+
+          if (data.features && data.features.length > 0) {
+            searchResultsDiv.innerHTML = data.features.map(f => `
+              <div class="search-result-item" data-lat="${f.geometry.coordinates[1]}" data-lng="${f.geometry.coordinates[0]}">
+                <div class="main">${f.properties.name || f.properties.label}</div>
+                <div class="context">${f.properties.context || ''}</div>
+              </div>
+            `).join('');
+            searchResultsDiv.classList.add('active');
+          } else {
+            searchResultsDiv.innerHTML = '<div class="search-result-item"><div class="main">Aucun résultat</div></div>';
+            searchResultsDiv.classList.add('active');
+          }
+        } catch (error) {
+          console.error('Erreur recherche adresse:', error);
+        }
+      }, 300);
+    });
+
+    // Clic sur un résultat de recherche
+    searchResultsDiv.addEventListener('click', (e) => {
+      const item = e.target.closest('.search-result-item');
+      if (item && item.dataset.lat) {
+        const lat = parseFloat(item.dataset.lat);
+        const lng = parseFloat(item.dataset.lng);
+
+        searchInput.value = item.querySelector('.main').textContent;
+        searchResultsDiv.classList.remove('active');
+
+        // Centrer la carte et déclencher la recherche ICPE
+        map.setView([lat, lng], 15);
+        simulateClick(lat, lng);
+      }
+    });
+
+    // Fermer les résultats si clic ailleurs
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.search-container')) {
+        searchResultsDiv.classList.remove('active');
+      }
+    });
+
+    // Fonction pour simuler un clic sur la carte
+    async function simulateClick(lat, lng) {
       const rayon = parseInt(rayonSelect.value);
 
       coordsDiv.textContent = `Coordonnées : ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
@@ -417,7 +561,7 @@
         weight: 2
       }).addTo(map);
 
-      // Marqueur du point cliqué
+      // Marqueur du point
       L.marker([lat, lng]).addTo(markersLayer);
 
       // Afficher le loading
@@ -429,7 +573,6 @@
       `;
 
       try {
-        // Appels API en parallèle
         const [icpeData, sspData] = await Promise.all([
           fetchICPE(lat, lng, rayon),
           fetchSSP(lat, lng, rayon)
@@ -443,6 +586,12 @@
           </div>
         `;
       }
+    }
+
+    // Clic sur la carte
+    map.on('click', (e) => {
+      const { lat, lng } = e.latlng;
+      simulateClick(lat, lng);
     });
 
     // Fetch ICPE
