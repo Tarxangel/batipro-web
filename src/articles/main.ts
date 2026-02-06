@@ -4,7 +4,7 @@ import './styles.css';
 import { generateArticle, fileToBase64, publishArticle, compressImage, summarizeHistory, generateLinkedInPost, SeoContext } from './api';
 import { createDraft, updateDraft, getDrafts, getDraftsByChantier, deleteDraft, markAsPublished, ArticleDraft } from './database';
 import { getChantiers, getChantier, Chantier } from '../chantiers/database';
-import { MAX_IMAGE_SIZE } from './config';
+import { MAX_IMAGE_SIZE, WP_SITE_URL } from './config';
 import { isAdmin, adminLogin, adminLogout, verifyAdminToken } from './admin';
 
 // Déclaration Quill (chargé via CDN)
@@ -673,7 +673,9 @@ async function handlePublish() {
     loadDrafts();
 
     // Générer le post LinkedIn en async (ne bloque pas l'écran de succès)
-    generateLinkedInPost(currentTitle, currentContent, result.link)
+    // Utiliser le shortlink WordPress pour une URL propre dans le post
+    const shortArticleUrl = `${WP_SITE_URL}/?p=${result.id}`;
+    generateLinkedInPost(currentTitle, currentContent, shortArticleUrl)
       .then(post => {
         elements.linkedinLoading.hidden = true;
         if (post) {
