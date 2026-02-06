@@ -1,6 +1,6 @@
 // Module API pour n8n
 
-import { N8N_ARTICLE_WEBHOOK, N8N_PUBLISH_WEBHOOK, SUMMARIZE_HISTORY_URL, GENERATE_TIMEOUT, PUBLISH_TIMEOUT, MAX_IMAGE_DIMENSION, IMAGE_COMPRESSION_QUALITY } from './config';
+import { N8N_ARTICLE_WEBHOOK, N8N_PUBLISH_WEBHOOK, SUMMARIZE_HISTORY_URL, LINKEDIN_POST_URL, GENERATE_TIMEOUT, PUBLISH_TIMEOUT, MAX_IMAGE_DIMENSION, IMAGE_COMPRESSION_QUALITY } from './config';
 import { SUPABASE_ANON_KEY } from '../config';
 
 // Types
@@ -185,6 +185,30 @@ export async function publishArticle(
     link: data.post_url,
     slug: ''
   };
+}
+
+// Générer un post LinkedIn pour un article publié via Edge Function
+export async function generateLinkedInPost(title: string, content: string, articleUrl: string): Promise<string> {
+  const response = await fetchWithTimeout(
+    LINKEDIN_POST_URL,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+      },
+      body: JSON.stringify({ title, content, articleUrl })
+    },
+    30000 // 30s timeout
+  );
+
+  if (!response.ok) {
+    console.error('Erreur generate-linkedin-post:', response.status);
+    return ''; // Fail silently
+  }
+
+  const data = await response.json();
+  return data.post || '';
 }
 
 // Résumer l'historique des articles d'un chantier via Edge Function

@@ -1,7 +1,7 @@
 // Module principal - Articles Chantier
 
 import './styles.css';
-import { generateArticle, fileToBase64, publishArticle, compressImage, summarizeHistory, SeoContext } from './api';
+import { generateArticle, fileToBase64, publishArticle, compressImage, summarizeHistory, generateLinkedInPost, SeoContext } from './api';
 import { createDraft, updateDraft, getDrafts, getDraftsByChantier, deleteDraft, markAsPublished, ArticleDraft } from './database';
 import { getChantiers, getChantier, Chantier } from '../chantiers/database';
 import { MAX_IMAGE_SIZE } from './config';
@@ -61,6 +61,15 @@ const elements = {
   // Success
   publishedUrl: document.getElementById('published-url') as HTMLAnchorElement,
   btnNewArticle: document.getElementById('btn-new-article')!,
+
+  // LinkedIn
+  linkedinSection: document.getElementById('linkedin-section')!,
+  linkedinLoading: document.getElementById('linkedin-loading')!,
+  linkedinContent: document.getElementById('linkedin-content')!,
+  linkedinError: document.getElementById('linkedin-error')!,
+  linkedinPost: document.getElementById('linkedin-post') as HTMLTextAreaElement,
+  btnCopyLinkedin: document.getElementById('btn-copy-linkedin')!,
+  btnShareLinkedin: document.getElementById('btn-share-linkedin') as HTMLAnchorElement,
 
   // Drafts
   draftsCount: document.getElementById('drafts-count')!,
@@ -655,8 +664,31 @@ async function handlePublish() {
     elements.publishedUrl.href = result.link;
     elements.publishedUrl.textContent = 'Voir l\'article →';
 
+    // Reset LinkedIn section state
+    elements.linkedinLoading.hidden = false;
+    elements.linkedinContent.hidden = true;
+    elements.linkedinError.hidden = true;
+
     showStep('success');
     loadDrafts();
+
+    // Générer le post LinkedIn en async (ne bloque pas l'écran de succès)
+    generateLinkedInPost(currentTitle, currentContent, result.link)
+      .then(post => {
+        elements.linkedinLoading.hidden = true;
+        if (post) {
+          elements.linkedinPost.value = post;
+          elements.linkedinContent.hidden = false;
+          const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(result.link)}`;
+          elements.btnShareLinkedin.href = shareUrl;
+        } else {
+          elements.linkedinError.hidden = false;
+        }
+      })
+      .catch(() => {
+        elements.linkedinLoading.hidden = true;
+        elements.linkedinError.hidden = false;
+      });
 
   } catch (error) {
     console.error('Erreur publication:', error);
@@ -864,6 +896,19 @@ async function init() {
   elements.btnSubmitReview.addEventListener('click', handleSubmitReview);
   elements.btnPublish.addEventListener('click', handlePublish);
   elements.btnNewArticle.addEventListener('click', handleNewArticle);
+
+  // LinkedIn copy button
+  elements.btnCopyLinkedin.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(elements.linkedinPost.value);
+      elements.btnCopyLinkedin.textContent = 'Copié !';
+      setTimeout(() => { elements.btnCopyLinkedin.textContent = 'Copier le texte'; }, 2000);
+    } catch {
+      // Fallback: select the textarea content
+      elements.linkedinPost.select();
+      showToast('Texte sélectionné, utilisez Ctrl+C pour copier', 'info');
+    }
+  });
 
   // Admin
   elements.adminToggle.addEventListener('click', handleAdminToggle);
