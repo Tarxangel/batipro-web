@@ -37,23 +37,31 @@ serve(async (req) => {
     // Nettoyer le HTML et limiter la taille (les premiers 3000 chars suffisent pour un post LinkedIn)
     const cleanContent = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 3000)
 
-    const prompt = `Tu es le dirigeant de Batipro Concept, une entreprise spécialisée dans la construction de bâtiments industriels et logistiques en Bourgogne-Franche-Comté et Grand Est.
+    const prompt = `Tu rédiges un post LinkedIn pour Batipro Concept (bâtiments industriels & logistiques, Bourgogne-Franche-Comté / Grand Est).
 
-Tu viens de publier cet article sur ton site :
+Article publié :
 Titre : ${title}
 Contenu : ${cleanContent}
 URL : ${articleUrl}
 
-Rédige un post LinkedIn professionnel et engageant pour partager cet article. Règles :
-- Commence par une accroche percutante (question ou affirmation forte) qui donne envie de lire
-- Résume les points clés de l'article en 3-4 phrases concises
-- Adopte un ton professionnel mais accessible, fier du travail accompli
-- Termine par un appel à l'action invitant à lire l'article complet
-- Ajoute 3-5 hashtags pertinents (#BTP #Construction #Industrie etc.)
-- Ajoute le lien vers l'article à la fin
-- Longueur totale : 150-250 mots
+Rédige un post LinkedIn moderne et percutant. Règles strictes :
 
-Écris uniquement le post, sans commentaire ni explication.`
+STYLE :
+- Ton direct, énergique, phrases courtes. Pas de langage corporate creux.
+- INTERDIT : "Chez Batipro Concept, nous sommes fiers/heureux de...", "nous avons le plaisir", "nous sommes ravis". Ces formulations sont ringardes.
+- Privilégie les faits concrets : chiffres, m², tonnes, défis techniques résolus.
+- Utilise des sauts de ligne pour aérer (style LinkedIn moderne).
+- Le nom Batipro Concept peut apparaître mais de façon naturelle, jamais en ouverture de phrase.
+
+STRUCTURE :
+1. Accroche forte en 1 ligne (fait marquant, question provocante ou stat impactante)
+2. 3-5 phrases courtes qui racontent le projet (contexte, défi, solution)
+3. 1 phrase d'appel à l'action vers l'article
+4. Le lien ${articleUrl}
+5. 3-5 hashtags pertinents
+
+Longueur : 120-200 mots.
+Écris uniquement le post, rien d'autre.`
 
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
