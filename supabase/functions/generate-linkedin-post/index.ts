@@ -34,8 +34,8 @@ serve(async (req) => {
       )
     }
 
-    // Nettoyer le HTML du contenu pour le prompt
-    const cleanContent = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+    // Nettoyer le HTML et limiter la taille (les premiers 3000 chars suffisent pour un post LinkedIn)
+    const cleanContent = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 3000)
 
     const prompt = `Tu es le dirigeant de Batipro Concept, une entreprise spécialisée dans la construction de bâtiments industriels et logistiques en Bourgogne-Franche-Comté et Grand Est.
 
@@ -64,7 +64,10 @@ Rédige un post LinkedIn professionnel et engageant pour partager cet article. R
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 800
+            maxOutputTokens: 2048,
+            thinkingConfig: {
+              thinkingBudget: 0
+            }
           }
         })
       }
