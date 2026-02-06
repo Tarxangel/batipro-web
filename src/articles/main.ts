@@ -1,9 +1,11 @@
 // Module principal - Articles Chantier
 
 import './styles.css';
-import { generateArticle, fileToBase64, publishArticle } from './api';
-import { createDraft, updateDraft, getDrafts, deleteDraft, markAsPublished, ArticleDraft } from './database';
-import { N8N_ARTICLE_WEBHOOK } from './config';
+import { generateArticle, fileToBase64, publishArticle, compressImage, summarizeHistory, SeoContext } from './api';
+import { createDraft, updateDraft, getDrafts, getDraftsByChantier, deleteDraft, markAsPublished, ArticleDraft } from './database';
+import { getChantiers, getChantier, Chantier } from '../chantiers/database';
+import { MAX_IMAGE_SIZE } from './config';
+import { isAdmin, adminLogin, adminLogout, verifyAdminToken } from './admin';
 
 // Déclaration Quill (chargé via CDN)
 declare const Quill: any;
@@ -15,6 +17,7 @@ interface AppState {
   currentDraft: ArticleDraft | null;
   drafts: ArticleDraft[];
   quillEditor: any | null;
+  selectedChantier: Chantier | null;
 }
 
 const state: AppState = {
@@ -22,7 +25,8 @@ const state: AppState = {
   selectedFile: null,
   currentDraft: null,
   drafts: [],
-  quillEditor: null
+  quillEditor: null,
+  selectedChantier: null
 };
 
 // Éléments DOM
@@ -51,6 +55,7 @@ const elements = {
   articleContent: document.getElementById('article-content') as HTMLInputElement,
   quillEditor: document.getElementById('quill-editor')!,
   btnSaveDraft: document.getElementById('btn-save-draft')!,
+  btnSubmitReview: document.getElementById('btn-submit-review')!,
   btnPublish: document.getElementById('btn-publish')!,
 
   // Success
@@ -59,17 +64,147 @@ const elements = {
 
   // Drafts
   draftsCount: document.getElementById('drafts-count')!,
-  draftsList: document.getElementById('drafts-list')!
+  draftsList: document.getElementById('drafts-list')!,
+
+  // Admin
+  adminToggle: document.getElementById('admin-toggle')!,
+  adminModal: document.getElementById('admin-modal')!,
+  adminPassword: document.getElementById('admin-password') as HTMLInputElement,
+  adminLoginBtn: document.getElementById('admin-login-btn')!,
+  adminError: document.getElementById('admin-error')!,
+  modalClose: document.getElementById('modal-close')!,
+
+  // Confirm modal
+  confirmModal: document.getElementById('confirm-modal')!,
+  confirmTitle: document.getElementById('confirm-title')!,
+  confirmMessage: document.getElementById('confirm-message')!,
+  confirmCancel: document.getElementById('confirm-cancel')!,
+  confirmOk: document.getElementById('confirm-ok')!,
+
+  // Toast
+  toastContainer: document.getElementById('toast-container')!,
+
+  // Chantier selector
+  chantierSelect: document.getElementById('chantier-select') as HTMLSelectElement,
+  chantierBadge: document.getElementById('chantier-badge')!,
+
+  // SEO fields
+  seoArticleType: document.getElementById('seo-article-type') as HTMLSelectElement,
+  seoProjectType: document.getElementById('seo-project-type') as HTMLSelectElement,
+  seoSector: document.getElementById('seo-sector') as HTMLSelectElement,
+  seoCity: document.getElementById('seo-city') as HTMLInputElement,
+  seoDepartment: document.getElementById('seo-department') as HTMLSelectElement,
+  seoSurface: document.getElementById('seo-surface') as HTMLInputElement,
+  seoKeywords: document.getElementById('seo-keywords') as HTMLInputElement
 };
+
+// --- TOAST NOTIFICATIONS ---
+
+function showToast(message: string, type: 'success' | 'error' | 'info' = 'info', duration = 4000) {
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  elements.toastContainer.appendChild(toast);
+
+  // Trigger animation
+  requestAnimationFrame(() => toast.classList.add('visible'));
+
+  setTimeout(() => {
+    toast.classList.remove('visible');
+    toast.addEventListener('transitionend', () => toast.remove());
+  }, duration);
+}
+
+// --- CONFIRM MODAL (remplacement de confirm()) ---
+
+function showConfirm(title: string, message: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    elements.confirmTitle.textContent = title;
+    elements.confirmMessage.textContent = message;
+    elements.confirmModal.hidden = false;
+
+    const cleanup = () => {
+      elements.confirmModal.hidden = true;
+      elements.confirmCancel.removeEventListener('click', onCancel);
+      elements.confirmOk.removeEventListener('click', onOk);
+    };
+
+    const onCancel = () => { cleanup(); resolve(false); };
+    const onOk = () => { cleanup(); resolve(true); };
+
+    elements.confirmCancel.addEventListener('click', onCancel);
+    elements.confirmOk.addEventListener('click', onOk);
+  });
+}
+
+// --- ADMIN ---
+
+function updateAdminUI() {
+  const admin = isAdmin();
+  elements.adminToggle.classList.toggle('admin-active', admin);
+
+  // Boutons éditeur
+  if (elements.btnPublish && elements.btnSubmitReview) {
+    elements.btnPublish.hidden = !admin;
+    elements.btnSubmitReview.hidden = admin;
+  }
+}
+
+async function handleAdminToggle() {
+  if (isAdmin()) {
+    const confirmed = await showConfirm('Déconnexion', 'Se déconnecter du mode admin ?');
+    if (confirmed) {
+      adminLogout();
+      updateAdminUI();
+      showToast('Déconnecté du mode admin', 'info');
+    }
+    return;
+  }
+
+  // Ouvrir la modal de login
+  elements.adminModal.hidden = false;
+  elements.adminPassword.value = '';
+  elements.adminError.hidden = true;
+  elements.adminPassword.focus();
+}
+
+async function handleAdminLogin() {
+  const password = elements.adminPassword.value.trim();
+  if (!password) return;
+
+  elements.adminLoginBtn.classList.add('loading');
+  elements.adminError.hidden = true;
+
+  const result = await adminLogin(password);
+
+  elements.adminLoginBtn.classList.remove('loading');
+
+  if (result.success) {
+    elements.adminModal.hidden = true;
+    updateAdminUI();
+    showToast('Mode admin activé', 'success');
+    loadDrafts(); // Refresh pour voir les pending_review
+  } else {
+    elements.adminError.textContent = result.error || 'Mot de passe incorrect';
+    elements.adminError.hidden = false;
+  }
+}
 
 // Détecter si on est sur mobile
 function isMobile(): boolean {
   return window.innerWidth <= 768 || 'ontouchstart' in window;
 }
 
-// Initialiser l'éditeur Quill
+// Initialiser l'éditeur Quill (avec polling au lieu de setTimeout)
 function initQuillEditor() {
   if (state.quillEditor) return;
+
+  const container = document.getElementById('quill-editor');
+  if (!container || container.offsetParent === null) {
+    // Conteneur pas encore visible, réessayer
+    requestAnimationFrame(() => initQuillEditor());
+    return;
+  }
 
   const mobile = isMobile();
 
@@ -99,11 +234,15 @@ function getQuillContent(): string {
   return state.quillEditor.root.innerHTML;
 }
 
-// Définir le contenu HTML dans Quill
+// Définir le contenu HTML dans Quill (avec attente d'initialisation)
 function setQuillContent(html: string) {
-  if (!state.quillEditor) return;
-  state.quillEditor.root.innerHTML = html;
-  elements.articleContent.value = html;
+  if (state.quillEditor) {
+    state.quillEditor.root.innerHTML = html;
+    elements.articleContent.value = html;
+    return;
+  }
+  // Quill pas encore prêt, réessayer
+  requestAnimationFrame(() => setQuillContent(html));
 }
 
 // Navigation entre les étapes
@@ -126,8 +265,7 @@ function showStep(step: AppState['currentStep']) {
       break;
     case 'editor':
       elements.stepEditor.classList.add('active');
-      // Initialiser Quill si pas encore fait
-      setTimeout(() => initQuillEditor(), 100);
+      initQuillEditor();
       break;
     case 'success':
       elements.stepSuccess.classList.add('active');
@@ -206,6 +344,12 @@ function setupPhotoUpload() {
 }
 
 function handleFileSelect(file: File) {
+  // Vérifier la taille
+  if (file.size > MAX_IMAGE_SIZE) {
+    const sizeMB = (MAX_IMAGE_SIZE / 1024 / 1024).toFixed(0);
+    showToast(`Image trop lourde (max ${sizeMB}MB). Elle sera compressée automatiquement.`, 'info', 3000);
+  }
+
   state.selectedFile = file;
 
   // Afficher la preview
@@ -234,6 +378,95 @@ function updateGenerateButton() {
   elements.btnGenerate.disabled = !hasPhoto || !hasDescription;
 }
 
+// --- CHANTIER SELECTOR ---
+
+async function loadChantierSelector() {
+  try {
+    const chantiers = await getChantiers('active');
+    // Keep the first option (sans chantier)
+    elements.chantierSelect.innerHTML = '<option value="">Sans chantier (article libre)</option>';
+    chantiers.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = `${c.name} — ${c.city} (${c.department})`;
+      elements.chantierSelect.appendChild(opt);
+    });
+
+    // Check URL param for pre-selection
+    const params = new URLSearchParams(window.location.search);
+    const chantierId = params.get('chantier_id');
+    if (chantierId) {
+      elements.chantierSelect.value = chantierId;
+      await handleChantierChange();
+    }
+  } catch (error) {
+    console.error('Erreur chargement chantiers:', error);
+  }
+}
+
+async function handleChantierChange() {
+  const chantierId = elements.chantierSelect.value;
+
+  if (!chantierId) {
+    state.selectedChantier = null;
+    setSeoFieldsLocked(false);
+    elements.chantierBadge.hidden = true;
+    return;
+  }
+
+  try {
+    const chantier = await getChantier(chantierId);
+    if (!chantier) return;
+
+    state.selectedChantier = chantier;
+
+    // Auto-fill SEO fields
+    elements.seoSector.value = chantier.client_sector;
+    elements.seoProjectType.value = chantier.project_type;
+    elements.seoCity.value = chantier.city;
+    elements.seoDepartment.value = chantier.department;
+    if (chantier.surface) elements.seoSurface.value = chantier.surface.toString();
+    if (chantier.seo_keywords) elements.seoKeywords.value = chantier.seo_keywords;
+
+    setSeoFieldsLocked(true);
+
+    // Show article count badge
+    const existingArticles = await getDraftsByChantier(chantierId);
+    const articleNum = existingArticles.length + 1;
+    elements.chantierBadge.textContent = `Article n°${articleNum} pour ce chantier`;
+    elements.chantierBadge.hidden = false;
+
+  } catch (error) {
+    console.error('Erreur sélection chantier:', error);
+  }
+}
+
+function setSeoFieldsLocked(locked: boolean) {
+  const fields = [elements.seoSector, elements.seoProjectType, elements.seoCity, elements.seoDepartment, elements.seoSurface];
+  fields.forEach(field => {
+    if (locked) {
+      field.setAttribute('disabled', 'true');
+      field.style.opacity = '0.7';
+    } else {
+      field.removeAttribute('disabled');
+      field.style.opacity = '1';
+    }
+  });
+}
+
+// Collecter le contexte SEO depuis le formulaire
+function collectSeoContext(): SeoContext {
+  return {
+    articleType: elements.seoArticleType.value,
+    projectType: elements.seoProjectType.value,
+    sector: elements.seoSector.value,
+    city: elements.seoCity.value.trim(),
+    department: elements.seoDepartment.value,
+    surface: elements.seoSurface.value,
+    keywords: elements.seoKeywords.value.trim()
+  };
+}
+
 // Génération de l'article
 async function handleGenerate() {
   if (!state.selectedFile) return;
@@ -246,15 +479,42 @@ async function handleGenerate() {
   updateLoadingStep('save', 'pending');
 
   try {
-    // Convertir l'image en base64
-    const photoBase64 = await fileToBase64(state.selectedFile);
+    // Compresser l'image si nécessaire puis convertir en base64
+    let fileToProcess = state.selectedFile;
+    if (state.selectedFile.size > MAX_IMAGE_SIZE) {
+      fileToProcess = await compressImage(state.selectedFile);
+    }
+
+    const photoBase64 = await fileToBase64(fileToProcess);
     updateLoadingStep('upload', 'done');
+
+    // Collecter le contexte SEO
+    const seo = collectSeoContext();
+
+    // Si chantier sélectionné, récupérer l'historique et le résumer
+    let history = '';
+    if (state.selectedChantier) {
+      try {
+        const existingArticles = await getDraftsByChantier(state.selectedChantier.id);
+        const descriptions = existingArticles
+          .filter(a => a.description)
+          .map(a => a.description!);
+        if (descriptions.length > 0) {
+          history = await summarizeHistory(descriptions);
+        }
+      } catch (error) {
+        console.error('Erreur récupération historique:', error);
+        // Continue without history
+      }
+    }
 
     // Appeler n8n
     updateLoadingStep('ai', 'active');
     const result = await generateArticle({
       photo: photoBase64,
-      description: elements.description.value.trim()
+      description: elements.description.value.trim(),
+      seo,
+      ...(history ? { history } : {})
     });
     updateLoadingStep('ai', 'done');
 
@@ -266,7 +526,8 @@ async function handleGenerate() {
       description: elements.description.value.trim(),
       image_url: result.image_url,
       wp_media_id: result.wp_media_id,
-      wp_post_id: result.wp_post_id ?? null
+      wp_post_id: result.wp_post_id ?? null,
+      chantier_id: state.selectedChantier?.id ?? null
     });
     updateLoadingStep('save', 'done');
 
@@ -275,7 +536,7 @@ async function handleGenerate() {
     showEditor(draft);
 
   } catch (error) {
-    console.error('❌ Erreur génération:', error);
+    console.error('Erreur génération:', error);
 
     // Marquer l'étape en erreur
     const currentActive = document.querySelector('.loading-step.active');
@@ -284,8 +545,7 @@ async function handleGenerate() {
       updateLoadingStep(stepName, 'error');
     }
 
-    // Afficher l'erreur et retourner à l'upload
-    alert(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    showToast(error instanceof Error ? error.message : 'Erreur lors de la génération', 'error');
     setTimeout(() => showStep('upload'), 2000);
   }
 }
@@ -296,13 +556,9 @@ function showEditor(draft: ArticleDraft) {
   elements.articleTitle.value = draft.title;
 
   showStep('editor');
-
-  // Charger le contenu dans Quill après un délai pour s'assurer qu'il est initialisé
-  setTimeout(() => {
-    setQuillContent(draft.content);
-  }, 200);
-
-  loadDrafts(); // Refresh drafts list
+  setQuillContent(draft.content);
+  updateAdminUI();
+  loadDrafts();
 }
 
 // Sauvegarder le brouillon
@@ -323,33 +579,59 @@ async function handleSaveDraft() {
     state.currentDraft.title = elements.articleTitle.value;
     state.currentDraft.content = content;
 
-    elements.btnSaveDraft.textContent = '✅ Sauvegardé !';
-    setTimeout(() => {
-      elements.btnSaveDraft.textContent = '💾 Sauvegarder';
-      elements.btnSaveDraft.removeAttribute('disabled');
-    }, 2000);
+    showToast('Brouillon sauvegardé', 'success');
+    elements.btnSaveDraft.textContent = '💾 Sauvegarder';
+    elements.btnSaveDraft.removeAttribute('disabled');
 
     loadDrafts();
 
   } catch (error) {
-    console.error('❌ Erreur sauvegarde:', error);
-    alert('Erreur lors de la sauvegarde');
+    console.error('Erreur sauvegarde:', error);
+    showToast('Erreur lors de la sauvegarde', 'error');
     elements.btnSaveDraft.textContent = '💾 Sauvegarder';
     elements.btnSaveDraft.removeAttribute('disabled');
   }
 }
 
-// Publier l'article via n8n
+// Soumettre pour validation (utilisateur normal)
+async function handleSubmitReview() {
+  if (!state.currentDraft) return;
+
+  try {
+    // Sauvegarder d'abord le contenu actuel
+    const content = getQuillContent();
+    await updateDraft(state.currentDraft.id, {
+      title: elements.articleTitle.value,
+      content: content,
+      status: 'pending_review' as any
+    });
+
+    showToast('Article soumis pour validation !', 'success');
+    handleNewArticle();
+    loadDrafts();
+
+  } catch (error) {
+    console.error('Erreur soumission:', error);
+    showToast('Erreur lors de la soumission', 'error');
+  }
+}
+
+// Publier l'article via n8n (admin uniquement)
 async function handlePublish() {
   if (!state.currentDraft) return;
 
-  // Vérifier qu'on a un wp_post_id (brouillon WP créé)
-  if (!state.currentDraft.wp_post_id) {
-    alert('Erreur: Pas de brouillon WordPress associé. Régénérez l\'article.');
+  if (!isAdmin()) {
+    showToast('Vous devez être admin pour publier', 'error');
     return;
   }
 
-  const confirmed = confirm('Publier cet article sur le site ?');
+  // Vérifier qu'on a un wp_post_id (brouillon WP créé)
+  if (!state.currentDraft.wp_post_id) {
+    showToast('Pas de brouillon WordPress associé. Régénérez l\'article.', 'error');
+    return;
+  }
+
+  const confirmed = await showConfirm('Publication', 'Publier cet article sur le site ?');
   if (!confirmed) return;
 
   try {
@@ -377,8 +659,8 @@ async function handlePublish() {
     loadDrafts();
 
   } catch (error) {
-    console.error('❌ Erreur publication:', error);
-    alert(`Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+    console.error('Erreur publication:', error);
+    showToast(error instanceof Error ? error.message : 'Erreur lors de la publication', 'error');
     elements.btnPublish.textContent = '🚀 Publier sur le site';
     elements.btnPublish.removeAttribute('disabled');
   }
@@ -395,6 +677,21 @@ function handleNewArticle() {
   elements.uploadZone.querySelector('.upload-placeholder')?.classList.remove('hidden');
   elements.description.value = '';
   elements.btnGenerate.disabled = true;
+
+  // Reset chantier selector
+  state.selectedChantier = null;
+  elements.chantierSelect.value = '';
+  elements.chantierBadge.hidden = true;
+  setSeoFieldsLocked(false);
+
+  // Reset SEO fields
+  elements.seoArticleType.value = 'chantier';
+  elements.seoProjectType.value = 'construction';
+  elements.seoSector.value = 'industriel';
+  elements.seoCity.value = '';
+  elements.seoDepartment.value = '25';
+  elements.seoSurface.value = '';
+  elements.seoKeywords.value = '';
 
   // Reset loading steps
   elements.loadingSteps.forEach(step => {
@@ -421,15 +718,34 @@ async function loadDrafts() {
     state.drafts = await getDrafts();
     renderDrafts();
   } catch (error) {
-    console.error('❌ Erreur chargement brouillons:', error);
+    console.error('Erreur chargement brouillons:', error);
+  }
+}
+
+// Sanitiser une URL pour insertion dans un attribut HTML
+function sanitizeUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.href;
+    }
+    return '';
+  } catch {
+    return '';
   }
 }
 
 // Afficher les brouillons
 function renderDrafts() {
-  elements.draftsCount.textContent = state.drafts.length.toString();
+  const admin = isAdmin();
+  // Admin voit aussi les pending_review, les autres voient que les drafts
+  const visibleDrafts = admin
+    ? state.drafts
+    : state.drafts.filter(d => d.status === 'draft');
 
-  if (state.drafts.length === 0) {
+  elements.draftsCount.textContent = visibleDrafts.length.toString();
+
+  if (visibleDrafts.length === 0) {
     elements.draftsList.innerHTML = `
       <div class="drafts-empty">
         <p>Aucun brouillon</p>
@@ -438,21 +754,27 @@ function renderDrafts() {
     return;
   }
 
-  elements.draftsList.innerHTML = state.drafts.map(draft => `
-    <div class="draft-item" data-id="${draft.id}">
+  elements.draftsList.innerHTML = visibleDrafts.map(draft => {
+    const safeUrl = draft.image_url ? sanitizeUrl(draft.image_url) : '';
+    const statusBadge = draft.status === 'pending_review'
+      ? '<span class="badge badge-pending">En attente</span>'
+      : '';
+    return `
+    <div class="draft-item" data-id="${escapeHtml(draft.id)}">
       <div class="draft-image">
-        ${draft.image_url ? `<img src="${draft.image_url}" alt="" />` : '<div class="no-image">📷</div>'}
+        ${safeUrl ? `<img src="${safeUrl}" alt="" />` : '<div class="no-image">📷</div>'}
       </div>
       <div class="draft-info">
         <h3>${escapeHtml(draft.title)}</h3>
         <span class="draft-date">${formatDate(draft.created_at)}</span>
+        ${statusBadge}
       </div>
       <div class="draft-actions">
         <button class="draft-edit" title="Éditer">✏️</button>
         <button class="draft-delete" title="Supprimer">🗑️</button>
       </div>
     </div>
-  `).join('');
+  `}).join('');
 
   // Event listeners
   elements.draftsList.querySelectorAll('.draft-item').forEach(item => {
@@ -483,10 +805,12 @@ function editDraft(id: string) {
 
 // Supprimer un brouillon
 async function handleDeleteDraft(id: string) {
-  if (!confirm('Supprimer ce brouillon ?')) return;
+  const confirmed = await showConfirm('Suppression', 'Supprimer ce brouillon ?');
+  if (!confirmed) return;
 
   try {
     await deleteDraft(id);
+    showToast('Brouillon supprimé', 'info');
     loadDrafts();
 
     // Si c'était le brouillon actuel, retourner à l'upload
@@ -494,8 +818,8 @@ async function handleDeleteDraft(id: string) {
       handleNewArticle();
     }
   } catch (error) {
-    console.error('❌ Erreur suppression:', error);
-    alert('Erreur lors de la suppression');
+    console.error('Erreur suppression:', error);
+    showToast('Erreur lors de la suppression', 'error');
   }
 }
 
@@ -517,23 +841,52 @@ function formatDate(dateStr: string): string {
 }
 
 // Initialisation
-function init() {
+async function init() {
   console.log('📝 Articles Chantier - Initialisation...');
+
+  // Vérifier le token admin existant
+  if (isAdmin()) {
+    const valid = await verifyAdminToken();
+    if (!valid) adminLogout();
+  }
+  updateAdminUI();
 
   // Setup event listeners
   setupPhotoUpload();
 
+  // Chantier selector
+  await loadChantierSelector();
+  elements.chantierSelect.addEventListener('change', handleChantierChange);
+
   elements.description.addEventListener('input', updateGenerateButton);
   elements.btnGenerate.addEventListener('click', handleGenerate);
   elements.btnSaveDraft.addEventListener('click', handleSaveDraft);
+  elements.btnSubmitReview.addEventListener('click', handleSubmitReview);
   elements.btnPublish.addEventListener('click', handlePublish);
   elements.btnNewArticle.addEventListener('click', handleNewArticle);
+
+  // Admin
+  elements.adminToggle.addEventListener('click', handleAdminToggle);
+  elements.modalClose.addEventListener('click', () => {
+    elements.adminModal.hidden = true;
+  });
+  elements.adminLoginBtn.addEventListener('click', handleAdminLogin);
+  elements.adminPassword.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handleAdminLogin();
+  });
+
+  // Fermer les modals en cliquant en dehors
+  elements.adminModal.addEventListener('click', (e) => {
+    if (e.target === elements.adminModal) elements.adminModal.hidden = true;
+  });
+  elements.confirmModal.addEventListener('click', (e) => {
+    if (e.target === elements.confirmModal) elements.confirmModal.hidden = true;
+  });
 
   // Charger les brouillons existants
   loadDrafts();
 
-  console.log('📝 Articles Chantier - Prêt ✅');
-  console.log(`📡 Webhook n8n: ${N8N_ARTICLE_WEBHOOK}`);
+  console.log('📝 Articles Chantier - Prêt');
 }
 
 // Démarrer

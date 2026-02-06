@@ -11,6 +11,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         map: resolve(__dirname, 'map.html'),
         articles: resolve(__dirname, 'articles.html'),
+        chantiers: resolve(__dirname, 'chantiers.html'),
         icpeCarte: resolve(__dirname, 'icpe/index.html'),
         icpeSimulateur: resolve(__dirname, 'icpe/simulateur.html')
       }

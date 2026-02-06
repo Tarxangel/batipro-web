@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#6366f1" />
+  <title>Gestion Chantiers - Batipro</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="app-header">
+      <a href="/" class="back-btn" title="Retour à l'accueil">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <h1>Gestion Chantiers</h1>
+    </header>
+
+    <!-- Toast container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Modal Confirmation -->
+    <div id="confirm-modal" class="modal-overlay" hidden>
+      <div class="modal-card">
+        <h2 id="confirm-title">Confirmation</h2>
+        <p id="confirm-message"></p>
+        <div class="modal-actions">
+          <button id="confirm-cancel" class="btn-secondary">Annuler</button>
+          <button id="confirm-ok" class="btn-primary">Confirmer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Chantier (création/édition) -->
+    <div id="chantier-modal" class="modal-overlay" hidden>
+      <div class="modal-card">
+        <button id="modal-close" class="modal-close">&times;</button>
+        <h2 id="modal-title">Nouveau chantier</h2>
+        <form id="chantier-form">
+          <input type="hidden" id="form-id" />
+
+          <div class="form-group">
+            <label for="form-name">Nom du chantier <span class="required">*</span></label>
+            <input type="text" id="form-name" placeholder="Ex: Entrepôt Mulhouse" required />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="form-client-name">Client</label>
+              <input type="text" id="form-client-name" placeholder="Nom du client" />
+            </div>
+            <div class="form-group">
+              <label for="form-client-sector">Secteur <span class="required">*</span></label>
+              <select id="form-client-sector" required>
+                <option value="industriel">Industriel / Production</option>
+                <option value="logistique">Logistique / Stockage</option>
+                <option value="agroalimentaire">Agroalimentaire</option>
+                <option value="medical">Médical / Pharmaceutique</option>
+                <option value="tertiaire">Tertiaire / Bureaux</option>
+                <option value="commercial">Commercial / Commerce</option>
+                <option value="defense">Défense / Armement</option>
+                <option value="autre">Autre</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="form-project-type">Type de projet <span class="required">*</span></label>
+            <select id="form-project-type" required>
+              <option value="construction">Construction neuve</option>
+              <option value="extension">Extension</option>
+              <option value="renovation">Rénovation</option>
+              <option value="restructuration">Restructuration</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="form-address">Adresse</label>
+            <input type="text" id="form-address" placeholder="Adresse complète" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="form-city">Ville <span class="required">*</span></label>
+              <input type="text" id="form-city" placeholder="Ex: Mulhouse" required />
+            </div>
+            <div class="form-group">
+              <label for="form-department">Département <span class="required">*</span></label>
+              <select id="form-department" required>
+                <optgroup label="Bourgogne Franche-Comté">
+                  <option value="21">21 - Côte-d'Or</option>
+                  <option value="25" selected>25 - Doubs</option>
+                  <option value="39">39 - Jura</option>
+                  <option value="58">58 - Nièvre</option>
+                  <option value="70">70 - Haute-Saône</option>
+                  <option value="71">71 - Saône-et-Loire</option>
+                  <option value="89">89 - Yonne</option>
+                  <option value="90">90 - Belfort</option>
+                </optgroup>
+                <optgroup label="Grand-Est (Alsace)">
+                  <option value="67">67 - Bas-Rhin</option>
+                  <option value="68">68 - Haut-Rhin</option>
+                </optgroup>
+                <optgroup label="Auvergne Rhône-Alpes">
+                  <option value="01">01 - Ain</option>
+                  <option value="03">03 - Allier</option>
+                  <option value="07">07 - Ardèche</option>
+                  <option value="15">15 - Cantal</option>
+                  <option value="26">26 - Drôme</option>
+                  <option value="38">38 - Isère</option>
+                  <option value="42">42 - Loire</option>
+                  <option value="43">43 - Haute-Loire</option>
+                  <option value="63">63 - Puy-de-Dôme</option>
+                  <option value="69">69 - Rhône</option>
+                  <option value="73">73 - Savoie</option>
+                  <option value="74">74 - Haute-Savoie</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="form-surface">Surface (m²)</label>
+              <input type="number" id="form-surface" placeholder="Ex: 2500" min="0" />
+            </div>
+            <div class="form-group">
+              <label for="form-start-date">Date de début</label>
+              <input type="date" id="form-start-date" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="form-description">Description</label>
+            <textarea id="form-description" placeholder="Description générale du chantier..." rows="3"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="form-keywords">Mots-clés SEO</label>
+            <input type="text" id="form-keywords" placeholder="Ex: bâtiment logistique, entrepôt Alsace" />
+          </div>
+
+          <button type="submit" id="btn-save-chantier" class="btn-primary">Enregistrer</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="app-main">
+
+      <!-- Vue Liste -->
+      <div id="view-list" class="view active">
+        <div class="toolbar">
+          <div class="toolbar-filters">
+            <button class="filter-btn active" data-filter="active">Actifs</button>
+            <button class="filter-btn" data-filter="completed">Terminés</button>
+            <button class="filter-btn" data-filter="all">Tous</button>
+            <span id="chantiers-count" class="badge">0</span>
+          </div>
+          <button id="btn-new-chantier" class="btn-new">+ Nouveau</button>
+        </div>
+        <div id="chantiers-list" class="chantiers-grid">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Vue Détail -->
+      <div id="view-detail" class="view">
+        <div class="detail-header">
+          <button id="btn-back-list" class="back-btn" title="Retour à la liste">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <h2 id="detail-name">—</h2>
+          <span id="detail-status" class="status-badge status-active">Actif</span>
+        </div>
+
+        <div class="detail-card">
+          <div class="detail-grid">
+            <div class="detail-field">
+              <span class="detail-label">Client</span>
+              <span class="detail-value" id="detail-client">—</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Localisation</span>
+              <span class="detail-value" id="detail-location">—</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Type / Secteur</span>
+              <span class="detail-value" id="detail-type">—</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Surface</span>
+              <span class="detail-value" id="detail-surface">—</span>
+            </div>
+            <div class="detail-field full-width">
+              <span class="detail-label">Description</span>
+              <span class="detail-value" id="detail-description">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="detail-actions">
+          <button id="btn-new-article" class="btn-action-primary">+ Nouvel article</button>
+          <button id="btn-edit-chantier">Modifier</button>
+          <button id="btn-change-status">Marquer terminé</button>
+          <button id="btn-delete-chantier" class="btn-action-danger">Supprimer</button>
+        </div>
+
+        <div class="articles-section">
+          <h3>Articles <span id="detail-article-count" class="badge">0</span></h3>
+          <div id="detail-articles-list">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script type="module" src="/src/chantiers/main.ts"></script>
+</body>
+</html>

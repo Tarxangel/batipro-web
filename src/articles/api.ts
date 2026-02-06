@@ -1,11 +1,24 @@
 // Module API pour n8n
 
-import { N8N_ARTICLE_WEBHOOK, N8N_PUBLISH_WEBHOOK } from './config';
+import { N8N_ARTICLE_WEBHOOK, N8N_PUBLISH_WEBHOOK, SUMMARIZE_HISTORY_URL, GENERATE_TIMEOUT, PUBLISH_TIMEOUT, MAX_IMAGE_DIMENSION, IMAGE_COMPRESSION_QUALITY } from './config';
+import { SUPABASE_ANON_KEY } from '../config';
 
 // Types
+export interface SeoContext {
+  articleType: string;   // chantier, livraison, expertise, actualite
+  projectType: string;   // construction, extension, renovation, restructuration
+  sector: string;        // industriel, logistique, agroalimentaire, etc.
+  city: string;
+  department: string;    // code département
+  surface: string;       // m²
+  keywords: string;      // mots-clés séparés par virgules
+}
+
 export interface GenerateArticleRequest {
   photo: string; // Base64
   description: string;
+  seo: SeoContext;
+  history?: string; // Résumé de l'historique du chantier
 }
 
 export interface GenerateArticleResponse {
@@ -19,26 +32,25 @@ export interface GenerateArticleResponse {
   error?: string;
 }
 
-export interface PublishArticleRequest {
-  title: string;
-  content: string;
-  wp_media_id: number;
-  categories?: number[];
-}
-
 export interface PublishArticleResponse {
   id: number;
   link: string;
   slug: string;
 }
 
-// Callbacks pour le suivi de progression
-export interface ProgressCallbacks {
-  onUploadStart?: () => void;
-  onUploadComplete?: () => void;
-  onAIStart?: () => void;
-  onAIComplete?: () => void;
-  onError?: (error: string) => void;
+// Fetch avec timeout via AbortController
+function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  return fetch(url, { ...options, signal: controller.signal })
+    .catch((error) => {
+      if (error.name === 'AbortError') {
+        throw new Error(`Délai d'attente dépassé (${Math.round(timeoutMs / 1000)}s). Réessayez.`);
+      }
+      throw error;
+    })
+    .finally(() => clearTimeout(timeoutId));
 }
 
 // Convertir un fichier en base64
@@ -56,50 +68,85 @@ export function fileToBase64(file: File): Promise<string> {
   });
 }
 
+// Compresser une image via canvas
+export function compressImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      let { width, height } = img;
+
+      // Redimensionner si trop grand
+      if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+        const ratio = Math.min(MAX_IMAGE_DIMENSION / width, MAX_IMAGE_DIMENSION / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error('Échec de la compression'));
+            return;
+          }
+          const compressed = new File([blob], file.name, { type: 'image/jpeg' });
+          resolve(compressed);
+        },
+        'image/jpeg',
+        IMAGE_COMPRESSION_QUALITY
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Impossible de charger l\'image'));
+    };
+
+    img.src = url;
+  });
+}
+
 // Appeler n8n pour générer l'article
 export async function generateArticle(
-  request: GenerateArticleRequest,
-  callbacks?: ProgressCallbacks
+  request: GenerateArticleRequest
 ): Promise<GenerateArticleResponse> {
-  try {
-    // Étape 1: Upload
-    callbacks?.onUploadStart?.();
-
-    const response = await fetch(N8N_ARTICLE_WEBHOOK, {
+  const response = await fetchWithTimeout(
+    N8N_ARTICLE_WEBHOOK,
+    {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         photo: request.photo,
-        description: request.description
+        description: request.description,
+        seo: request.seo,
+        ...(request.history ? { history: request.history } : {})
       })
-    });
+    },
+    GENERATE_TIMEOUT
+  );
 
-    callbacks?.onUploadComplete?.();
-
-    // Étape 2: Attente IA (le webhook fait tout côté serveur)
-    callbacks?.onAIStart?.();
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Erreur serveur: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-    callbacks?.onAIComplete?.();
-
-    if (!data.success) {
-      throw new Error(data.error || 'Erreur lors de la génération');
-    }
-
-    return data;
-
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erreur inconnue';
-    callbacks?.onError?.(message);
-    throw error;
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Erreur serveur: ${response.status} - ${errorText}`);
   }
+
+  const data = await response.json();
+
+  if (!data.success) {
+    throw new Error(data.error || 'Erreur lors de la génération');
+  }
+
+  return data;
 }
 
 // Publier un article via n8n (met à jour le contenu et passe en publié)
@@ -108,17 +155,19 @@ export async function publishArticle(
   title: string,
   content: string
 ): Promise<PublishArticleResponse> {
-  const response = await fetch(N8N_PUBLISH_WEBHOOK, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  const response = await fetchWithTimeout(
+    N8N_PUBLISH_WEBHOOK,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        wp_post_id: wpPostId,
+        title: title,
+        content: content
+      })
     },
-    body: JSON.stringify({
-      wp_post_id: wpPostId,
-      title: title,
-      content: content
-    })
-  });
+    PUBLISH_TIMEOUT
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -136,4 +185,28 @@ export async function publishArticle(
     link: data.post_url,
     slug: ''
   };
+}
+
+// Résumer l'historique des articles d'un chantier via Edge Function
+export async function summarizeHistory(descriptions: string[]): Promise<string> {
+  const response = await fetchWithTimeout(
+    SUMMARIZE_HISTORY_URL,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+      },
+      body: JSON.stringify({ descriptions })
+    },
+    30000 // 30s timeout
+  );
+
+  if (!response.ok) {
+    console.error('Erreur summarize-history:', response.status);
+    return ''; // Fail silently - history is optional
+  }
+
+  const data = await response.json();
+  return data.summary || '';
 }

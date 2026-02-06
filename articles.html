@@ -21,7 +21,48 @@
         </svg>
       </a>
       <h1>Articles Chantier</h1>
+      <button id="admin-toggle" class="admin-toggle" title="Mode admin">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/>
+          <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </button>
     </header>
+
+    <!-- Toast container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Modal Admin Login -->
+    <div id="admin-modal" class="modal-overlay" hidden>
+      <div class="modal-card">
+        <button id="modal-close" class="modal-close">&times;</button>
+        <h2>Espace Admin</h2>
+        <p class="modal-subtitle">Entrez le mot de passe administrateur</p>
+        <div class="form-group">
+          <input type="password" id="admin-password" placeholder="Mot de passe" autocomplete="off" />
+        </div>
+        <p id="admin-error" class="modal-error" hidden></p>
+        <button id="admin-login-btn" class="btn-primary">
+          <span class="btn-text">Se connecter</span>
+          <span class="btn-loading">
+            <span class="spinner-small"></span>
+            Connexion...
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Modal Confirmation -->
+    <div id="confirm-modal" class="modal-overlay" hidden>
+      <div class="modal-card">
+        <h2 id="confirm-title">Confirmation</h2>
+        <p id="confirm-message"></p>
+        <div class="modal-actions">
+          <button id="confirm-cancel" class="btn-secondary">Annuler</button>
+          <button id="confirm-ok" class="btn-primary">Confirmer</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Main Content -->
     <main class="app-main">
@@ -42,17 +83,117 @@
           </div>
         </div>
 
+        <!-- Sélecteur de chantier -->
+        <div class="chantier-selector">
+          <label for="chantier-select">Chantier associé</label>
+          <select id="chantier-select">
+            <option value="">Sans chantier (article libre)</option>
+          </select>
+          <div id="chantier-badge" class="chantier-badge" hidden></div>
+        </div>
+
+        <!-- Contexte SEO -->
+        <div class="seo-fields">
+          <h3 class="seo-fields-title">Contexte de l'article</h3>
+
+          <div class="form-row">
+            <div class="form-group form-group-half">
+              <label for="seo-article-type">Type d'article</label>
+              <select id="seo-article-type">
+                <option value="chantier">Chantier en cours</option>
+                <option value="livraison">Livraison / Réception</option>
+                <option value="expertise">Expertise technique</option>
+                <option value="actualite">Actualité entreprise</option>
+              </select>
+            </div>
+            <div class="form-group form-group-half">
+              <label for="seo-project-type">Type de projet</label>
+              <select id="seo-project-type">
+                <option value="construction">Construction neuve</option>
+                <option value="extension">Extension</option>
+                <option value="renovation">Rénovation</option>
+                <option value="restructuration">Restructuration</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="seo-sector">Secteur d'activité du client</label>
+            <select id="seo-sector">
+              <option value="industriel">Industriel / Production</option>
+              <option value="logistique">Logistique / Stockage / Transport</option>
+              <option value="agroalimentaire">Agroalimentaire</option>
+              <option value="medical">Médical / Pharmaceutique</option>
+              <option value="tertiaire">Tertiaire / Bureaux</option>
+              <option value="commercial">Commercial / Commerce</option>
+              <option value="defense">Défense / Armement</option>
+              <option value="autre">Autre</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group form-group-half">
+              <label for="seo-city">Ville du chantier</label>
+              <input type="text" id="seo-city" placeholder="Ex: Mulhouse" />
+            </div>
+            <div class="form-group form-group-quarter">
+              <label for="seo-department">Dept.</label>
+              <select id="seo-department">
+                <option value="">--</option>
+                <optgroup label="Bourgogne Franche-Comté">
+                  <option value="21">21 - Côte-d'Or</option>
+                  <option value="25" selected>25 - Doubs</option>
+                  <option value="39">39 - Jura</option>
+                  <option value="58">58 - Nièvre</option>
+                  <option value="70">70 - Haute-Saône</option>
+                  <option value="71">71 - Saône-et-Loire</option>
+                  <option value="89">89 - Yonne</option>
+                  <option value="90">90 - Belfort</option>
+                </optgroup>
+                <optgroup label="Grand-Est (Alsace)">
+                  <option value="67">67 - Bas-Rhin</option>
+                  <option value="68">68 - Haut-Rhin</option>
+                </optgroup>
+                <optgroup label="Auvergne Rhône-Alpes">
+                  <option value="01">01 - Ain</option>
+                  <option value="03">03 - Allier</option>
+                  <option value="07">07 - Ardèche</option>
+                  <option value="15">15 - Cantal</option>
+                  <option value="26">26 - Drôme</option>
+                  <option value="38">38 - Isère</option>
+                  <option value="42">42 - Loire</option>
+                  <option value="43">43 - Haute-Loire</option>
+                  <option value="63">63 - Puy-de-Dôme</option>
+                  <option value="69">69 - Rhône</option>
+                  <option value="73">73 - Savoie</option>
+                  <option value="74">74 - Haute-Savoie</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="form-group form-group-quarter">
+              <label for="seo-surface">Surface (m²)</label>
+              <input type="number" id="seo-surface" placeholder="Ex: 2500" min="0" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="seo-keywords">Mots-clés SEO (optionnel)</label>
+            <input type="text" id="seo-keywords" placeholder="Ex: bâtiment logistique Mulhouse, entrepôt clé en main Alsace" />
+            <p class="field-hint">Séparez par des virgules. Laissez vide pour des suggestions auto.</p>
+          </div>
+        </div>
+
         <div class="form-group">
           <label for="description">Description du chantier</label>
           <textarea
             id="description"
-            placeholder="Ex: Pose de la charpente métallique sur le bâtiment logistique Zone Lafayette..."
+            placeholder="Décrivez ce qui se passe sur le chantier : travaux en cours, matériaux, techniques utilisées..."
             rows="4"
           ></textarea>
         </div>
 
         <button id="btn-generate" class="btn-primary" disabled>
-          <span class="btn-text">Générer l'article</span>
+          <span class="btn-text">Générer l'article SEO</span>
           <span class="btn-loading">
             <span class="spinner-small"></span>
             Génération en cours...
@@ -116,7 +257,10 @@
             <button id="btn-save-draft" class="btn-secondary">
               💾 Sauvegarder
             </button>
-            <button id="btn-publish" class="btn-primary">
+            <button id="btn-submit-review" class="btn-primary btn-submit">
+              📩 Soumettre pour validation
+            </button>
+            <button id="btn-publish" class="btn-primary" hidden>
               🚀 Publier sur le site
             </button>
           </div>

@@ -11,15 +11,17 @@ export interface ArticleDraft {
   description: string | null;
   image_url: string | null;
   wp_media_id: number | null;
-  status: 'draft' | 'published';
+  status: 'draft' | 'pending_review' | 'published';
   wp_post_id: number | null;
   wp_post_url: string | null;
+  chantier_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export type NewArticleDraft = Omit<ArticleDraft, 'id' | 'created_at' | 'updated_at' | 'status' | 'wp_post_url'> & {
-  wp_post_id?: number | null;  // Optionnel à la création
+  wp_post_id?: number | null;
+  chantier_id?: string | null;
 };
 
 // Client Supabase singleton
@@ -48,6 +50,7 @@ export async function createDraft(draft: NewArticleDraft): Promise<ArticleDraft>
       image_url: draft.image_url,
       wp_media_id: draft.wp_media_id,
       wp_post_id: draft.wp_post_id ?? null,
+      chantier_id: draft.chantier_id ?? null,
       status: 'draft'
     })
     .select()
@@ -101,7 +104,7 @@ export async function getDrafts(): Promise<ArticleDraft[]> {
   const { data, error } = await supabase
     .from('article_drafts')
     .select('*')
-    .eq('status', 'draft')
+    .in('status', ['draft', 'pending_review'])
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -146,4 +149,22 @@ export async function deleteDraft(id: string): Promise<void> {
   }
 
   console.log('✅ Brouillon supprimé:', id);
+}
+
+// Récupérer les articles liés à un chantier (tous statuts)
+export async function getDraftsByChantier(chantierId: string): Promise<ArticleDraft[]> {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from('article_drafts')
+    .select('*')
+    .eq('chantier_id', chantierId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Erreur récupération articles chantier:', error);
+    throw new Error(`Échec récupération: ${error.message}`);
+  }
+
+  return data || [];
 }
