@@ -13,6 +13,9 @@ export const ADMIN_LOGIN_URL = 'https://awhbjbuxbcxszlxcbpjb.supabase.co/functio
 // Résumé historique chantier Edge Function
 export const SUMMARIZE_HISTORY_URL = 'https://awhbjbuxbcxszlxcbpjb.supabase.co/functions/v1/summarize-history';
 
+// Notification soumission article Edge Function
+export const NOTIFY_REVIEW_URL = 'https://awhbjbuxbcxszlxcbpjb.supabase.co/functions/v1/notify-review';
+
 // Génération post LinkedIn Edge Function
 export const LINKEDIN_POST_URL = 'https://awhbjbuxbcxszlxcbpjb.supabase.co/functions/v1/generate-linkedin-post';
 
