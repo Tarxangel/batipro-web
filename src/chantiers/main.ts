@@ -2,6 +2,7 @@
 
 import './styles.css';
 import { createChantier, updateChantier, getChantiers, getChantier, deleteChantier, countArticlesByChantier, Chantier, NewChantier } from './database';
+import { populateDepartmentSelect } from '../departments';
 
 // État de l'application
 interface AppState {
@@ -417,6 +418,9 @@ async function handleChangeStatus() {
 // --- INIT ---
 function init() {
   console.log('🏗️ Gestion Chantiers - Initialisation...');
+
+  // Peupler le select des départements
+  populateDepartmentSelect(elements.formDepartment, { defaultValue: '25' });
 
   // New chantier button
   elements.btnNewChantier.addEventListener('click', () => openModal());

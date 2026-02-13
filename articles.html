@@ -69,7 +69,7 @@
       <!-- Étape 1: Upload -->
       <section id="step-upload" class="step active">
         <div class="upload-zone" id="upload-zone">
-          <input type="file" id="photo-input" accept="image/*" hidden />
+          <input type="file" id="photo-input" accept="image/*,.heic,.heif" hidden />
           <div class="upload-placeholder">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
               <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -138,37 +138,7 @@
             </div>
             <div class="form-group form-group-quarter">
               <label for="seo-department">Dept.</label>
-              <select id="seo-department">
-                <option value="">--</option>
-                <optgroup label="Bourgogne Franche-Comté">
-                  <option value="21">21 - Côte-d'Or</option>
-                  <option value="25" selected>25 - Doubs</option>
-                  <option value="39">39 - Jura</option>
-                  <option value="58">58 - Nièvre</option>
-                  <option value="70">70 - Haute-Saône</option>
-                  <option value="71">71 - Saône-et-Loire</option>
-                  <option value="89">89 - Yonne</option>
-                  <option value="90">90 - Belfort</option>
-                </optgroup>
-                <optgroup label="Grand-Est (Alsace)">
-                  <option value="67">67 - Bas-Rhin</option>
-                  <option value="68">68 - Haut-Rhin</option>
-                </optgroup>
-                <optgroup label="Auvergne Rhône-Alpes">
-                  <option value="01">01 - Ain</option>
-                  <option value="03">03 - Allier</option>
-                  <option value="07">07 - Ardèche</option>
-                  <option value="15">15 - Cantal</option>
-                  <option value="26">26 - Drôme</option>
-                  <option value="38">38 - Isère</option>
-                  <option value="42">42 - Loire</option>
-                  <option value="43">43 - Haute-Loire</option>
-                  <option value="63">63 - Puy-de-Dôme</option>
-                  <option value="69">69 - Rhône</option>
-                  <option value="73">73 - Savoie</option>
-                  <option value="74">74 - Haute-Savoie</option>
-                </optgroup>
-              </select>
+              <select id="seo-department"></select>
             </div>
             <div class="form-group form-group-quarter">
               <label for="seo-surface">Surface (m²)</label>

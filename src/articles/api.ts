@@ -1,6 +1,7 @@
 // Module API pour n8n
 
-import { N8N_ARTICLE_WEBHOOK, N8N_PUBLISH_WEBHOOK, SUMMARIZE_HISTORY_URL, LINKEDIN_POST_URL, GENERATE_TIMEOUT, PUBLISH_TIMEOUT, MAX_IMAGE_DIMENSION, IMAGE_COMPRESSION_QUALITY } from './config';
+import heic2any from 'heic2any';
+import { N8N_ARTICLE_WEBHOOK, N8N_PUBLISH_WEBHOOK, SUMMARIZE_HISTORY_URL, LINKEDIN_POST_URL, NOTIFY_REVIEW_URL, GENERATE_TIMEOUT, PUBLISH_TIMEOUT, MAX_IMAGE_DIMENSION, IMAGE_COMPRESSION_QUALITY } from './config';
 import { SUPABASE_ANON_KEY } from '../config';
 
 // Types
@@ -51,6 +52,22 @@ function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number):
       throw error;
     })
     .finally(() => clearTimeout(timeoutId));
+}
+
+// Vérifier si un fichier est au format HEIC/HEIF
+function isHeicFile(file: File): boolean {
+  const type = file.type.toLowerCase();
+  const name = file.name.toLowerCase();
+  return type === 'image/heic' || type === 'image/heif' || name.endsWith('.heic') || name.endsWith('.heif');
+}
+
+// Convertir HEIC/HEIF en JPEG
+export async function convertHeicToJpeg(file: File): Promise<File> {
+  if (!isHeicFile(file)) return file;
+
+  const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 }) as Blob;
+  const jpegName = file.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg');
+  return new File([blob], jpegName, { type: 'image/jpeg' });
 }
 
 // Convertir un fichier en base64
@@ -209,6 +226,23 @@ export async function generateLinkedInPost(title: string, content: string, artic
 
   const data = await response.json();
   return data.post || '';
+}
+
+// Notifier l'admin qu'un article est soumis pour validation
+export async function notifyReview(title: string, articleId: string): Promise<void> {
+  try {
+    await fetch(NOTIFY_REVIEW_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+      },
+      body: JSON.stringify({ title, articleId })
+    });
+  } catch (error) {
+    console.error('Erreur notify-review:', error);
+    // Fail silently — la soumission ne doit jamais échouer à cause de l'email
+  }
 }
 
 // Résumer l'historique des articles d'un chantier via Edge Function

@@ -1,11 +1,12 @@
 // Module principal - Articles Chantier
 
 import './styles.css';
-import { generateArticle, fileToBase64, publishArticle, compressImage, summarizeHistory, generateLinkedInPost, SeoContext } from './api';
+import { generateArticle, fileToBase64, publishArticle, compressImage, convertHeicToJpeg, summarizeHistory, generateLinkedInPost, notifyReview, SeoContext } from './api';
 import { createDraft, updateDraft, getDrafts, getDraftsByChantier, deleteDraft, markAsPublished, ArticleDraft } from './database';
 import { getChantiers, getChantier, Chantier } from '../chantiers/database';
 import { MAX_IMAGE_SIZE, WP_SITE_URL } from './config';
 import { isAdmin, adminLogin, adminLogout, verifyAdminToken } from './admin';
+import { populateDepartmentSelect } from '../departments';
 
 // Déclaration Quill (chargé via CDN)
 declare const Quill: any;
@@ -340,7 +341,8 @@ function setupPhotoUpload() {
     e.preventDefault();
     elements.uploadZone.classList.remove('dragover');
     const file = e.dataTransfer?.files[0];
-    if (file && file.type.startsWith('image/')) {
+    const name = file?.name.toLowerCase() || '';
+    if (file && (file.type.startsWith('image/') || name.endsWith('.heic') || name.endsWith('.heif'))) {
       handleFileSelect(file);
     }
   });
@@ -352,7 +354,19 @@ function setupPhotoUpload() {
   });
 }
 
-function handleFileSelect(file: File) {
+async function handleFileSelect(file: File) {
+  // Convertir HEIC/HEIF en JPEG si nécessaire
+  const name = file.name.toLowerCase();
+  if (file.type === 'image/heic' || file.type === 'image/heif' || name.endsWith('.heic') || name.endsWith('.heif')) {
+    showToast('Conversion du format HEIC en cours...', 'info', 3000);
+    try {
+      file = await convertHeicToJpeg(file);
+    } catch {
+      showToast('Impossible de convertir l\'image HEIC. Essayez un autre format (JPG, PNG).', 'error', 5000);
+      return;
+    }
+  }
+
   // Vérifier la taille
   if (file.size > MAX_IMAGE_SIZE) {
     const sizeMB = (MAX_IMAGE_SIZE / 1024 / 1024).toFixed(0);
@@ -614,6 +628,9 @@ async function handleSubmitReview() {
       content: content,
       status: 'pending_review' as any
     });
+
+    // Notification email fire & forget
+    notifyReview(elements.articleTitle.value, state.currentDraft.id);
 
     showToast('Article soumis pour validation !', 'success');
     handleNewArticle();
@@ -884,6 +901,9 @@ async function init() {
     if (!valid) adminLogout();
   }
   updateAdminUI();
+
+  // Peupler le select des départements
+  populateDepartmentSelect(elements.seoDepartment, { placeholder: '--', defaultValue: '25' });
 
   // Setup event listeners
   setupPhotoUpload();
