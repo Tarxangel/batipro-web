@@ -4,7 +4,48 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Simulateur ICPE Pro - Batipro</title>
-    <style>
+  <style>
+    :root {
+      --primary: #1e3a5f;
+      --primary-light: #2d5a87;
+      --accent: #3b82f6;
+      --accent-dark: #1d4ed8;
+      --green: #22c55e;
+      --green-bg: #f0fdf4;
+      --green-border: #bbf7d0;
+      --yellow: #eab308;
+      --yellow-bg: #fefce8;
+      --yellow-border: #fef08a;
+      --orange: #f97316;
+      --orange-bg: #fff7ed;
+      --orange-border: #fed7aa;
+      --red: #ef4444;
+      --red-bg: #fef2f2;
+      --red-border: #fecaca;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-700: #374151;
+      --gray-900: #111827;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; }
+
     .back-button {
       display: inline-flex;
       align-items: center;
@@ -17,501 +58,733 @@
       opacity: 0.9;
       transition: opacity 0.2s;
     }
-    .back-button:hover {
-      opacity: 1;
-    }
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    .back-button:hover { opacity: 1; }
 
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
-      min-height: 100vh;
-      padding: 20px;
-    }
+    .header { text-align: center; color: white; margin-bottom: 30px; }
+    .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+    .header p { opacity: 0.8; font-size: 14px; }
 
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .header {
-      text-align: center;
-      color: white;
-      margin-bottom: 30px;
-    }
-
-    .header h1 {
-      font-size: 28px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .header p {
-      opacity: 0.8;
-      font-size: 14px;
-    }
-
-    .card {
-      background: white;
-      border-radius: 16px;
-      padding: 25px;
-      margin-bottom: 20px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-    }
-
-    .card-title {
-      font-size: 16px;
-      font-weight: 700;
-      color: #1e3a5f;
-      margin-bottom: 20px;
+    /* Step Indicator */
+    .step-indicator {
       display: flex;
       align-items: center;
-      gap: 10px;
+      justify-content: center;
+      gap: 0;
+      margin-bottom: 30px;
     }
-
-    .card-title span {
-      background: #1e3a5f;
-      color: white;
-      width: 28px;
-      height: 28px;
+    .step-dot {
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.5);
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 14px;
+      font-weight: 700;
+      transition: all 0.3s;
+      flex-shrink: 0;
     }
+    .step-dot.active { background: white; color: var(--primary); }
+    .step-dot.completed { background: var(--green); color: white; }
+    .step-line {
+      width: 60px;
+      height: 2px;
+      background: rgba(255,255,255,0.2);
+      transition: background 0.3s;
+    }
+    .step-line.completed { background: var(--green); }
 
-    /* Formulaire projet */
-    .form-section {
+    /* Card */
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 28px;
       margin-bottom: 20px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 24px;
     }
 
-    .form-section h3 {
+    /* Wizard steps */
+    .wizard-step { display: none; }
+    .wizard-step.active { display: block; }
+
+    /* Navigation */
+    .wizard-nav {
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      font-family: inherit;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+      color: white;
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(59,130,246,0.4); }
+    .btn-primary:disabled { background: var(--gray-400); cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-secondary {
+      background: white;
+      color: var(--gray-700);
+      border: 1px solid var(--gray-300);
+    }
+    .btn-secondary:hover { background: var(--gray-50); }
+    .btn-ghost {
+      background: transparent;
+      color: white;
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.1); }
+
+    /* ========== STEP 1 ========== */
+    .mode-toggle {
+      display: flex;
+      gap: 0;
+      margin-bottom: 24px;
+      background: var(--gray-100);
+      border-radius: var(--radius-sm);
+      padding: 4px;
+    }
+    .mode-toggle button {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
       font-size: 14px;
-      color: #374151;
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #e5e7eb;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      color: var(--gray-500);
+      transition: all 0.2s;
+      font-family: inherit;
     }
+    .mode-toggle button.active { background: white; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
-    .form-grid {
+    .rubriques-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 15px;
+      gap: 12px;
     }
-
-    .form-group {
-      margin-bottom: 0;
+    .rubrique-card {
+      border: 2px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
     }
-
-    .form-group label {
-      display: block;
+    .rubrique-card:hover { border-color: var(--accent); background: #eff6ff; }
+    .rubrique-card.selected { border-color: var(--accent); background: #eff6ff; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+    .rubrique-card .rubrique-num {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+    .rubrique-card .rubrique-label {
       font-size: 12px;
-      font-weight: 600;
-      color: #6b7280;
-      margin-bottom: 5px;
+      color: var(--gray-500);
+      line-height: 1.4;
+    }
+    .rubrique-card .rubrique-var {
+      font-size: 11px;
+      color: var(--gray-400);
+      margin-top: 6px;
     }
 
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      font-size: 14px;
-      font-family: inherit;
-      transition: border-color 0.2s;
-    }
-
-    .form-group input:focus,
-    .form-group select:focus,
-    .form-group textarea:focus {
-      outline: none;
-      border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    .form-group.full-width {
-      grid-column: 1 / -1;
-    }
-
-    /* Checkboxes produits */
+    /* Products selection */
     .products-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
       gap: 10px;
     }
-
-    .product-checkbox {
+    .product-chip {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 10px;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
+      padding: 12px 14px;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-sm);
       cursor: pointer;
       transition: all 0.2s;
-    }
-
-    .product-checkbox:hover {
-      border-color: #3b82f6;
-      background: #eff6ff;
-    }
-
-    .product-checkbox input {
-      width: 18px;
-      height: 18px;
-      cursor: pointer;
-    }
-
-    .product-checkbox span {
       font-size: 13px;
-      color: #374151;
+      color: var(--gray-700);
     }
-
-    /* Bouton simuler */
-    .btn-simulate {
-      width: 100%;
-      padding: 16px;
-      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .btn-simulate:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 5px 20px rgba(59, 130, 246, 0.4);
-    }
-
-    .btn-simulate:disabled {
-      background: #9ca3af;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-
-    /* Loading */
-    .loading {
-      display: none;
-      text-align: center;
-      padding: 40px;
-    }
-
-    .loading.visible {
-      display: block;
-    }
-
-    .spinner {
-      width: 50px;
-      height: 50px;
-      border: 4px solid #e5e7eb;
-      border-top-color: #3b82f6;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 15px;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    /* Résultat */
-    .result {
-      display: none;
-    }
-
-    .result.visible {
-      display: block;
-    }
-
-    /* Rubriques identifiées */
-    .rubriques-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .rubrique-tag {
+    .product-chip:hover { border-color: var(--accent); background: #eff6ff; }
+    .product-chip.selected { border-color: var(--accent); background: #eff6ff; color: var(--primary); font-weight: 600; }
+    .product-chip input { display: none; }
+    .product-chip .chip-check {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: 2px solid var(--gray-300);
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 10px 15px;
-      border-radius: 10px;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .product-chip.selected .chip-check {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    .suggested-rubriques {
+      margin-top: 20px;
+      padding: 16px;
+      background: var(--gray-50);
+      border-radius: var(--radius-sm);
+      display: none;
+    }
+    .suggested-rubriques.visible { display: block; }
+    .suggested-rubriques h4 { font-size: 14px; color: var(--primary); margin-bottom: 12px; }
+    .suggested-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .suggested-tag {
+      padding: 8px 14px;
+      border-radius: 20px;
       font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 2px solid var(--gray-200);
+      background: white;
+      transition: all 0.2s;
+    }
+    .suggested-tag:hover { border-color: var(--accent); }
+    .suggested-tag.selected { border-color: var(--accent); background: #eff6ff; }
+
+    /* ========== STEP 2 ========== */
+    .rubrique-section {
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .rubrique-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .rubrique-section-header h3 {
+      font-size: 16px;
+      color: var(--primary);
+    }
+    .regime-badge {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+    .regime-badge.non-icpe { background: var(--green-bg); color: #16a34a; border: 1px solid var(--green-border); }
+    .regime-badge.declaration { background: var(--yellow-bg); color: #a16207; border: 1px solid var(--yellow-border); }
+    .regime-badge.enregistrement { background: var(--orange-bg); color: #c2410c; border: 1px solid var(--orange-border); }
+    .regime-badge.autorisation { background: var(--red-bg); color: #dc2626; border: 1px solid var(--red-border); }
+
+    /* Gauge */
+    .gauge-container { margin: 16px 0; }
+    .gauge-bar {
+      display: flex;
+      height: 32px;
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+    .gauge-segment {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.9);
+      position: relative;
+      transition: opacity 0.3s;
+    }
+    .gauge-segment.seg-non-icpe { background: var(--green); }
+    .gauge-segment.seg-declaration { background: var(--yellow); color: rgba(0,0,0,0.6); }
+    .gauge-segment.seg-enregistrement { background: var(--orange); }
+    .gauge-segment.seg-autorisation { background: var(--red); }
+    .gauge-segment.dimmed { opacity: 0.4; }
+    .gauge-segment.highlight { opacity: 1; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.2); }
+
+    .gauge-marker {
+      position: absolute;
+      top: -8px;
+      transform: translateX(-50%);
+      font-size: 16px;
+      line-height: 1;
+      z-index: 2;
+      color: var(--gray-900);
+      transition: left 0.4s ease;
+    }
+    .gauge-thresholds {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+      height: 20px;
+      margin-top: 2px;
+    }
+    .gauge-threshold-mark {
+      position: absolute;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: var(--gray-500);
       font-weight: 600;
     }
 
-    .rubrique-tag.autorisation {
-      background: #fef2f2;
-      color: #dc2626;
-      border: 2px solid #fecaca;
+    /* Input row */
+    .input-row {
+      display: flex;
+      gap: 12px;
+      align-items: end;
+      flex-wrap: wrap;
+      margin-top: 16px;
     }
-
-    .rubrique-tag.enregistrement {
-      background: #fff7ed;
-      color: #ea580c;
-      border: 2px solid #fed7aa;
+    .input-group { display: flex; flex-direction: column; gap: 4px; }
+    .input-group label { font-size: 12px; font-weight: 600; color: var(--gray-500); }
+    .input-group input {
+      padding: 10px 12px;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      font-family: inherit;
+      width: 160px;
+      transition: border-color 0.2s;
     }
+    .input-group input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .input-group .unit { font-size: 12px; color: var(--gray-400); }
 
-    .rubrique-tag.declaration {
-      background: #fefce8;
-      color: #ca8a04;
-      border: 2px solid #fef08a;
+    .volume-helper {
+      font-size: 12px;
+      color: var(--gray-500);
+      background: var(--gray-50);
+      padding: 8px 12px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
-
-    .rubrique-tag.non-icpe {
-      background: #f0fdf4;
-      color: #16a34a;
-      border: 2px solid #bbf7d0;
+    .volume-helper input {
+      width: 80px;
+      padding: 5px 8px;
+      border: 1px solid var(--gray-300);
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: inherit;
     }
+    .volume-helper input:focus { outline: none; border-color: var(--accent); }
 
-    /* Tableau prescriptions */
+    .proximity-info {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      line-height: 1.5;
+      display: none;
+    }
+    .proximity-info.visible { display: block; }
+    .proximity-info.safe { background: var(--green-bg); color: #166534; border: 1px solid var(--green-border); }
+    .proximity-info.warning { background: var(--yellow-bg); color: #854d0e; border: 1px solid var(--yellow-border); }
+    .proximity-info.danger { background: var(--orange-bg); color: #9a3412; border: 1px solid var(--orange-border); }
+    .proximity-info.critical { background: var(--red-bg); color: #991b1b; border: 1px solid var(--red-border); }
+
+    /* ========== STEP 3 ========== */
+    .step3-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--gray-700);
+      cursor: pointer;
+    }
+    .toggle {
+      width: 44px;
+      height: 24px;
+      border-radius: 12px;
+      background: var(--gray-300);
+      position: relative;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .toggle.active { background: var(--accent); }
+    .toggle::after {
+      content: '';
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: white;
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle.active::after { transform: translateX(20px); }
+
+    .btn-ai {
+      background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+      color: white;
+      padding: 10px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .btn-ai:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(139,92,246,0.4); }
+    .btn-ai:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .anticipation-box {
+      background: linear-gradient(135deg, #fefce8 0%, #fff7ed 100%);
+      border: 1px solid var(--yellow-border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-top: 20px;
+      display: none;
+    }
+    .anticipation-box.visible { display: block; }
+    .anticipation-box h4 { font-size: 14px; color: #92400e; margin-bottom: 8px; }
+    .anticipation-box p { font-size: 13px; color: #78350f; line-height: 1.6; }
+
+    /* Prescriptions Table */
     .table-container {
       overflow-x: auto;
-      margin: 20px 0;
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      margin-top: 16px;
     }
-
     .prescriptions-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 12px;
-      min-width: 800px;
+      min-width: 600px;
     }
-
     .prescriptions-table th,
     .prescriptions-table td {
       padding: 10px 12px;
       text-align: left;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 1px solid var(--gray-200);
       vertical-align: top;
     }
-
     .prescriptions-table thead th {
-      background: #1e3a5f;
+      background: var(--primary);
       color: white;
       font-weight: 600;
       position: sticky;
       top: 0;
+      white-space: nowrap;
+    }
+    .prescriptions-table thead th:first-child { border-radius: 11px 0 0 0; }
+    .prescriptions-table thead th:last-child { border-radius: 0 11px 0 0; }
+    .prescriptions-table tbody tr:hover { background: var(--gray-50); }
+    .prescriptions-table .cat-row { background: var(--gray-100); }
+    .prescriptions-table .cat-row td { font-weight: 700; color: var(--primary); padding: 8px 12px; }
+    .prescriptions-table .sub-row td:first-child { padding-left: 24px; color: var(--gray-500); font-weight: 500; }
+    .prescriptions-table td.empty { color: var(--gray-400); font-style: italic; }
+    .prescriptions-table td.diff { background: #fef3c7; }
+    .prescriptions-table th.regime-plus {
+      background: #7c3aed;
     }
 
-    .prescriptions-table thead th:first-child {
-      border-radius: 11px 0 0 0;
-    }
-
-    .prescriptions-table thead th:last-child {
-      border-radius: 0 11px 0 0;
-    }
-
-    .prescriptions-table tbody tr:hover {
-      background: #f9fafb;
-    }
-
-    .prescriptions-table .category {
-      background: #f3f4f6;
-      font-weight: 700;
-      color: #1e3a5f;
-    }
-
-    .prescriptions-table .category td {
-      padding: 8px 12px;
-    }
-
-    .prescriptions-table .sub-item td:first-child {
-      padding-left: 25px;
-      color: #6b7280;
-    }
-
-    .prescription-cell {
-      font-size: 11px;
-      line-height: 1.4;
-    }
-
-    .prescription-cell.empty {
-      color: #9ca3af;
-      font-style: italic;
-    }
-
-    .prescription-cell.important {
-      background: #fef3c7;
-    }
-
-    /* Export buttons */
-    .export-buttons {
-      display: flex;
-      gap: 10px;
+    /* AI Panel */
+    .ai-panel {
       margin-top: 20px;
-      flex-wrap: wrap;
+      border: 1px solid #c4b5fd;
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: none;
     }
-
-    .btn-export {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-      border: none;
-    }
-
-    .btn-export.primary {
-      background: #1e3a5f;
+    .ai-panel.visible { display: block; }
+    .ai-panel-header {
+      background: linear-gradient(135deg, #8b5cf6, #6d28d9);
       color: white;
-    }
-
-    .btn-export.primary:hover {
-      background: #2d5a87;
-    }
-
-    .btn-export.secondary {
-      background: white;
-      color: #374151;
-      border: 1px solid #d1d5db;
-    }
-
-    .btn-export.secondary:hover {
-      background: #f9fafb;
-    }
-
-    /* Analyse détaillée */
-    .analysis-section {
-      background: #f9fafb;
-      border-radius: 10px;
-      padding: 20px;
-      margin: 20px 0;
-    }
-
-    .analysis-section h4 {
+      padding: 12px 16px;
       font-size: 14px;
-      color: #1e3a5f;
-      margin-bottom: 10px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
-
-    .analysis-section p {
+    .ai-panel-body {
+      padding: 16px;
       font-size: 13px;
-      color: #4b5563;
+      color: var(--gray-700);
       line-height: 1.6;
-      white-space: pre-wrap;
+      max-height: 400px;
+      overflow-y: auto;
     }
+    .ai-panel-body .ai-loading {
+      text-align: center;
+      padding: 20px;
+      color: var(--gray-400);
+    }
+    .ai-spinner {
+      width: 30px;
+      height: 30px;
+      border: 3px solid var(--gray-200);
+      border-top-color: #8b5cf6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Documents */
+    /* ========== STEP 4 ========== */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-500);
+      margin-bottom: 5px;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .form-group input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+
+    .summary-section {
+      background: var(--gray-50);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .summary-section h4 {
+      font-size: 14px;
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 12px;
+    }
+    .summary-item {
+      padding: 12px;
+      background: white;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--gray-200);
+    }
+    .summary-item .s-label { font-size: 11px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .summary-item .s-value { font-size: 15px; font-weight: 600; color: var(--gray-900); }
+    .summary-item .s-detail { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
+
     .documents-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
       gap: 10px;
-      margin-top: 20px;
+      margin-top: 16px;
     }
-
     .doc-link {
       display: flex;
       align-items: center;
       gap: 10px;
       padding: 12px 15px;
-      background: #f3f4f6;
-      border-radius: 8px;
+      background: var(--gray-100);
+      border-radius: var(--radius-sm);
       text-decoration: none;
-      color: #1e3a5f;
+      color: var(--primary);
       font-size: 13px;
-      transition: all 0.2s;
+      transition: background 0.2s;
     }
+    .doc-link:hover { background: var(--gray-200); }
 
-    .doc-link:hover {
-      background: #e5e7eb;
-    }
-
-    .doc-link .icon {
-      font-size: 18px;
-    }
-
-    /* Reset */
-    .btn-reset {
-      width: 100%;
-      padding: 12px;
-      background: white;
-      color: #6b7280;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      font-size: 14px;
-      cursor: pointer;
+    .export-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
       margin-top: 20px;
     }
-
-    .btn-reset:hover {
-      background: #f9fafb;
+    .btn-export {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      font-family: inherit;
     }
+    .btn-export.primary { background: var(--primary); color: white; }
+    .btn-export.primary:hover { background: var(--primary-light); }
+    .btn-export.secondary { background: white; color: var(--gray-700); border: 1px solid var(--gray-300); }
+    .btn-export.secondary:hover { background: var(--gray-50); }
 
     /* Print styles */
     @media print {
-      body {
-        background: white;
-        padding: 0;
-      }
+      body { background: white; padding: 0; }
+      .container { max-width: 100%; }
+      .back-button, .step-indicator, .wizard-nav, .mode-toggle,
+      .step3-controls, .btn-ai, .ai-panel, .export-buttons, .btn { display: none !important; }
+      .card { box-shadow: none; border: 1px solid var(--gray-200); break-inside: avoid; }
+      .wizard-step { display: block !important; }
+      .wizard-step#step1, .wizard-step#step2 { display: none !important; }
+      .prescriptions-table { font-size: 10px; }
+      .prescriptions-table th, .prescriptions-table td { padding: 5px 8px; }
+      .summary-section { break-inside: avoid; }
+    }
 
-      .card {
-        box-shadow: none;
-        border: 1px solid #e5e7eb;
-      }
-
-      .btn-simulate, .btn-export, .btn-reset, #step1, #step2 {
-        display: none !important;
-      }
-
-      .result {
-        display: block !important;
-      }
-
-      .prescriptions-table {
-        font-size: 10px;
-      }
-
-      .prescriptions-table th,
-      .prescriptions-table td {
-        padding: 6px 8px;
-      }
+    /* Responsive */
+    @media (max-width: 768px) {
+      body { padding: 12px; }
+      .card { padding: 18px; }
+      .rubriques-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+      .input-row { flex-direction: column; }
+      .input-group input { width: 100%; }
+      .step3-controls { flex-direction: column; align-items: flex-start; }
+      .form-grid { grid-template-columns: 1fr; }
+      .wizard-nav { flex-direction: column; }
+      .wizard-nav .btn { width: 100%; justify-content: center; }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <a href="/" class="back-button">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M19 12H5M12 19l-7-7 7-7"/>
-      </svg>
-      Retour à l'accueil
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Retour
     </a>
+
     <div class="header">
-      <h1>🏭 Simulateur ICPE Pro</h1>
-      <p>Analyse complète et tableau des prescriptions techniques</p>
+      <h1>Simulateur ICPE Pro</h1>
+      <p>Questionnaire par etapes - Prescriptions techniques de construction</p>
     </div>
 
-    <!-- Étape 1 : Informations projet -->
-    <div class="card" id="step1">
-      <div class="card-title">
-        <span>1</span>
-        Informations du projet
-      </div>
+    <!-- Step Indicator -->
+    <div class="step-indicator">
+      <div class="step-dot active" data-step="1">1</div>
+      <div class="step-line" data-line="1"></div>
+      <div class="step-dot" data-step="2">2</div>
+      <div class="step-line" data-line="2"></div>
+      <div class="step-dot" data-step="3">3</div>
+      <div class="step-line" data-line="3"></div>
+      <div class="step-dot" data-step="4">4</div>
+    </div>
 
-      <div class="form-section">
-        <h3>📋 Identification</h3>
+    <!-- ========== STEP 1 : Choix rubrique ========== -->
+    <div class="wizard-step active" id="step1">
+      <div class="card">
+        <div class="card-title">Etape 1 — Choix de la rubrique ICPE</div>
+
+        <div class="mode-toggle">
+          <button class="active" onclick="setMode('direct')">Je connais ma rubrique</button>
+          <button onclick="setMode('guided')">Aidez-moi a trouver</button>
+        </div>
+
+        <!-- Direct mode -->
+        <div id="directMode">
+          <p style="font-size:13px; color:var(--gray-500); margin-bottom:14px;">Selectionnez une ou plusieurs rubriques applicables a votre projet :</p>
+          <div class="rubriques-grid" id="rubriquesGrid"></div>
+        </div>
+
+        <!-- Guided mode -->
+        <div id="guidedMode" style="display:none;">
+          <p style="font-size:13px; color:var(--gray-500); margin-bottom:14px;">Quels types de produits seront stockes ?</p>
+          <div class="products-grid" id="productsGrid"></div>
+          <div class="suggested-rubriques" id="suggestedRubriques">
+            <h4>Rubriques suggerees :</h4>
+            <div class="suggested-list" id="suggestedList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== STEP 2 : Seuils & Regime ========== -->
+    <div class="wizard-step" id="step2">
+      <div class="card">
+        <div class="card-title">Etape 2 — Seuils et regime applicable</div>
+        <div id="seuilsContainer"></div>
+      </div>
+    </div>
+
+    <!-- ========== STEP 3 : Prescriptions ========== -->
+    <div class="wizard-step" id="step3">
+      <div class="card">
+        <div class="card-title">Etape 3 — Prescriptions techniques</div>
+
+        <div class="step3-controls">
+          <label class="toggle-label" onclick="toggleComparison()">
+            <div class="toggle" id="compToggle"></div>
+            Comparer avec le regime superieur
+          </label>
+          <button class="btn-ai" id="btnAI" onclick="callGemini()">Approfondir avec l'IA</button>
+        </div>
+
+        <div class="table-container">
+          <table class="prescriptions-table" id="prescriptionsTable">
+            <thead><tr id="tableHeader"></tr></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="anticipation-box" id="anticipationBox">
+          <h4>Anticipation extension</h4>
+          <p id="anticipationText"></p>
+        </div>
+
+        <div class="ai-panel" id="aiPanel">
+          <div class="ai-panel-header">
+            <span>Analyse IA complementaire</span>
+            <button onclick="document.getElementById('aiPanel').classList.remove('visible')" style="background:none;border:none;color:white;cursor:pointer;font-size:18px;">&times;</button>
+          </div>
+          <div class="ai-panel-body" id="aiContent"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== STEP 4 : Synthese & Export ========== -->
+    <div class="wizard-step" id="step4">
+      <div class="card">
+        <div class="card-title">Etape 4 — Synthese et export</div>
+
+        <p style="font-size:13px; color:var(--gray-500); margin-bottom:16px;">Informations du projet (optionnel, pour l'export) :</p>
         <div class="form-grid">
           <div class="form-group">
             <label>Nom du projet</label>
-            <input type="text" id="nomProjet" placeholder="Ex: Entrepôt LogiNord">
+            <input type="text" id="nomProjet" placeholder="Ex: Entrepot LogiNord">
           </div>
           <div class="form-group">
             <label>Client</label>
@@ -519,629 +792,1724 @@
           </div>
           <div class="form-group">
             <label>Localisation</label>
-            <input type="text" id="localisation" placeholder="Ex: ZI Nord, Besançon">
+            <input type="text" id="localisation" placeholder="Ex: ZI Nord, Besancon">
           </div>
           <div class="form-group">
             <label>Date</label>
-            <input type="date" id="dateAnalyse" value="">
+            <input type="date" id="dateAnalyse">
           </div>
         </div>
-      </div>
 
-      <div class="form-section">
-        <h3>📐 Caractéristiques du bâtiment</h3>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Surface totale (m²)</label>
-            <input type="number" id="surface" placeholder="Ex: 15000">
-          </div>
-          <div class="form-group">
-            <label>Hauteur sous plafond (m)</label>
-            <input type="number" id="hauteur" placeholder="Ex: 12">
-          </div>
-          <div class="form-group">
-            <label>Volume total (m³)</label>
-            <input type="number" id="volume" placeholder="Calculé auto" readonly>
-          </div>
-          <div class="form-group">
-            <label>Nombre de cellules</label>
-            <input type="number" id="nbCellules" placeholder="Ex: 4">
-          </div>
-          <div class="form-group">
-            <label>Surface par cellule (m²)</label>
-            <input type="number" id="surfaceCellule" placeholder="Ex: 3000">
-          </div>
-          <div class="form-group">
-            <label>Hauteur de stockage (m)</label>
-            <input type="number" id="hauteurStockage" placeholder="Ex: 10">
-          </div>
-        </div>
-      </div>
+        <div id="syntheseContainer"></div>
 
-      <div class="form-section">
-        <h3>📦 Types de produits stockés</h3>
-        <div class="products-grid">
-          <label class="product-checkbox">
-            <input type="checkbox" name="produits" value="combustibles">
-            <span>Matières combustibles</span>
-          </label>
-          <label class="product-checkbox">
-            <input type="checkbox" name="produits" value="papier_carton">
-            <span>Papier / Carton</span>
-          </label>
-          <label class="product-checkbox">
-            <input type="checkbox" name="produits" value="bois">
-            <span>Bois</span>
-          </label>
-          <label class="product-checkbox">
-            <input type="checkbox" name="produits" value="plastiques">
-            <span>Plastiques / Polymères</span>
-          </label>
-          <label class="product-checkbox">
-            <input type="checkbox" name="produits" value="liquides_inflammables">
-            <span>Liquides inflammables</span>
-          </label>
-          <label class="product-checkbox">
-            <input type="checkbox" name="produits" value="aerosols">
-            <span>Aérosols</span>
-          </label>
-          <label class="product-checkbox">
-            <input type="checkbox" name="produits" value="produits_chimiques">
-            <span>Produits chimiques</span>
-          </label>
-          <label class="product-checkbox">
-            <input type="checkbox" name="produits" value="denrees_alimentaires">
-            <span>Denrées alimentaires</span>
-          </label>
-          <label class="product-checkbox">
-            <input type="checkbox" name="produits" value="batteries">
-            <span>Batteries / Accumulateurs</span>
-          </label>
-          <label class="product-checkbox">
-            <input type="checkbox" name="produits" value="gaz">
-            <span>Gaz comprimés</span>
-          </label>
-        </div>
-      </div>
+        <h4 style="margin:24px 0 10px; color:var(--primary);">Documents de reference</h4>
+        <div class="documents-grid" id="documentsGrid"></div>
 
-      <div class="form-section">
-        <h3>⚡ Équipements techniques</h3>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Puissance chaufferie (MW)</label>
-            <input type="number" id="puissanceChaufferie" placeholder="Ex: 2" step="0.1">
-          </div>
-          <div class="form-group">
-            <label>Puissance charge batteries (kW)</label>
-            <input type="number" id="puissanceCharge" placeholder="Ex: 50">
-          </div>
-          <div class="form-group">
-            <label>Groupe électrogène (kVA)</label>
-            <input type="number" id="groupeElectrogene" placeholder="Ex: 500">
-          </div>
-          <div class="form-group">
-            <label>Tonnage total stocké (t)</label>
-            <input type="number" id="tonnage" placeholder="Ex: 5000">
-          </div>
-        </div>
-      </div>
-
-      <div class="form-section">
-        <h3>💬 Informations complémentaires</h3>
-        <div class="form-group full-width">
-          <textarea id="complement" rows="3" placeholder="Sprinklage prévu, quais de chargement, particularités du site..."></textarea>
+        <div class="export-buttons">
+          <button class="btn-export primary" onclick="printReport()">Imprimer / PDF</button>
+          <button class="btn-export secondary" onclick="copierTableau()">Copier pour Excel</button>
+          <button class="btn-export secondary" onclick="exporterCSV()">Exporter CSV</button>
         </div>
       </div>
     </div>
 
-    <!-- Bouton simulation -->
-    <button class="btn-simulate" id="btnSimulate" onclick="simuler()">
-      🤖 Générer l'analyse ICPE complète
-    </button>
-
-    <!-- Loading -->
-    <div class="card loading" id="loading">
-      <div class="spinner"></div>
-      <p>Analyse en cours avec l'IA...</p>
-      <p style="font-size: 12px; color: #9ca3af; margin-top: 10px;">Identification des rubriques et extraction des prescriptions</p>
-    </div>
-
-    <!-- Résultat -->
-    <div class="card result" id="result">
-      <div class="card-title">
-        <span>✓</span>
-        Analyse ICPE - <span id="resultNomProjet">Projet</span>
-      </div>
-
-      <div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
-        <div>
-          <p style="font-size: 12px; color: #6b7280;">Client: <strong id="resultClient">-</strong></p>
-          <p style="font-size: 12px; color: #6b7280;">Date: <strong id="resultDate">-</strong></p>
-        </div>
-        <div id="rubriquesContainer" class="rubriques-list">
-          <!-- Rubriques ajoutées dynamiquement -->
-        </div>
-      </div>
-
-      <div class="analysis-section">
-        <h4>📋 Synthèse de l'analyse</h4>
-        <p id="syntheseText">-</p>
-      </div>
-
-      <!-- Tableau des prescriptions -->
-      <h4 style="margin: 20px 0 10px; color: #1e3a5f;">📊 Tableau des prescriptions techniques</h4>
-      <div class="table-container">
-        <table class="prescriptions-table" id="prescriptionsTable">
-          <thead>
-            <tr id="tableHeader">
-              <th style="min-width: 180px;">Thème</th>
-              <!-- Colonnes rubriques ajoutées dynamiquement -->
-            </tr>
-          </thead>
-          <tbody id="tableBody">
-            <!-- Lignes ajoutées dynamiquement -->
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Export buttons -->
-      <div class="export-buttons">
-        <button class="btn-export primary" onclick="window.print()">
-          🖨️ Imprimer / PDF
-        </button>
-        <button class="btn-export secondary" onclick="copierTableau()">
-          📋 Copier pour Excel
-        </button>
-        <button class="btn-export secondary" onclick="exporterCSV()">
-          📄 Exporter CSV
-        </button>
-      </div>
-
-      <!-- Documents -->
-      <h4 style="margin: 30px 0 10px; color: #1e3a5f;">📁 Documents de référence</h4>
-      <div class="documents-grid" id="documentsGrid">
-        <!-- Documents ajoutés dynamiquement -->
-      </div>
-
-      <button class="btn-reset" onclick="reset()">↩️ Nouvelle analyse</button>
+    <!-- Navigation -->
+    <div class="wizard-nav">
+      <button class="btn btn-ghost" id="btnPrev" onclick="prevStep()" style="visibility:hidden;">Precedent</button>
+      <button class="btn btn-primary" id="btnNext" onclick="nextStep()">Suivant</button>
     </div>
   </div>
 
-  <script>
-    // Utilise l'API proxy Vercel (la clé est dans les variables d'environnement Vercel)
-    const GEMINI_URL = '/api/gemini';
+<script>
+// ======================================================
+// DATA
+// ======================================================
 
-    // Base de données des URLs AIDA
-    const AIDA_URLS = {
-      '1510': {
-        fiche: 'https://aida.ineris.fr/reglementation/1510-stockage-matieres-produits-substances-combustibles-entrepots-couverts',
-        arrete: 'https://aida.ineris.fr/reglementation/arrete-110417-relatif-prescriptions-generales-applicables-entrepots-couverts-soumis'
+const ICPE_DATA = {
+  '1510': {
+    intitule: 'Entrepots couverts (matieres combustibles)',
+    variable: 'volume',
+    unite: 'm\u00B3',
+    description: 'Stockage de matieres, produits ou substances combustibles en entrepots couverts',
+    seuils: [
+      { max: 5000, regime: null, label: 'Non ICPE' },
+      { max: 50000, regime: 'Declaration', label: 'Declaration' },
+      { max: 900000, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ],
+    prescriptions: {
+      'Declaration': {
+        implantation: {
+          'Distances limites': '20 m des limites de propriete ou mur EI 120',
+          'Distances inter-batiments': '10 m ou mur EI 120'
+        },
+        accessibilite: {
+          'Acces au site': '2 acces si possible',
+          'Voie engin': 'Largeur 3 m, portante',
+          'Echelles': 'Pas d\'exigence specifique',
+          'Issues et quais': 'Degagements 1,40 m'
+        },
+        construction: {
+          'Structure': 'Pas d\'exigence specifique de stabilite au feu',
+          'Toiture': 'Classe Broof t3',
+          'Facades': 'M0 ou B-s3,d0',
+          'Portes et fermetures': 'Ferme-portes'
+        },
+        cantonnement: {
+          'Surface cellules': '3 000 m\u00B2 max',
+          'Murs separatifs': 'REI 120',
+          'Ecrans de cantonnement': 'Retombee DH selon surface'
+        },
+        desenfumage: {
+          'Surface utile': '2% de la surface au sol',
+          'Commandes': 'Manuelles',
+          'Exutoires': 'DENFC'
+        },
+        stockage: {
+          'Hauteur stockage': 'Libre',
+          'Allees de circulation': '2 m minimum',
+          'Distance aux parois': '1 m'
+        },
+        lutte_incendie: {
+          'Extincteurs': '1 pour 200 m\u00B2',
+          'RIA': 'Non exige',
+          'Sprinkler': 'Non exige',
+          'Colonnes seches': 'Non exige'
+        },
+        eau_incendie: {
+          'Besoins en eau': 'D9/D9A',
+          'Retention eaux extinction': 'Confinement eaux d\'extinction'
+        },
+        elec: {
+          'Conformite': 'NF C 15-100',
+          'Coupure d\'urgence': 'Coupure generale accessible'
+        },
+        chauffage: {
+          'Type autorise': 'Eau chaude, air pulse',
+          'Implantation': 'Hors zones de stockage'
+        }
       },
-      '1530': {
-        fiche: 'https://aida.ineris.fr/reglementation/1530-depots-papiers-cartons-materiaux-combustibles-analogues',
-        arrete: 'https://aida.ineris.fr/reglementation/arrete-150410-relatif-prescriptions-generales-applicables-depots-papier-carton'
+      'Enregistrement': {
+        implantation: {
+          'Distances limites': '20 m des limites ou mur REI 120',
+          'Distances inter-batiments': '10 m ou mur REI 120'
+        },
+        accessibilite: {
+          'Acces au site': '2 acces eloignes l\'un de l\'autre',
+          'Voie engin': 'Largeur 6 m, force portante 320 kN',
+          'Echelles': 'Aire de mise en station face a chaque cellule',
+          'Issues et quais': 'Degagements > 10 m devant issues'
+        },
+        construction: {
+          'Structure': 'R15 (ou sprinkler equivalent)',
+          'Toiture': 'Classe Broof t3',
+          'Facades': 'M0 ou B-s3,d0',
+          'Portes et fermetures': 'EI 120 entre cellules'
+        },
+        cantonnement: {
+          'Surface cellules': '6 000 m\u00B2 (12 000 si sprinkler)',
+          'Murs separatifs': 'REI 120, depassement 1 m en toiture',
+          'Ecrans de cantonnement': 'DH selon surface, M0'
+        },
+        desenfumage: {
+          'Surface utile': '2% de la surface utile',
+          'Commandes': 'Manuelles + automatiques (detection)',
+          'Exutoires': 'DENFC'
+        },
+        stockage: {
+          'Hauteur stockage': 'Selon type de sprinkler installe',
+          'Allees de circulation': '2 m minimum',
+          'Distance aux parois': '1 m'
+        },
+        lutte_incendie: {
+          'Extincteurs': '1 pour 150 m\u00B2, distance max 200 m\u00B2',
+          'RIA': 'DN 33/8 tous les 15 m si V > 50 000 m\u00B3',
+          'Sprinkler': 'Si cellule > 3 000 m\u00B2 ou H > 8 m',
+          'Colonnes seches': 'Si hauteur > 15 m'
+        },
+        eau_incendie: {
+          'Besoins en eau': 'D9/D9A',
+          'Retention eaux extinction': 'Confinement eaux d\'extinction'
+        },
+        elec: {
+          'Conformite': 'NF C 15-100',
+          'Coupure d\'urgence': 'Coupure generale + par cellule'
+        },
+        chauffage: {
+          'Type autorise': 'Eau chaude, air chaud',
+          'Implantation': 'Hors cellules ou local isole'
+        }
       },
-      '1532': {
-        fiche: 'https://aida.ineris.fr/reglementation/1532-stockage-bois-materiaux-combustibles-analogues',
-        arrete: 'https://aida.ineris.fr/reglementation/arrete-110913-relatif-prescriptions-generales-applicables-installations-relevant'
-      },
-      '1435': {
-        fiche: 'https://aida.ineris.fr/reglementation/1435-stations-service-installations-ouvertes-non-public-carburants-sont-transferes',
-        arrete: 'https://aida.ineris.fr/reglementation/arrete-150410-relatif-prescriptions-generales-applicables-stations-service-relevant'
-      },
-      '2910': {
-        fiche: 'https://aida.ineris.fr/reglementation/2910-combustion-a-lexclusion-installations-visees-rubriques-2770-2771-2971-2931',
-        arrete: 'https://aida.ineris.fr/reglementation/arrete-030818-relatif-installations-combustion-dune-puissance-thermique-nominale'
-      },
-      '2925': {
-        fiche: 'https://aida.ineris.fr/reglementation/2925-ateliers-charge-daccumulateurs-electriques',
-        arrete: 'https://aida.ineris.fr/reglementation/arrete-290500-relatif-prescriptions-generales-applicables-installations-classees'
-      },
-      '2662': {
-        fiche: 'https://aida.ineris.fr/reglementation/2662-stockage-polymeres',
-        arrete: null
-      },
-      '2663': {
-        fiche: 'https://aida.ineris.fr/reglementation/2663-stockage-pneumatiques-produits-caoutchouc',
-        arrete: null
-      },
-      '1432': {
-        fiche: 'https://aida.ineris.fr/thematiques/1432-stockage-reservoirs-manufactures-liquides-inflammables',
-        arrete: null
-      },
-      '4331': {
-        fiche: 'https://aida.ineris.fr/thematiques/4331-liquides-inflammables-categorie-1-2',
-        arrete: null
+      'Autorisation': {
+        implantation: {
+          'Distances limites': 'Etude de dangers (min 20 m)',
+          'Distances inter-batiments': 'Etude de dangers (min 10 m)'
+        },
+        accessibilite: {
+          'Acces au site': '2 acces eloignes, tour du batiment',
+          'Voie engin': '6 m largeur, portante 320 kN, rayon 11 m',
+          'Echelles': 'Face a chaque cellule, R > 8 m',
+          'Issues et quais': 'Degagements > 10 m devant issues'
+        },
+        construction: {
+          'Structure': 'R60 (ou R15 + sprinkler conforme)',
+          'Toiture': 'Classe Broof t3',
+          'Facades': 'M0 ou B-s3,d0',
+          'Portes et fermetures': 'EI 120, fermeture automatique'
+        },
+        cantonnement: {
+          'Surface cellules': '6 000 m\u00B2 (12 000 si sprinkler)',
+          'Murs separatifs': 'REI 120, depassement 1 m toiture + facade',
+          'Ecrans de cantonnement': 'DH \u2265 25% hauteur, M0'
+        },
+        desenfumage: {
+          'Surface utile': '2% de la surface utile',
+          'Commandes': 'Manuelles + automatiques',
+          'Exutoires': 'DENFC classe B300 T2'
+        },
+        stockage: {
+          'Hauteur stockage': 'Selon type de sprinkler',
+          'Allees de circulation': '2 m, principale \u2265 3 m',
+          'Distance aux parois': '1 m'
+        },
+        lutte_incendie: {
+          'Extincteurs': '1 pour 150 m\u00B2, distance max 200 m\u00B2',
+          'RIA': 'DN 33/8 tous les 15 m',
+          'Sprinkler': 'Obligatoire si > 3 000 m\u00B2 ou H > 8 m',
+          'Colonnes seches': 'Si hauteur > 15 m'
+        },
+        eau_incendie: {
+          'Besoins en eau': 'D9/D9A + etude de dangers',
+          'Retention eaux extinction': 'Volume selon D9A, bassin de confinement'
+        },
+        elec: {
+          'Conformite': 'NF C 15-100',
+          'Coupure d\'urgence': 'Coupure generale + par cellule'
+        },
+        chauffage: {
+          'Type autorise': 'Eau chaude, air chaud, radiant < 700\u00B0C',
+          'Implantation': 'Hors cellules ou local isole REI 120'
+        }
       }
-    };
-
-    // Catégories de prescriptions
-    const CATEGORIES_PRESCRIPTIONS = [
-      { id: 'reseaux', label: 'Réseaux', items: ['Documents', 'Eaux pluviales', 'Eaux usées'] },
-      { id: 'divers', label: 'Divers', items: [] },
-      { id: 'dechets', label: 'Déchets', items: [] },
-      { id: 'implantation', label: 'Implantation', items: ['Distances limites', 'Distances inter-bâtiments'] },
-      { id: 'accessibilite', label: 'Accessibilité', items: ['Accessibilité au site', 'Voie "engin"', 'Mise en station des échelles', 'Accès aux issues et quais'] },
-      { id: 'locaux_risques', label: 'Locaux à risques', items: [] },
-      { id: 'construction', label: 'Prescriptions construction', items: ['Structure', 'Toiture', 'Façades', 'Portes et fermetures'] },
-      { id: 'cantonnement', label: 'Cantonnement', items: ['Surface cellules', 'Murs séparatifs', 'Écrans de cantonnement'] },
-      { id: 'stockage', label: 'Aménagement stockage', items: ['Hauteur stockage', 'Allées de circulation', 'Distance aux parois'] },
-      { id: 'desenfumage', label: 'Désenfumage', items: ['Surface utile', 'Commandes', 'Exutoires'] },
-      { id: 'lutte_incendie', label: 'Moyens de lutte incendie', items: ['Extincteurs', 'RIA', 'Sprinkler', 'Colonnes sèches'] },
-      { id: 'eau_incendie', label: 'Gestion eau incendie', items: ['Besoins en eau', 'Rétention', 'Bassin'] },
-      { id: 'charge_accus', label: 'Locaux charge accumulateur', items: [] },
-      { id: 'ventilation', label: 'Ventilation', items: [] },
-      { id: 'elec', label: 'Installations électriques', items: ['Conformité', 'Coupure d\'urgence', 'Éclairage de sécurité'] },
-      { id: 'chauffage', label: 'Chauffage', items: ['Type autorisé', 'Implantation'] },
-      { id: 'retention', label: 'Rétention', items: ['Capacité', 'Étanchéité'] }
-    ];
-
-    // Init date
-    document.getElementById('dateAnalyse').value = new Date().toISOString().split('T')[0];
-
-    // Calcul auto du volume
-    document.getElementById('surface').addEventListener('input', calcVolume);
-    document.getElementById('hauteur').addEventListener('input', calcVolume);
-
-    function calcVolume() {
-      const surface = parseFloat(document.getElementById('surface').value) || 0;
-      const hauteur = parseFloat(document.getElementById('hauteur').value) || 0;
-      if (surface && hauteur) {
-        document.getElementById('volume').value = surface * hauteur;
-      }
-    }
-
-    // Simulation
-    async function simuler() {
-      // Collecter les données
-      const data = {
-        nomProjet: document.getElementById('nomProjet').value || 'Projet sans nom',
-        client: document.getElementById('client').value || '-',
-        localisation: document.getElementById('localisation').value || '-',
-        date: document.getElementById('dateAnalyse').value,
-        surface: document.getElementById('surface').value,
-        hauteur: document.getElementById('hauteur').value,
-        volume: document.getElementById('volume').value,
-        nbCellules: document.getElementById('nbCellules').value,
-        surfaceCellule: document.getElementById('surfaceCellule').value,
-        hauteurStockage: document.getElementById('hauteurStockage').value,
-        puissanceChaufferie: document.getElementById('puissanceChaufferie').value,
-        puissanceCharge: document.getElementById('puissanceCharge').value,
-        groupeElectrogene: document.getElementById('groupeElectrogene').value,
-        tonnage: document.getElementById('tonnage').value,
-        complement: document.getElementById('complement').value,
-        produits: Array.from(document.querySelectorAll('input[name="produits"]:checked')).map(cb => cb.value)
-      };
-
-      if (!data.surface && !data.volume) {
-        alert('Veuillez renseigner au moins la surface ou le volume du bâtiment.');
-        return;
-      }
-
-      // Afficher loading
-      document.getElementById('loading').classList.add('visible');
-      document.getElementById('result').classList.remove('visible');
-      document.getElementById('btnSimulate').disabled = true;
-
-      const prompt = `Tu es un expert en réglementation ICPE (Installations Classées pour la Protection de l'Environnement) en France, spécialisé dans les entrepôts et bâtiments industriels.
-
-Analyse ce projet et génère une analyse ICPE complète avec le tableau des prescriptions techniques.
-
-PROJET À ANALYSER:
-- Nom: ${data.nomProjet}
-- Surface: ${data.surface || 'non renseignée'} m²
-- Hauteur: ${data.hauteur || 'non renseignée'} m
-- Volume: ${data.volume || 'non renseigné'} m³
-- Nombre de cellules: ${data.nbCellules || 'non renseigné'}
-- Surface par cellule: ${data.surfaceCellule || 'non renseignée'} m²
-- Hauteur de stockage: ${data.hauteurStockage || 'non renseignée'} m
-- Tonnage total: ${data.tonnage || 'non renseigné'} tonnes
-- Produits stockés: ${data.produits.length > 0 ? data.produits.join(', ') : 'matières combustibles diverses'}
-- Puissance chaufferie: ${data.puissanceChaufferie || 'non renseignée'} MW
-- Puissance charge batteries: ${data.puissanceCharge || 'non renseignée'} kW
-- Informations complémentaires: ${data.complement || 'aucune'}
-
-RÉPONDS UNIQUEMENT avec un objet JSON valide (sans markdown, sans backticks) avec cette structure:
-
-{
-  "rubriques": [
-    {
-      "numero": "1510",
-      "intitule": "Entrepôts couverts",
-      "regime": "Enregistrement",
-      "seuil": "Volume > 50 000 m³"
-    }
-  ],
-  "synthese": "Ce projet d'entrepôt de X m³ est soumis à...",
-  "prescriptions": {
-    "reseaux": {
-      "Documents": {"1510": "Plan des réseaux EP/EU", "2663": "-"},
-      "Eaux pluviales": {"1510": "Séparateur hydrocarbures si parking > 500m²", "2663": "-"},
-      "Eaux usées": {"1510": "Raccordement réseau ou traitement", "2663": "-"}
-    },
-    "implantation": {
-      "Distances limites": {"1510": "20m des limites ou mur REI 120", "2663": "Selon étude dangers"},
-      "Distances inter-bâtiments": {"1510": "10m ou mur REI 120", "2663": "-"}
-    },
-    "accessibilite": {
-      "Accessibilité au site": {"1510": "2 accès éloignés", "2663": "-"},
-      "Voie engin": {"1510": "Largeur 6m, force portante 320 kN", "2663": "-"},
-      "Mise en station des échelles": {"1510": "Face à chaque cellule", "2663": "-"},
-      "Accès aux issues et quais": {"1510": "Dégagement > 10m devant issues", "2663": "-"}
-    },
-    "locaux_risques": {"prescription": {"1510": "Isolés REI 120", "2663": "-"}},
-    "construction": {
-      "Structure": {"1510": "R60 ou sprinkler", "2663": "-"},
-      "Toiture": {"1510": "Classe Broof t3", "2663": "-"},
-      "Façades": {"1510": "M0 ou B-s3,d0", "2663": "-"},
-      "Portes et fermetures": {"1510": "EI 120 entre cellules", "2663": "-"}
-    },
-    "cantonnement": {
-      "Surface cellules": {"1510": "6000 m² max ou 12000 si sprinkler", "2663": "3000 m² max"},
-      "Murs séparatifs": {"1510": "REI 120, dépassement 1m", "2663": "-"},
-      "Écrans de cantonnement": {"1510": "DH minimale selon surface", "2663": "-"}
-    },
-    "stockage": {
-      "Hauteur stockage": {"1510": "Selon type sprinkler", "2663": "-"},
-      "Allées de circulation": {"1510": "Largeur > 2m", "2663": "-"},
-      "Distance aux parois": {"1510": "1m minimum", "2663": "-"}
-    },
-    "desenfumage": {
-      "Surface utile": {"1510": "2% de la surface au sol", "2663": "-"},
-      "Commandes": {"1510": "Manuelles + automatiques", "2663": "-"},
-      "Exutoires": {"1510": "DENFC classe B300 T2", "2663": "-"}
-    },
-    "lutte_incendie": {
-      "Extincteurs": {"1510": "1 pour 150 m², 200 m² max", "2663": "-"},
-      "RIA": {"1510": "DN 33/8 tous les 15m si > 50000 m³", "2663": "-"},
-      "Sprinkler": {"1510": "Obligatoire si > 3000 m² ou H > 8m", "2663": "Obligatoire"},
-      "Colonnes sèches": {"1510": "Si H > 15m", "2663": "-"}
-    },
-    "eau_incendie": {
-      "Besoins en eau": {"1510": "Calcul D9 ou D9A", "2663": "-"},
-      "Rétention": {"1510": "Eaux extinction confinées", "2663": "-"},
-      "Bassin": {"1510": "Selon D9A", "2663": "-"}
-    },
-    "charge_accus": {"prescription": {"1510": "Local dédié, ventilation H > L/10", "2925": "Selon arrêté 2925"}},
-    "ventilation": {"prescription": {"1510": "Naturelle ou mécanique selon activité", "2663": "-"}},
-    "elec": {
-      "Conformité": {"1510": "NF C 15-100", "2663": "-"},
-      "Coupure d'urgence": {"1510": "Coupure générale accessible", "2663": "-"},
-      "Éclairage de sécurité": {"1510": "BAES selon ERP", "2663": "-"}
-    },
-    "chauffage": {
-      "Type autorisé": {"1510": "Eau chaude, air chaud, radiant si T° < 700°C", "2663": "-"},
-      "Implantation": {"1510": "Hors cellules stockage ou local isolé", "2663": "-"}
-    },
-    "retention": {
-      "Capacité": {"1510": "100% du plus grand ou 50% du total", "1432": "100% ou 50%"},
-      "Étanchéité": {"1510": "Sol imperméable, seuils", "1432": "Double peau ou cuvette"}
     }
   },
-  "alertes": ["Point d'attention 1", "Point d'attention 2"]
+  '1530': {
+    intitule: 'Depots de papier, carton et materiaux analogues',
+    variable: 'volume',
+    unite: 'm\u00B3',
+    description: 'Depots de papier, carton ou materiaux combustibles analogues',
+    seuils: [
+      { max: 1000, regime: null, label: 'Non ICPE' },
+      { max: 20000, regime: 'Declaration', label: 'Declaration' },
+      { max: 50000, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ],
+    prescriptions: {
+      'Declaration': {
+        implantation: {
+          'Distances limites': '20 m ou mur EI 120',
+          'Distances inter-batiments': '10 m ou mur EI 120'
+        },
+        accessibilite: {
+          'Acces au site': '2 acces',
+          'Voie engin': 'Largeur 3 m, portante',
+          'Echelles': 'Non exige',
+          'Issues et quais': 'Degagements 1,40 m'
+        },
+        construction: {
+          'Structure': 'Pas d\'exigence specifique',
+          'Toiture': 'Classe Broof t3',
+          'Facades': 'M0 ou B-s3,d0',
+          'Portes et fermetures': 'Ferme-portes'
+        },
+        cantonnement: {
+          'Surface cellules': '2 000 m\u00B2 max',
+          'Murs separatifs': 'REI 120',
+          'Ecrans de cantonnement': 'DH selon surface'
+        },
+        desenfumage: {
+          'Surface utile': '2% de la surface',
+          'Commandes': 'Manuelles',
+          'Exutoires': 'DENFC'
+        },
+        stockage: {
+          'Hauteur stockage': 'Libre',
+          'Allees de circulation': '2 m',
+          'Distance aux parois': '1 m'
+        },
+        lutte_incendie: {
+          'Extincteurs': '1 pour 200 m\u00B2',
+          'RIA': 'Non exige',
+          'Sprinkler': 'Non exige',
+          'Colonnes seches': 'Non exige'
+        },
+        eau_incendie: {
+          'Besoins en eau': 'D9/D9A',
+          'Retention eaux extinction': 'Confinement eaux d\'extinction'
+        },
+        elec: {
+          'Conformite': 'NF C 15-100',
+          'Coupure d\'urgence': 'Coupure generale accessible'
+        },
+        chauffage: {
+          'Type autorise': 'Eau chaude',
+          'Implantation': 'Hors zones de stockage'
+        }
+      },
+      'Enregistrement': {
+        implantation: {
+          'Distances limites': '20 m ou mur REI 120',
+          'Distances inter-batiments': '10 m ou mur REI 120'
+        },
+        accessibilite: {
+          'Acces au site': '2 acces eloignes',
+          'Voie engin': 'Largeur 6 m, portante 320 kN',
+          'Echelles': 'Face a chaque cellule',
+          'Issues et quais': 'Degagements > 10 m'
+        },
+        construction: {
+          'Structure': 'R15 minimum',
+          'Toiture': 'Classe Broof t3',
+          'Facades': 'M0 ou B-s3,d0',
+          'Portes et fermetures': 'EI 120 entre cellules'
+        },
+        cantonnement: {
+          'Surface cellules': '3 000 m\u00B2 (6 000 si sprinkler)',
+          'Murs separatifs': 'REI 120, depassement 1 m',
+          'Ecrans de cantonnement': 'DH selon surface, M0'
+        },
+        desenfumage: {
+          'Surface utile': '2% de la surface utile',
+          'Commandes': 'Manuelles + automatiques',
+          'Exutoires': 'DENFC'
+        },
+        stockage: {
+          'Hauteur stockage': 'Selon sprinkler',
+          'Allees de circulation': '2 m minimum',
+          'Distance aux parois': '1 m'
+        },
+        lutte_incendie: {
+          'Extincteurs': '1 pour 150 m\u00B2',
+          'RIA': 'DN 33/8 tous les 15 m',
+          'Sprinkler': 'Si cellule > 2 000 m\u00B2 ou H > 8 m',
+          'Colonnes seches': 'Si hauteur > 15 m'
+        },
+        eau_incendie: {
+          'Besoins en eau': 'D9/D9A',
+          'Retention eaux extinction': 'Confinement + bassin si necessaire'
+        },
+        elec: {
+          'Conformite': 'NF C 15-100',
+          'Coupure d\'urgence': 'Coupure generale + par cellule'
+        },
+        chauffage: {
+          'Type autorise': 'Eau chaude, air chaud',
+          'Implantation': 'Hors cellules ou local isole'
+        }
+      },
+      'Autorisation': {
+        implantation: {
+          'Distances limites': 'Etude de dangers',
+          'Distances inter-batiments': 'Etude de dangers'
+        },
+        accessibilite: {
+          'Acces au site': '2 acces eloignes, tour du batiment',
+          'Voie engin': '6 m, portante 320 kN, rayon 11 m',
+          'Echelles': 'Face a chaque cellule',
+          'Issues et quais': 'Degagements > 10 m'
+        },
+        construction: {
+          'Structure': 'R60 (ou R15 + sprinkler)',
+          'Toiture': 'Classe Broof t3',
+          'Facades': 'M0 ou B-s3,d0',
+          'Portes et fermetures': 'EI 120, fermeture automatique'
+        },
+        cantonnement: {
+          'Surface cellules': '3 000 m\u00B2 (6 000 si sprinkler)',
+          'Murs separatifs': 'REI 120, depassement 1 m toiture + facade',
+          'Ecrans de cantonnement': 'DH \u2265 25% hauteur, M0'
+        },
+        desenfumage: {
+          'Surface utile': '2% de la surface utile',
+          'Commandes': 'Manuelles + automatiques',
+          'Exutoires': 'DENFC classe B300 T2'
+        },
+        stockage: {
+          'Hauteur stockage': 'Selon type de sprinkler',
+          'Allees de circulation': '2 m, principale \u2265 3 m',
+          'Distance aux parois': '1 m'
+        },
+        lutte_incendie: {
+          'Extincteurs': '1 pour 150 m\u00B2',
+          'RIA': 'DN 33/8 tous les 15 m',
+          'Sprinkler': 'Obligatoire',
+          'Colonnes seches': 'Si hauteur > 15 m'
+        },
+        eau_incendie: {
+          'Besoins en eau': 'D9/D9A + etude de dangers',
+          'Retention eaux extinction': 'Volume D9A, bassin confinement'
+        },
+        elec: {
+          'Conformite': 'NF C 15-100',
+          'Coupure d\'urgence': 'Coupure generale + par cellule'
+        },
+        chauffage: {
+          'Type autorise': 'Eau chaude, air chaud',
+          'Implantation': 'Hors cellules ou local isole REI 120'
+        }
+      }
+    }
+  },
+  '1532': {
+    intitule: 'Stockage de bois et materiaux analogues',
+    variable: 'volume',
+    unite: 'm\u00B3',
+    description: 'Stockage de bois ou materiaux combustibles analogues y compris les produits finis',
+    seuils: [
+      { max: 1000, regime: null, label: 'Non ICPE' },
+      { max: 20000, regime: 'Declaration', label: 'Declaration' },
+      { max: 50000, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ],
+    prescriptions: {
+      'Declaration': {
+        implantation: {
+          'Distances limites': '20 m ou mur EI 120',
+          'Distances inter-batiments': '10 m ou mur EI 120'
+        },
+        accessibilite: {
+          'Acces au site': '2 acces',
+          'Voie engin': 'Largeur 3 m, portante',
+          'Echelles': 'Non exige',
+          'Issues et quais': 'Degagements 1,40 m'
+        },
+        construction: {
+          'Structure': 'Pas d\'exigence specifique',
+          'Toiture': 'Classe Broof t3',
+          'Facades': 'M0 ou B-s3,d0',
+          'Portes et fermetures': 'Ferme-portes'
+        },
+        cantonnement: {
+          'Surface cellules': '2 500 m\u00B2 max',
+          'Murs separatifs': 'REI 120',
+          'Ecrans de cantonnement': 'DH selon surface'
+        },
+        desenfumage: {
+          'Surface utile': '2% de la surface',
+          'Commandes': 'Manuelles',
+          'Exutoires': 'DENFC'
+        },
+        stockage: {
+          'Hauteur stockage': 'Libre',
+          'Allees de circulation': '2 m',
+          'Distance aux parois': '1 m'
+        },
+        lutte_incendie: {
+          'Extincteurs': '1 pour 200 m\u00B2',
+          'RIA': 'Non exige',
+          'Sprinkler': 'Non exige',
+          'Colonnes seches': 'Non exige'
+        },
+        eau_incendie: {
+          'Besoins en eau': 'D9/D9A',
+          'Retention eaux extinction': 'Confinement eaux d\'extinction'
+        },
+        elec: {
+          'Conformite': 'NF C 15-100',
+          'Coupure d\'urgence': 'Coupure generale accessible'
+        },
+        chauffage: {
+          'Type autorise': 'Eau chaude',
+          'Implantation': 'Hors zones de stockage'
+        }
+      },
+      'Enregistrement': {
+        implantation: {
+          'Distances limites': '20 m ou mur REI 120',
+          'Distances inter-batiments': '10 m ou mur REI 120'
+        },
+        accessibilite: {
+          'Acces au site': '2 acces eloignes',
+          'Voie engin': 'Largeur 6 m, portante 320 kN',
+          'Echelles': 'Face a chaque cellule',
+          'Issues et quais': 'Degagements > 10 m'
+        },
+        construction: {
+          'Structure': 'R15 minimum',
+          'Toiture': 'Classe Broof t3',
+          'Facades': 'M0 ou B-s3,d0',
+          'Portes et fermetures': 'EI 120 entre cellules'
+        },
+        cantonnement: {
+          'Surface cellules': '3 000 m\u00B2 (6 000 si sprinkler)',
+          'Murs separatifs': 'REI 120, depassement 1 m',
+          'Ecrans de cantonnement': 'DH selon surface, M0'
+        },
+        desenfumage: {
+          'Surface utile': '2% de la surface utile',
+          'Commandes': 'Manuelles + automatiques',
+          'Exutoires': 'DENFC'
+        },
+        stockage: {
+          'Hauteur stockage': 'Selon sprinkler',
+          'Allees de circulation': '2 m',
+          'Distance aux parois': '1 m'
+        },
+        lutte_incendie: {
+          'Extincteurs': '1 pour 150 m\u00B2',
+          'RIA': 'DN 33/8 tous les 15 m',
+          'Sprinkler': 'Si cellule > 2 500 m\u00B2 ou H > 8 m',
+          'Colonnes seches': 'Si hauteur > 15 m'
+        },
+        eau_incendie: {
+          'Besoins en eau': 'D9/D9A',
+          'Retention eaux extinction': 'Confinement + bassin si necessaire'
+        },
+        elec: {
+          'Conformite': 'NF C 15-100',
+          'Coupure d\'urgence': 'Coupure generale + par cellule'
+        },
+        chauffage: {
+          'Type autorise': 'Eau chaude, air chaud',
+          'Implantation': 'Hors cellules ou local isole'
+        }
+      },
+      'Autorisation': {
+        implantation: {
+          'Distances limites': 'Etude de dangers',
+          'Distances inter-batiments': 'Etude de dangers'
+        },
+        accessibilite: {
+          'Acces au site': '2 acces eloignes, tour du batiment',
+          'Voie engin': '6 m, portante 320 kN',
+          'Echelles': 'Face a chaque cellule',
+          'Issues et quais': 'Degagements > 10 m'
+        },
+        construction: {
+          'Structure': 'R60 (ou R15 + sprinkler)',
+          'Toiture': 'Classe Broof t3',
+          'Facades': 'M0 ou B-s3,d0',
+          'Portes et fermetures': 'EI 120, fermeture automatique'
+        },
+        cantonnement: {
+          'Surface cellules': '3 000 m\u00B2 (6 000 si sprinkler)',
+          'Murs separatifs': 'REI 120, depassement 1 m toiture + facade',
+          'Ecrans de cantonnement': 'DH \u2265 25% hauteur, M0'
+        },
+        desenfumage: {
+          'Surface utile': '2% de la surface utile',
+          'Commandes': 'Manuelles + automatiques',
+          'Exutoires': 'DENFC classe B300 T2'
+        },
+        stockage: {
+          'Hauteur stockage': 'Selon type de sprinkler',
+          'Allees de circulation': '2 m, principale \u2265 3 m',
+          'Distance aux parois': '1 m'
+        },
+        lutte_incendie: {
+          'Extincteurs': '1 pour 150 m\u00B2',
+          'RIA': 'DN 33/8 tous les 15 m',
+          'Sprinkler': 'Obligatoire',
+          'Colonnes seches': 'Si hauteur > 15 m'
+        },
+        eau_incendie: {
+          'Besoins en eau': 'D9/D9A + etude de dangers',
+          'Retention eaux extinction': 'Volume D9A, bassin confinement'
+        },
+        elec: {
+          'Conformite': 'NF C 15-100',
+          'Coupure d\'urgence': 'Coupure generale + par cellule'
+        },
+        chauffage: {
+          'Type autorise': 'Eau chaude, air chaud',
+          'Implantation': 'Hors cellules ou local isole REI 120'
+        }
+      }
+    }
+  },
+  '2662': {
+    intitule: 'Stockage de polymeres (matieres plastiques, etc.)',
+    variable: 'volume',
+    unite: 'm\u00B3',
+    description: 'Stockage de polymeres (matieres plastiques, caoutchouc, elastomeres, resines et adhesifs synthetiques)',
+    seuils: [
+      { max: 100, regime: null, label: 'Non ICPE' },
+      { max: 1000, regime: 'Declaration', label: 'Declaration' },
+      { max: 10000, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ],
+    prescriptions: {
+      'Declaration': {
+        implantation: {
+          'Distances limites': '20 m ou mur EI 120',
+          'Distances inter-batiments': '10 m ou mur EI 120'
+        },
+        accessibilite: {
+          'Acces au site': '2 acces',
+          'Voie engin': 'Largeur 3 m',
+          'Echelles': 'Non exige',
+          'Issues et quais': 'Degagements 1,40 m'
+        },
+        construction: {
+          'Structure': 'Pas d\'exigence specifique',
+          'Toiture': 'Classe Broof t3',
+          'Facades': 'M0 ou B-s3,d0',
+          'Portes et fermetures': 'Ferme-portes'
+        },
+        cantonnement: {
+          'Surface cellules': '1 500 m\u00B2 max',
+          'Murs separatifs': 'REI 120',
+          'Ecrans de cantonnement': 'DH selon surface'
+        },
+        desenfumage: {
+          'Surface utile': '2% de la surface',
+          'Commandes': 'Manuelles',
+          'Exutoires': 'DENFC'
+        },
+        stockage: {
+          'Hauteur stockage': 'Libre',
+          'Allees de circulation': '2 m',
+          'Distance aux parois': '1 m'
+        },
+        lutte_incendie: {
+          'Extincteurs': '1 pour 150 m\u00B2',
+          'RIA': 'Non exige',
+          'Sprinkler': 'Non exige',
+          'Colonnes seches': 'Non exige'
+        },
+        eau_incendie: {
+          'Besoins en eau': 'D9/D9A',
+          'Retention eaux extinction': 'Confinement eaux d\'extinction'
+        },
+        elec: {
+          'Conformite': 'NF C 15-100',
+          'Coupure d\'urgence': 'Coupure generale accessible'
+        },
+        chauffage: {
+          'Type autorise': 'Eau chaude uniquement',
+          'Implantation': 'Hors zones de stockage'
+        }
+      },
+      'Enregistrement': {
+        implantation: {
+          'Distances limites': '20 m ou mur REI 120',
+          'Distances inter-batiments': '10 m ou mur REI 120'
+        },
+        accessibilite: {
+          'Acces au site': '2 acces eloignes',
+          'Voie engin': 'Largeur 6 m, portante 320 kN',
+          'Echelles': 'Face a chaque cellule',
+          'Issues et quais': 'Degagements > 10 m'
+        },
+        construction: {
+          'Structure': 'R60 (risque eleve polymeres)',
+          'Toiture': 'Classe Broof t3',
+          'Facades': 'M0 ou B-s3,d0',
+          'Portes et fermetures': 'EI 120 entre cellules'
+        },
+        cantonnement: {
+          'Surface cellules': '2 000 m\u00B2 (3 000 si sprinkler)',
+          'Murs separatifs': 'REI 120, depassement 1 m',
+          'Ecrans de cantonnement': 'DH \u2265 25% hauteur, M0'
+        },
+        desenfumage: {
+          'Surface utile': '2% de la surface utile',
+          'Commandes': 'Manuelles + automatiques',
+          'Exutoires': 'DENFC'
+        },
+        stockage: {
+          'Hauteur stockage': 'Selon type de sprinkler',
+          'Allees de circulation': '2 m minimum',
+          'Distance aux parois': '1 m'
+        },
+        lutte_incendie: {
+          'Extincteurs': '1 pour 150 m\u00B2',
+          'RIA': 'DN 33/8 tous les 15 m',
+          'Sprinkler': 'Obligatoire (risque eleve)',
+          'Colonnes seches': 'Si hauteur > 15 m'
+        },
+        eau_incendie: {
+          'Besoins en eau': 'D9/D9A majoree (+30% polymeres)',
+          'Retention eaux extinction': 'Bassin confinement obligatoire'
+        },
+        elec: {
+          'Conformite': 'NF C 15-100',
+          'Coupure d\'urgence': 'Coupure generale + par cellule'
+        },
+        chauffage: {
+          'Type autorise': 'Eau chaude uniquement',
+          'Implantation': 'Hors cellules ou local isole REI 120'
+        }
+      },
+      'Autorisation': {
+        implantation: {
+          'Distances limites': 'Etude de dangers',
+          'Distances inter-batiments': 'Etude de dangers'
+        },
+        accessibilite: {
+          'Acces au site': '2 acces eloignes, tour du batiment',
+          'Voie engin': '6 m, portante 320 kN, rayon 11 m',
+          'Echelles': 'Face a chaque cellule',
+          'Issues et quais': 'Degagements > 10 m'
+        },
+        construction: {
+          'Structure': 'R120 (ou R60 + sprinkler renforce)',
+          'Toiture': 'Classe Broof t3',
+          'Facades': 'M0 ou B-s3,d0',
+          'Portes et fermetures': 'EI 120, fermeture automatique'
+        },
+        cantonnement: {
+          'Surface cellules': '2 000 m\u00B2 (3 000 si sprinkler)',
+          'Murs separatifs': 'REI 120, depassement 1 m toiture + facade',
+          'Ecrans de cantonnement': 'DH \u2265 25% hauteur, M0'
+        },
+        desenfumage: {
+          'Surface utile': '2% de la surface utile',
+          'Commandes': 'Manuelles + automatiques',
+          'Exutoires': 'DENFC classe B300 T2'
+        },
+        stockage: {
+          'Hauteur stockage': 'Selon sprinkler, hauteur limitee',
+          'Allees de circulation': '2 m, principale \u2265 3 m',
+          'Distance aux parois': '1 m'
+        },
+        lutte_incendie: {
+          'Extincteurs': '1 pour 150 m\u00B2',
+          'RIA': 'DN 33/8 tous les 15 m',
+          'Sprinkler': 'Obligatoire, debit renforce',
+          'Colonnes seches': 'Si hauteur > 15 m'
+        },
+        eau_incendie: {
+          'Besoins en eau': 'D9/D9A majoree + etude dangers',
+          'Retention eaux extinction': 'Bassin conforme D9A'
+        },
+        elec: {
+          'Conformite': 'NF C 15-100, ATEX si poussiere',
+          'Coupure d\'urgence': 'Coupure generale + par cellule'
+        },
+        chauffage: {
+          'Type autorise': 'Eau chaude uniquement',
+          'Implantation': 'Hors cellules, local isole REI 120'
+        }
+      }
+    }
+  },
+  '2663': {
+    intitule: 'Stockage de pneumatiques et produits en caoutchouc',
+    variable: 'volume',
+    unite: 'm\u00B3',
+    description: 'Stockage de pneumatiques et produits dont 50% au moins de la masse est composee de polymeres',
+    seuils: [
+      { max: 200, regime: null, label: 'Non ICPE' },
+      { max: 5000, regime: 'Declaration', label: 'Declaration' },
+      { max: 50000, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ],
+    prescriptions: {
+      'Declaration': {
+        implantation: {
+          'Distances limites': '20 m ou mur EI 120',
+          'Distances inter-batiments': '10 m ou mur EI 120'
+        },
+        accessibilite: {
+          'Acces au site': '2 acces',
+          'Voie engin': 'Largeur 3 m',
+          'Echelles': 'Non exige',
+          'Issues et quais': 'Degagements 1,40 m'
+        },
+        construction: {
+          'Structure': 'R15',
+          'Toiture': 'Classe Broof t3',
+          'Facades': 'M0 ou B-s3,d0',
+          'Portes et fermetures': 'Ferme-portes'
+        },
+        cantonnement: {
+          'Surface cellules': '1 500 m\u00B2 max',
+          'Murs separatifs': 'REI 120',
+          'Ecrans de cantonnement': 'DH selon surface'
+        },
+        desenfumage: {
+          'Surface utile': '2% de la surface',
+          'Commandes': 'Manuelles',
+          'Exutoires': 'DENFC'
+        },
+        stockage: {
+          'Hauteur stockage': 'Libre',
+          'Allees de circulation': '2 m',
+          'Distance aux parois': '1 m'
+        },
+        lutte_incendie: {
+          'Extincteurs': '1 pour 150 m\u00B2',
+          'RIA': 'Non exige',
+          'Sprinkler': 'Recommande',
+          'Colonnes seches': 'Non exige'
+        },
+        eau_incendie: {
+          'Besoins en eau': 'D9/D9A',
+          'Retention eaux extinction': 'Confinement eaux d\'extinction'
+        },
+        elec: {
+          'Conformite': 'NF C 15-100',
+          'Coupure d\'urgence': 'Coupure generale accessible'
+        },
+        chauffage: {
+          'Type autorise': 'Eau chaude uniquement',
+          'Implantation': 'Hors zones de stockage'
+        }
+      },
+      'Enregistrement': {
+        implantation: {
+          'Distances limites': '20 m ou mur REI 120',
+          'Distances inter-batiments': '10 m ou mur REI 120'
+        },
+        accessibilite: {
+          'Acces au site': '2 acces eloignes',
+          'Voie engin': 'Largeur 6 m, portante 320 kN',
+          'Echelles': 'Face a chaque cellule',
+          'Issues et quais': 'Degagements > 10 m'
+        },
+        construction: {
+          'Structure': 'R60',
+          'Toiture': 'Classe Broof t3',
+          'Facades': 'M0 ou B-s3,d0',
+          'Portes et fermetures': 'EI 120 entre cellules'
+        },
+        cantonnement: {
+          'Surface cellules': '2 000 m\u00B2 (3 000 si sprinkler)',
+          'Murs separatifs': 'REI 120, depassement 1 m',
+          'Ecrans de cantonnement': 'DH \u2265 25% hauteur, M0'
+        },
+        desenfumage: {
+          'Surface utile': '2% de la surface utile',
+          'Commandes': 'Manuelles + automatiques',
+          'Exutoires': 'DENFC'
+        },
+        stockage: {
+          'Hauteur stockage': 'Selon sprinkler',
+          'Allees de circulation': '2 m minimum',
+          'Distance aux parois': '1 m'
+        },
+        lutte_incendie: {
+          'Extincteurs': '1 pour 150 m\u00B2',
+          'RIA': 'DN 33/8 tous les 15 m',
+          'Sprinkler': 'Obligatoire',
+          'Colonnes seches': 'Si hauteur > 15 m'
+        },
+        eau_incendie: {
+          'Besoins en eau': 'D9/D9A majoree (fumees toxiques)',
+          'Retention eaux extinction': 'Bassin confinement obligatoire'
+        },
+        elec: {
+          'Conformite': 'NF C 15-100',
+          'Coupure d\'urgence': 'Coupure generale + par cellule'
+        },
+        chauffage: {
+          'Type autorise': 'Eau chaude uniquement',
+          'Implantation': 'Hors cellules, local isole REI 120'
+        }
+      },
+      'Autorisation': {
+        implantation: {
+          'Distances limites': 'Etude de dangers',
+          'Distances inter-batiments': 'Etude de dangers'
+        },
+        accessibilite: {
+          'Acces au site': '2 acces eloignes, tour du batiment',
+          'Voie engin': '6 m, portante 320 kN, rayon 11 m',
+          'Echelles': 'Face a chaque cellule',
+          'Issues et quais': 'Degagements > 10 m'
+        },
+        construction: {
+          'Structure': 'R120 (fumees tres toxiques)',
+          'Toiture': 'Classe Broof t3',
+          'Facades': 'M0 ou B-s3,d0',
+          'Portes et fermetures': 'EI 120, fermeture automatique'
+        },
+        cantonnement: {
+          'Surface cellules': '1 500 m\u00B2 (2 000 si sprinkler)',
+          'Murs separatifs': 'REI 120, depassement 1 m toiture + facade',
+          'Ecrans de cantonnement': 'DH \u2265 25% hauteur, M0'
+        },
+        desenfumage: {
+          'Surface utile': '2% de la surface utile',
+          'Commandes': 'Manuelles + automatiques',
+          'Exutoires': 'DENFC classe B300 T2'
+        },
+        stockage: {
+          'Hauteur stockage': 'Limitee selon sprinkler renforce',
+          'Allees de circulation': '2 m, principale \u2265 3 m',
+          'Distance aux parois': '1 m'
+        },
+        lutte_incendie: {
+          'Extincteurs': '1 pour 150 m\u00B2',
+          'RIA': 'DN 33/8 tous les 15 m',
+          'Sprinkler': 'Obligatoire, debit renforce',
+          'Colonnes seches': 'Si hauteur > 15 m'
+        },
+        eau_incendie: {
+          'Besoins en eau': 'D9/D9A majoree + etude dangers',
+          'Retention eaux extinction': 'Bassin conforme D9A, volume majore'
+        },
+        elec: {
+          'Conformite': 'NF C 15-100',
+          'Coupure d\'urgence': 'Coupure generale + par cellule'
+        },
+        chauffage: {
+          'Type autorise': 'Eau chaude uniquement',
+          'Implantation': 'Hors cellules, local isole REI 120'
+        }
+      }
+    }
+  }
+};
+
+const PRESCRIPTION_CATEGORIES = [
+  { id: 'implantation', label: 'Implantation', items: ['Distances limites', 'Distances inter-batiments'] },
+  { id: 'accessibilite', label: 'Accessibilite', items: ['Acces au site', 'Voie engin', 'Echelles', 'Issues et quais'] },
+  { id: 'construction', label: 'Construction', items: ['Structure', 'Toiture', 'Facades', 'Portes et fermetures'] },
+  { id: 'cantonnement', label: 'Cantonnement', items: ['Surface cellules', 'Murs separatifs', 'Ecrans de cantonnement'] },
+  { id: 'desenfumage', label: 'Desenfumage', items: ['Surface utile', 'Commandes', 'Exutoires'] },
+  { id: 'stockage', label: 'Stockage', items: ['Hauteur stockage', 'Allees de circulation', 'Distance aux parois'] },
+  { id: 'lutte_incendie', label: 'Lutte incendie', items: ['Extincteurs', 'RIA', 'Sprinkler', 'Colonnes seches'] },
+  { id: 'eau_incendie', label: 'Eau incendie', items: ['Besoins en eau', 'Retention eaux extinction'] },
+  { id: 'elec', label: 'Installations electriques', items: ['Conformite', 'Coupure d\'urgence'] },
+  { id: 'chauffage', label: 'Chauffage', items: ['Type autorise', 'Implantation'] }
+];
+
+const AIDA_URLS = {
+  '1510': {
+    fiche: 'https://aida.ineris.fr/reglementation/1510-stockage-matieres-produits-substances-combustibles-entrepots-couverts',
+    arrete: 'https://aida.ineris.fr/reglementation/arrete-110417-relatif-prescriptions-generales-applicables-entrepots-couverts-soumis'
+  },
+  '1530': {
+    fiche: 'https://aida.ineris.fr/reglementation/1530-depots-papiers-cartons-materiaux-combustibles-analogues',
+    arrete: 'https://aida.ineris.fr/reglementation/arrete-150410-relatif-prescriptions-generales-applicables-depots-papier-carton'
+  },
+  '1532': {
+    fiche: 'https://aida.ineris.fr/reglementation/1532-stockage-bois-materiaux-combustibles-analogues',
+    arrete: 'https://aida.ineris.fr/reglementation/arrete-110913-relatif-prescriptions-generales-applicables-installations-relevant'
+  },
+  '2662': {
+    fiche: 'https://aida.ineris.fr/reglementation/2662-stockage-polymeres',
+    arrete: null
+  },
+  '2663': {
+    fiche: 'https://aida.ineris.fr/reglementation/2663-stockage-pneumatiques-produits-caoutchouc',
+    arrete: null
+  }
+};
+
+const PRODUCT_RUBRIQUE_MAP = {
+  combustibles: { label: 'Matieres combustibles', rubriques: ['1510'] },
+  papier_carton: { label: 'Papier / Carton', rubriques: ['1510', '1530'] },
+  bois: { label: 'Bois', rubriques: ['1510', '1532'] },
+  plastiques: { label: 'Plastiques / Polymeres', rubriques: ['1510', '2662'] },
+  pneumatiques: { label: 'Pneumatiques / Caoutchouc', rubriques: ['1510', '2663'] },
+  denrees_alimentaires: { label: 'Denrees alimentaires', rubriques: ['1510'] },
+  textiles: { label: 'Textiles', rubriques: ['1510'] },
+  liquides_inflammables: { label: 'Liquides inflammables', rubriques: [] },
+  aerosols: { label: 'Aerosols', rubriques: [] },
+  produits_chimiques: { label: 'Produits chimiques', rubriques: [] }
+};
+
+const GEMINI_URL = '/api/gemini';
+
+// ======================================================
+// STATE
+// ======================================================
+
+const state = {
+  currentStep: 1,
+  selectionMode: 'direct',
+  selectedRubriques: new Set(),
+  values: {},
+  comparisonMode: false
+};
+
+// ======================================================
+// INIT
+// ======================================================
+
+document.getElementById('dateAnalyse').value = new Date().toISOString().split('T')[0];
+initStep1();
+
+function initStep1() {
+  const grid = document.getElementById('rubriquesGrid');
+  grid.innerHTML = '';
+  for (const [code, data] of Object.entries(ICPE_DATA)) {
+    const seuils = data.seuils;
+    const seuilMin = formatNumber(seuils[0].max);
+    const seuilMax = formatNumber(seuils[seuils.length - 2].max);
+    grid.innerHTML += `
+      <div class="rubrique-card" data-code="${code}" onclick="toggleRubrique('${code}')">
+        <div class="rubrique-num">${code}</div>
+        <div class="rubrique-label">${data.intitule}</div>
+        <div class="rubrique-var">${data.variable} (${data.unite}) : ${seuilMin} - ${seuilMax}</div>
+      </div>
+    `;
+  }
+
+  const productsGrid = document.getElementById('productsGrid');
+  productsGrid.innerHTML = '';
+  for (const [key, prod] of Object.entries(PRODUCT_RUBRIQUE_MAP)) {
+    productsGrid.innerHTML += `
+      <label class="product-chip" data-product="${key}" onclick="toggleProduct(event, '${key}')">
+        <input type="checkbox">
+        <div class="chip-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
+        <span>${prod.label}</span>
+      </label>
+    `;
+  }
 }
 
-IMPORTANT:
-- Identifie TOUTES les rubriques applicables (1510, 1530, 1532, 2662, 2663, 2910, 2925, 1432, etc.)
-- Pour chaque prescription, indique la valeur pour CHAQUE rubrique applicable
-- Si une prescription ne s'applique pas à une rubrique, mettre "-"
-- Sois précis sur les valeurs (dimensions, résistances au feu, débits, etc.)
-- Les prescriptions doivent correspondre aux arrêtés ministériels en vigueur`;
+// ======================================================
+// STEP 1 LOGIC
+// ======================================================
 
-      try {
-        const response = await fetch(GEMINI_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 8000
-            }
-          })
-        });
+function setMode(mode) {
+  state.selectionMode = mode;
+  const btns = document.querySelectorAll('.mode-toggle button');
+  btns[0].classList.toggle('active', mode === 'direct');
+  btns[1].classList.toggle('active', mode === 'guided');
+  document.getElementById('directMode').style.display = mode === 'direct' ? 'block' : 'none';
+  document.getElementById('guidedMode').style.display = mode === 'guided' ? 'block' : 'none';
 
-        const result = await response.json();
-        console.log('Réponse Gemini:', result);
+  if (mode === 'direct') {
+    syncCardsSelection();
+  }
+}
 
-        if (result.error) {
-          throw new Error(result.error.message);
-        }
+function toggleRubrique(code) {
+  if (state.selectedRubriques.has(code)) {
+    state.selectedRubriques.delete(code);
+  } else {
+    state.selectedRubriques.add(code);
+  }
+  syncCardsSelection();
+  updateNextButton();
+}
 
-        let textResponse = result.candidates[0].content.parts[0].text;
-        console.log('Texte brut:', textResponse);
+function syncCardsSelection() {
+  document.querySelectorAll('.rubrique-card').forEach(card => {
+    card.classList.toggle('selected', state.selectedRubriques.has(card.dataset.code));
+  });
+}
 
-        // Parser le JSON
-        if (textResponse.startsWith('```json')) textResponse = textResponse.slice(7);
-        if (textResponse.startsWith('```')) textResponse = textResponse.slice(3);
-        if (textResponse.endsWith('```')) textResponse = textResponse.slice(0, -3);
+function toggleProduct(e, key) {
+  e.preventDefault();
+  const chip = e.currentTarget;
+  const isSelected = chip.classList.contains('selected');
+  chip.classList.toggle('selected');
+  chip.querySelector('input').checked = !isSelected;
+  updateSuggestedRubriques();
+}
 
-        const analyse = JSON.parse(textResponse.trim());
-        afficherResultat(data, analyse);
+function updateSuggestedRubriques() {
+  const selectedProducts = Array.from(document.querySelectorAll('.product-chip.selected')).map(c => c.dataset.product);
+  const suggestedSet = new Set();
+  selectedProducts.forEach(p => {
+    PRODUCT_RUBRIQUE_MAP[p].rubriques.forEach(r => suggestedSet.add(r));
+  });
 
-      } catch (error) {
-        console.error('Erreur:', error);
-        alert('Erreur lors de l\'analyse: ' + error.message);
-      } finally {
-        document.getElementById('loading').classList.remove('visible');
-        document.getElementById('btnSimulate').disabled = false;
-      }
-    }
+  const container = document.getElementById('suggestedRubriques');
+  const list = document.getElementById('suggestedList');
 
-    function afficherResultat(data, analyse) {
-      // Infos projet
-      document.getElementById('resultNomProjet').textContent = data.nomProjet;
-      document.getElementById('resultClient').textContent = data.client;
-      document.getElementById('resultDate').textContent = new Date(data.date).toLocaleDateString('fr-FR');
+  if (suggestedSet.size === 0) {
+    container.classList.remove('visible');
+    state.selectedRubriques.clear();
+    updateNextButton();
+    return;
+  }
 
-      // Rubriques
-      const rubriquesContainer = document.getElementById('rubriquesContainer');
-      rubriquesContainer.innerHTML = '';
-      analyse.rubriques.forEach(r => {
-        const regimeClass = r.regime.toLowerCase().replace(' ', '-').replace('é', 'e').replace('û', 'u');
-        rubriquesContainer.innerHTML += `
-          <div class="rubrique-tag ${regimeClass}">
-            <strong>${r.numero}</strong> - ${r.regime}
+  container.classList.add('visible');
+  list.innerHTML = '';
+  suggestedSet.forEach(code => {
+    const data = ICPE_DATA[code];
+    const isSelected = state.selectedRubriques.has(code);
+    list.innerHTML += `
+      <button class="suggested-tag ${isSelected ? 'selected' : ''}" onclick="toggleSuggested('${code}', this)">
+        ${code} - ${data.intitule}
+      </button>
+    `;
+  });
+
+  // Auto-select all suggested
+  suggestedSet.forEach(code => state.selectedRubriques.add(code));
+  list.querySelectorAll('.suggested-tag').forEach(t => t.classList.add('selected'));
+  updateNextButton();
+}
+
+function toggleSuggested(code, el) {
+  if (state.selectedRubriques.has(code)) {
+    state.selectedRubriques.delete(code);
+    el.classList.remove('selected');
+  } else {
+    state.selectedRubriques.add(code);
+    el.classList.add('selected');
+  }
+  updateNextButton();
+}
+
+// ======================================================
+// STEP 2 LOGIC
+// ======================================================
+
+function renderStep2() {
+  const container = document.getElementById('seuilsContainer');
+  container.innerHTML = '';
+
+  state.selectedRubriques.forEach(code => {
+    const data = ICPE_DATA[code];
+    const currentValue = state.values[code] || '';
+
+    container.innerHTML += `
+      <div class="rubrique-section" id="section-${code}">
+        <div class="rubrique-section-header">
+          <h3>Rubrique ${code} — ${data.intitule}</h3>
+          <div class="regime-badge" id="badge-${code}">-</div>
+        </div>
+
+        <div class="gauge-container" id="gauge-${code}"></div>
+
+        <div class="input-row">
+          <div class="input-group">
+            <label>Volume stocke (${data.unite})</label>
+            <input type="number" id="input-${code}" value="${currentValue}"
+              placeholder="Ex: 75 000" oninput="onValueChange('${code}', this.value)">
+            <span class="unit">${data.unite}</span>
           </div>
-        `;
-      });
+          <div class="volume-helper" id="helper-${code}">
+            Calcul : <input type="number" placeholder="Surface m\u00B2" id="helperS-${code}" oninput="calcHelper('${code}')">
+            &times;
+            <input type="number" placeholder="Hauteur m" id="helperH-${code}" oninput="calcHelper('${code}')">
+            = volume
+          </div>
+        </div>
 
-      // Synthèse
-      document.getElementById('syntheseText').textContent = analyse.synthese;
-      if (analyse.alertes && analyse.alertes.length > 0) {
-        document.getElementById('syntheseText').textContent += '\n\n⚠️ Points d\'attention:\n• ' + analyse.alertes.join('\n• ');
+        <div class="proximity-info" id="proximity-${code}"></div>
+      </div>
+    `;
+
+    renderGauge(code, parseFloat(currentValue) || 0);
+    updateRegime(code, parseFloat(currentValue) || 0);
+  });
+}
+
+function calcHelper(code) {
+  const s = parseFloat(document.getElementById(`helperS-${code}`).value) || 0;
+  const h = parseFloat(document.getElementById(`helperH-${code}`).value) || 0;
+  if (s > 0 && h > 0) {
+    const vol = Math.round(s * h);
+    document.getElementById(`input-${code}`).value = vol;
+    onValueChange(code, vol);
+  }
+}
+
+function onValueChange(code, value) {
+  const v = parseFloat(value) || 0;
+  state.values[code] = v;
+  renderGauge(code, v);
+  updateRegime(code, v);
+  updateProximity(code, v);
+  updateNextButton();
+}
+
+function getRegimeInfo(code, value) {
+  const seuils = ICPE_DATA[code].seuils;
+  for (let i = 0; i < seuils.length; i++) {
+    if (value < seuils[i].max) {
+      return { regime: seuils[i].regime, label: seuils[i].label, index: i };
+    }
+  }
+  return { regime: 'Autorisation', label: 'Autorisation', index: seuils.length - 1 };
+}
+
+function getNextSeuil(code, value) {
+  const seuils = ICPE_DATA[code].seuils;
+  for (let i = 0; i < seuils.length; i++) {
+    if (value < seuils[i].max && seuils[i].max !== Infinity) {
+      return { threshold: seuils[i].max, nextRegime: seuils[i + 1] ? seuils[i + 1].label : null };
+    }
+  }
+  return null;
+}
+
+function renderGauge(code, value) {
+  const data = ICPE_DATA[code];
+  const seuils = data.seuils;
+  const container = document.getElementById(`gauge-${code}`);
+  const regimeInfo = getRegimeInfo(code, value);
+  const segCount = seuils.length;
+
+  // Calculate marker position (piecewise linear)
+  let markerPos = 0;
+  if (value <= 0) {
+    markerPos = 0;
+  } else {
+    for (let i = 0; i < seuils.length; i++) {
+      const segMin = i === 0 ? 0 : seuils[i - 1].max;
+      const segMax = seuils[i].max;
+      if (value < segMax) {
+        const frac = (value - segMin) / (segMax === Infinity ? segMin * 2 : segMax - segMin);
+        markerPos = (i / segCount + frac / segCount) * 100;
+        break;
       }
+      if (segMax === Infinity) {
+        // Last segment: cap at 95%
+        const capMax = seuils[i - 1].max * 2;
+        const frac = Math.min((value - seuils[i - 1].max) / (capMax - seuils[i - 1].max), 1);
+        markerPos = ((segCount - 1) / segCount + frac / segCount) * 100;
+        break;
+      }
+    }
+  }
 
-      // Tableau des prescriptions
-      const headerRow = document.getElementById('tableHeader');
-      const tableBody = document.getElementById('tableBody');
+  const segNames = ['seg-non-icpe', 'seg-declaration', 'seg-enregistrement', 'seg-autorisation'];
+  const segLabels = seuils.map(s => s.label);
 
-      // Reset
-      headerRow.innerHTML = '<th style="min-width: 180px;">Thème</th>';
-      tableBody.innerHTML = '';
+  let html = '<div class="gauge-bar" style="position:relative;">';
+  for (let i = 0; i < segCount; i++) {
+    const cls = `gauge-segment ${segNames[i]} ${i === regimeInfo.index ? 'highlight' : 'dimmed'}`;
+    html += `<div class="${cls}">${segLabels[i]}</div>`;
+  }
+  // Marker
+  html += `<div class="gauge-marker" style="left:${Math.max(1, Math.min(99, markerPos))}%;">\u25BC</div>`;
+  html += '</div>';
 
-      // Colonnes rubriques
-      analyse.rubriques.forEach(r => {
-        headerRow.innerHTML += `<th style="min-width: 150px;">Rubrique ${r.numero}<br><small style="font-weight:normal;opacity:0.8">(${r.regime})</small></th>`;
-      });
+  // Threshold labels
+  html += '<div class="gauge-thresholds">';
+  html += `<span class="gauge-threshold-mark" style="left:0;">0</span>`;
+  for (let i = 0; i < seuils.length - 1; i++) {
+    const pos = ((i + 1) / segCount) * 100;
+    html += `<span class="gauge-threshold-mark" style="left:${pos}%;">${formatNumber(seuils[i].max)}</span>`;
+  }
+  html += '</div>';
 
-      // Lignes prescriptions
-      CATEGORIES_PRESCRIPTIONS.forEach(cat => {
-        // Ligne catégorie
-        let catRow = `<tr class="category"><td colspan="${analyse.rubriques.length + 1}">${cat.label}</td></tr>`;
-        tableBody.innerHTML += catRow;
+  container.innerHTML = html;
+}
 
-        // Sous-items ou prescription unique
-        const prescData = analyse.prescriptions[cat.id];
-        if (!prescData) return;
+function updateRegime(code, value) {
+  const badge = document.getElementById(`badge-${code}`);
+  const info = getRegimeInfo(code, value);
 
-        if (cat.items.length === 0) {
-          // Prescription unique
-          let row = `<tr><td>${cat.label}</td>`;
-          const prescObj = prescData.prescription || prescData;
-          analyse.rubriques.forEach(r => {
-            const val = prescObj[r.numero] || '-';
-            row += `<td class="prescription-cell ${val === '-' ? 'empty' : ''}">${val}</td>`;
-          });
-          row += '</tr>';
-          tableBody.innerHTML += row;
-        } else {
-          // Plusieurs sous-items
-          cat.items.forEach(item => {
-            const itemKey = item.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-            const itemData = prescData[item] || prescData[itemKey] || {};
+  if (value <= 0) {
+    badge.textContent = '-';
+    badge.className = 'regime-badge';
+    return;
+  }
 
-            let row = `<tr class="sub-item"><td>${item}</td>`;
-            analyse.rubriques.forEach(r => {
-              const val = itemData[r.numero] || '-';
-              row += `<td class="prescription-cell ${val === '-' ? 'empty' : ''}">${val}</td>`;
-            });
-            row += '</tr>';
-            tableBody.innerHTML += row;
-          });
+  badge.textContent = info.label;
+  const cls = info.regime ? info.regime.toLowerCase().replace('é', 'e') : 'non-icpe';
+  badge.className = `regime-badge ${cls}`;
+}
+
+function updateProximity(code, value) {
+  const el = document.getElementById(`proximity-${code}`);
+  if (value <= 0) {
+    el.classList.remove('visible');
+    return;
+  }
+
+  const seuils = ICPE_DATA[code].seuils;
+  const regimeInfo = getRegimeInfo(code, value);
+
+  // Find next threshold
+  let nextThreshold = null;
+  let nextRegimeLabel = null;
+  if (regimeInfo.index < seuils.length - 1 && seuils[regimeInfo.index].max !== Infinity) {
+    nextThreshold = seuils[regimeInfo.index].max;
+    nextRegimeLabel = seuils[regimeInfo.index + 1] ? seuils[regimeInfo.index + 1].label : null;
+    if (!nextRegimeLabel && regimeInfo.index + 1 < seuils.length) {
+      nextRegimeLabel = seuils[regimeInfo.index + 1].label;
+    }
+  }
+
+  if (!nextThreshold) {
+    if (regimeInfo.regime === 'Autorisation') {
+      el.innerHTML = `<strong>Regime Autorisation</strong> — Regime maximum. Etude de dangers obligatoire.`;
+      el.className = 'proximity-info visible critical';
+    } else {
+      el.classList.remove('visible');
+    }
+    return;
+  }
+
+  const delta = nextThreshold - value;
+  const pct = Math.round((value / nextThreshold) * 100);
+
+  let severity = 'safe';
+  if (pct >= 90) severity = 'danger';
+  else if (pct >= 75) severity = 'warning';
+
+  const currentLabel = regimeInfo.label;
+  el.innerHTML = `Vous etes a <strong>${formatNumber(value)} ${ICPE_DATA[code].unite}</strong> (${currentLabel}). Le prochain seuil <strong>${nextRegimeLabel || ''}</strong> est a <strong>${formatNumber(nextThreshold)} ${ICPE_DATA[code].unite}</strong> (+${formatNumber(delta)} ${ICPE_DATA[code].unite}).`;
+  el.className = `proximity-info visible ${severity}`;
+}
+
+// ======================================================
+// STEP 3 LOGIC
+// ======================================================
+
+function renderStep3() {
+  renderPrescriptionsTable();
+  renderAnticipation();
+}
+
+function toggleComparison() {
+  state.comparisonMode = !state.comparisonMode;
+  document.getElementById('compToggle').classList.toggle('active', state.comparisonMode);
+  renderPrescriptionsTable();
+  renderAnticipation();
+}
+
+function renderPrescriptionsTable() {
+  const headerRow = document.getElementById('tableHeader');
+  const tableBody = document.getElementById('tableBody');
+  headerRow.innerHTML = '<th style="min-width:180px;">Theme</th>';
+  tableBody.innerHTML = '';
+
+  const rubriques = Array.from(state.selectedRubriques);
+
+  // Build header
+  rubriques.forEach(code => {
+    const info = getRegimeInfo(code, state.values[code] || 0);
+    const regime = info.regime || 'Non ICPE';
+    headerRow.innerHTML += `<th style="min-width:140px;">Rub. ${code}<br><small style="font-weight:normal;opacity:0.8;">${regime}</small></th>`;
+
+    if (state.comparisonMode) {
+      const nextRegime = getNextRegime(code);
+      if (nextRegime) {
+        headerRow.innerHTML += `<th class="regime-plus" style="min-width:140px;">Rub. ${code}<br><small style="font-weight:normal;opacity:0.8;">${nextRegime} (+1)</small></th>`;
+      }
+    }
+  });
+
+  // Build rows
+  PRESCRIPTION_CATEGORIES.forEach(cat => {
+    const colSpan = getColSpan(rubriques);
+    tableBody.innerHTML += `<tr class="cat-row"><td colspan="${colSpan}">${cat.label}</td></tr>`;
+
+    cat.items.forEach(item => {
+      let row = `<tr class="sub-row"><td>${item}</td>`;
+
+      rubriques.forEach(code => {
+        const info = getRegimeInfo(code, state.values[code] || 0);
+        const regime = info.regime;
+        const val = getPrescription(code, regime, cat.id, item);
+        row += `<td class="${val === '-' ? 'empty' : ''}">${val}</td>`;
+
+        if (state.comparisonMode) {
+          const nextRegime = getNextRegime(code);
+          if (nextRegime) {
+            const nextVal = getPrescription(code, nextRegime, cat.id, item);
+            const isDiff = nextVal !== val && nextVal !== '-';
+            row += `<td class="${isDiff ? 'diff' : ''} ${nextVal === '-' ? 'empty' : ''}">${nextVal}</td>`;
+          }
         }
       });
 
-      // Documents
-      const docsGrid = document.getElementById('documentsGrid');
-      docsGrid.innerHTML = '';
+      row += '</tr>';
+      tableBody.innerHTML += row;
+    });
+  });
+}
 
-      analyse.rubriques.forEach(r => {
-        const aidaData = AIDA_URLS[r.numero];
-        if (aidaData && aidaData.fiche) {
-          docsGrid.innerHTML += `
-            <a href="${aidaData.fiche}" target="_blank" class="doc-link">
-              <span class="icon">📄</span>
-              <span>Fiche AIDA ${r.numero}</span>
-            </a>
-          `;
-        }
-        if (aidaData && aidaData.arrete) {
-          docsGrid.innerHTML += `
-            <a href="${aidaData.arrete}" target="_blank" class="doc-link">
-              <span class="icon">📋</span>
-              <span>Arrêté ${r.numero}</span>
-            </a>
-          `;
-        }
-      });
+function getColSpan(rubriques) {
+  let cols = 1;
+  rubriques.forEach(code => {
+    cols++;
+    if (state.comparisonMode && getNextRegime(code)) cols++;
+  });
+  return cols;
+}
 
-      docsGrid.innerHTML += `
-        <a href="https://aida.ineris.fr/sites/default/files/2023-03/BrochureNom_v53public.pdf" target="_blank" class="doc-link">
-          <span class="icon">📚</span>
-          <span>Nomenclature complète (PDF)</span>
-        </a>
-      `;
+function getNextRegime(code) {
+  const info = getRegimeInfo(code, state.values[code] || 0);
+  const regimes = ['Declaration', 'Enregistrement', 'Autorisation'];
+  if (!info.regime) return 'Declaration';
+  const idx = regimes.indexOf(info.regime);
+  if (idx < regimes.length - 1) return regimes[idx + 1];
+  return null;
+}
 
-      document.getElementById('result').classList.add('visible');
+function getPrescription(code, regime, catId, item) {
+  if (!regime) return '-';
+  const data = ICPE_DATA[code];
+  if (!data || !data.prescriptions[regime]) return '-';
+  const cat = data.prescriptions[regime][catId];
+  if (!cat) return '-';
+  return cat[item] || '-';
+}
+
+function renderAnticipation() {
+  const box = document.getElementById('anticipationBox');
+  const text = document.getElementById('anticipationText');
+
+  if (!state.comparisonMode) {
+    box.classList.remove('visible');
+    return;
+  }
+
+  const lines = [];
+  state.selectedRubriques.forEach(code => {
+    const data = ICPE_DATA[code];
+    const value = state.values[code] || 0;
+    const info = getRegimeInfo(code, value);
+    const nextRegime = getNextRegime(code);
+
+    if (!nextRegime || !info.regime) return;
+
+    const seuils = data.seuils;
+    let nextThreshold = null;
+    for (const s of seuils) {
+      if (s.max > value && s.max !== Infinity) {
+        nextThreshold = s.max;
+        break;
+      }
     }
 
-    function copierTableau() {
-      const table = document.getElementById('prescriptionsTable');
-      let text = '';
-
-      // Header
-      const headers = table.querySelectorAll('thead th');
-      headers.forEach((th, i) => {
-        text += th.innerText.replace(/\n/g, ' ');
-        if (i < headers.length - 1) text += '\t';
-      });
-      text += '\n';
-
-      // Body
-      const rows = table.querySelectorAll('tbody tr');
-      rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        cells.forEach((td, i) => {
-          text += td.innerText;
-          if (i < cells.length - 1) text += '\t';
-        });
-        text += '\n';
-      });
-
-      navigator.clipboard.writeText(text).then(() => {
-        alert('Tableau copié ! Vous pouvez le coller dans Excel.');
-      });
+    let line = `Rubrique ${code} : actuellement ${info.label} (${formatNumber(value)} ${data.unite}).`;
+    if (nextThreshold) {
+      line += ` ${nextRegime} a partir de ${formatNumber(nextThreshold)} ${data.unite}.`;
     }
 
-    function exporterCSV() {
-      const table = document.getElementById('prescriptionsTable');
-      let csv = '';
+    // Key differences
+    const diffs = [];
+    const keyItems = ['Structure', 'Surface cellules', 'Sprinkler', 'RIA'];
+    keyItems.forEach(item => {
+      const catId = findCategoryForItem(item);
+      if (!catId) return;
+      const curr = getPrescription(code, info.regime, catId, item);
+      const next = getPrescription(code, nextRegime, catId, item);
+      if (curr !== next && next !== '-') {
+        diffs.push(`${item} : ${curr} \u2192 ${next}`);
+      }
+    });
+    if (diffs.length > 0) {
+      line += ` Differences cles : ${diffs.join(' ; ')}.`;
+    }
+    lines.push(line);
+  });
 
-      // Header
-      const headers = table.querySelectorAll('thead th');
-      headers.forEach((th, i) => {
-        csv += '"' + th.innerText.replace(/\n/g, ' ').replace(/"/g, '""') + '"';
-        if (i < headers.length - 1) csv += ';';
-      });
-      csv += '\n';
+  if (lines.length > 0) {
+    text.innerHTML = lines.join('<br><br>');
+    box.classList.add('visible');
+  } else {
+    box.classList.remove('visible');
+  }
+}
 
-      // Body
-      const rows = table.querySelectorAll('tbody tr');
-      rows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        cells.forEach((td, i) => {
-          csv += '"' + td.innerText.replace(/"/g, '""') + '"';
-          if (i < cells.length - 1) csv += ';';
-        });
-        csv += '\n';
-      });
+function findCategoryForItem(item) {
+  for (const cat of PRESCRIPTION_CATEGORIES) {
+    if (cat.items.includes(item)) return cat.id;
+  }
+  return null;
+}
 
-      // Download
-      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'analyse_icpe_' + document.getElementById('nomProjet').value.replace(/\s/g, '_') + '.csv';
-      link.click();
+// ======================================================
+// AI INTEGRATION
+// ======================================================
+
+async function callGemini() {
+  const btn = document.getElementById('btnAI');
+  const panel = document.getElementById('aiPanel');
+  const content = document.getElementById('aiContent');
+
+  btn.disabled = true;
+  panel.classList.add('visible');
+  content.innerHTML = '<div class="ai-loading"><div class="ai-spinner"></div>Analyse en cours...</div>';
+
+  const rubriques = Array.from(state.selectedRubriques);
+  const rubriquesInfo = rubriques.map(code => {
+    const data = ICPE_DATA[code];
+    const info = getRegimeInfo(code, state.values[code] || 0);
+    return `Rubrique ${code} (${data.intitule}): ${formatNumber(state.values[code] || 0)} ${data.unite} => ${info.label}`;
+  }).join('\n');
+
+  const prompt = `Tu es un expert ICPE specialise dans les entrepots et batiments industriels en France.
+
+Voici les rubriques identifiees pour ce projet:
+${rubriquesInfo}
+
+Fournis une analyse contextuelle complementaire:
+1. Interactions possibles entre les rubriques selectionnees
+2. Points de vigilance specifiques a cette combinaison
+3. Prescriptions qui pourraient se cumuler ou entrer en conflit
+4. Recommandations pratiques pour le maitre d'ouvrage
+
+Reponds en JSON avec cette structure:
+{
+  "interactions": "texte sur les interactions entre rubriques",
+  "vigilance": ["point 1", "point 2", ...],
+  "cumuls": "texte sur les cumuls de prescriptions",
+  "recommandations": ["reco 1", "reco 2", ...]
+}`;
+
+  try {
+    const response = await fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2, maxOutputTokens: 4000 }
+      })
+    });
+
+    const result = await response.json();
+    if (result.error) throw new Error(result.error.message);
+
+    let text = result.candidates[0].content.parts[0].text;
+    if (text.startsWith('```json')) text = text.slice(7);
+    if (text.startsWith('```')) text = text.slice(3);
+    if (text.endsWith('```')) text = text.slice(0, -3);
+
+    const analysis = JSON.parse(text.trim());
+
+    let html = '';
+    if (analysis.interactions) {
+      html += `<h4 style="margin-bottom:8px;color:var(--primary);">Interactions entre rubriques</h4><p style="margin-bottom:16px;">${analysis.interactions}</p>`;
+    }
+    if (analysis.vigilance && analysis.vigilance.length) {
+      html += `<h4 style="margin-bottom:8px;color:var(--primary);">Points de vigilance</h4><ul style="margin-bottom:16px;padding-left:20px;">`;
+      analysis.vigilance.forEach(v => html += `<li style="margin-bottom:4px;">${v}</li>`);
+      html += '</ul>';
+    }
+    if (analysis.cumuls) {
+      html += `<h4 style="margin-bottom:8px;color:var(--primary);">Cumuls de prescriptions</h4><p style="margin-bottom:16px;">${analysis.cumuls}</p>`;
+    }
+    if (analysis.recommandations && analysis.recommandations.length) {
+      html += `<h4 style="margin-bottom:8px;color:var(--primary);">Recommandations</h4><ul style="padding-left:20px;">`;
+      analysis.recommandations.forEach(r => html += `<li style="margin-bottom:4px;">${r}</li>`);
+      html += '</ul>';
     }
 
-    function reset() {
-      document.getElementById('result').classList.remove('visible');
-      document.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(el => {
-        if (el.id !== 'dateAnalyse') el.value = '';
+    content.innerHTML = html || '<p>Aucune analyse complementaire disponible.</p>';
+  } catch (error) {
+    content.innerHTML = `<p style="color:var(--red);">Erreur : ${error.message}</p><p style="font-size:12px;color:var(--gray-400);margin-top:8px;">Verifiez que la cle API Gemini est configuree.</p>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ======================================================
+// STEP 4 LOGIC
+// ======================================================
+
+function renderStep4() {
+  const container = document.getElementById('syntheseContainer');
+  let html = '';
+
+  // Summary section
+  html += '<div class="summary-section"><h4>Recapitulatif des rubriques</h4><div class="summary-grid">';
+  state.selectedRubriques.forEach(code => {
+    const data = ICPE_DATA[code];
+    const value = state.values[code] || 0;
+    const info = getRegimeInfo(code, value);
+    const cls = info.regime ? info.regime.toLowerCase().replace('é', 'e') : 'non-icpe';
+
+    html += `
+      <div class="summary-item">
+        <div class="s-label">Rubrique ${code}</div>
+        <div class="s-value">${info.label}</div>
+        <div class="s-detail">${data.intitule} — ${formatNumber(value)} ${data.unite}</div>
+      </div>
+    `;
+  });
+  html += '</div></div>';
+
+  // Prescriptions table (recap)
+  html += '<div class="summary-section"><h4>Tableau des prescriptions</h4>';
+  html += '<div class="table-container"><table class="prescriptions-table" id="recapTable"><thead><tr>';
+  html += '<th style="min-width:180px;">Theme</th>';
+
+  const rubriques = Array.from(state.selectedRubriques);
+  rubriques.forEach(code => {
+    const info = getRegimeInfo(code, state.values[code] || 0);
+    html += `<th>Rub. ${code} (${info.label || 'Non ICPE'})</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  PRESCRIPTION_CATEGORIES.forEach(cat => {
+    html += `<tr class="cat-row"><td colspan="${rubriques.length + 1}">${cat.label}</td></tr>`;
+    cat.items.forEach(item => {
+      html += `<tr class="sub-row"><td>${item}</td>`;
+      rubriques.forEach(code => {
+        const info = getRegimeInfo(code, state.values[code] || 0);
+        const val = getPrescription(code, info.regime, cat.id, item);
+        html += `<td class="${val === '-' ? 'empty' : ''}">${val}</td>`;
       });
-      document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = false);
+      html += '</tr>';
+    });
+  });
+
+  html += '</tbody></table></div></div>';
+  container.innerHTML = html;
+
+  // Documents
+  renderDocuments();
+}
+
+function renderDocuments() {
+  const grid = document.getElementById('documentsGrid');
+  grid.innerHTML = '';
+
+  state.selectedRubriques.forEach(code => {
+    const urls = AIDA_URLS[code];
+    if (urls && urls.fiche) {
+      grid.innerHTML += `<a href="${urls.fiche}" target="_blank" class="doc-link"><span style="font-size:18px;">&#128196;</span> Fiche AIDA ${code}</a>`;
     }
-  </script>
+    if (urls && urls.arrete) {
+      grid.innerHTML += `<a href="${urls.arrete}" target="_blank" class="doc-link"><span style="font-size:18px;">&#128203;</span> Arrete ${code}</a>`;
+    }
+  });
+
+  grid.innerHTML += `<a href="https://aida.ineris.fr/sites/default/files/2023-03/BrochureNom_v53public.pdf" target="_blank" class="doc-link"><span style="font-size:18px;">&#128218;</span> Nomenclature complete (PDF)</a>`;
+}
+
+// ======================================================
+// NAVIGATION
+// ======================================================
+
+function goToStep(n) {
+  if (n < 1 || n > 4) return;
+
+  // Render step content
+  if (n === 2) renderStep2();
+  if (n === 3) renderStep3();
+  if (n === 4) renderStep4();
+
+  state.currentStep = n;
+
+  // Toggle visibility
+  document.querySelectorAll('.wizard-step').forEach(el => el.classList.remove('active'));
+  document.getElementById(`step${n}`).classList.add('active');
+
+  // Update indicator
+  document.querySelectorAll('.step-dot').forEach(dot => {
+    const s = parseInt(dot.dataset.step);
+    dot.classList.remove('active', 'completed');
+    if (s === n) dot.classList.add('active');
+    else if (s < n) dot.classList.add('completed');
+  });
+  document.querySelectorAll('.step-line').forEach(line => {
+    const l = parseInt(line.dataset.line);
+    line.classList.toggle('completed', l < n);
+  });
+
+  // Nav buttons
+  document.getElementById('btnPrev').style.visibility = n === 1 ? 'hidden' : 'visible';
+  const btnNext = document.getElementById('btnNext');
+  if (n === 4) {
+    btnNext.style.display = 'none';
+  } else {
+    btnNext.style.display = '';
+    btnNext.textContent = 'Suivant';
+  }
+
+  updateNextButton();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function nextStep() {
+  if (canProceed()) {
+    goToStep(state.currentStep + 1);
+  }
+}
+
+function prevStep() {
+  goToStep(state.currentStep - 1);
+}
+
+function canProceed() {
+  if (state.currentStep === 1) {
+    return state.selectedRubriques.size > 0;
+  }
+  if (state.currentStep === 2) {
+    let allFilled = true;
+    state.selectedRubriques.forEach(code => {
+      if (!state.values[code] || state.values[code] <= 0) allFilled = false;
+    });
+    return allFilled;
+  }
+  return true;
+}
+
+function updateNextButton() {
+  const btn = document.getElementById('btnNext');
+  btn.disabled = !canProceed();
+}
+
+// ======================================================
+// EXPORT FUNCTIONS
+// ======================================================
+
+function printReport() {
+  window.print();
+}
+
+function copierTableau() {
+  const table = document.getElementById('recapTable') || document.getElementById('prescriptionsTable');
+  if (!table) return;
+
+  let text = '';
+  const headers = table.querySelectorAll('thead th');
+  headers.forEach((th, i) => {
+    text += th.innerText.replace(/\n/g, ' ');
+    if (i < headers.length - 1) text += '\t';
+  });
+  text += '\n';
+
+  table.querySelectorAll('tbody tr').forEach(row => {
+    const cells = row.querySelectorAll('td');
+    cells.forEach((td, i) => {
+      text += td.innerText;
+      if (i < cells.length - 1) text += '\t';
+    });
+    text += '\n';
+  });
+
+  navigator.clipboard.writeText(text).then(() => {
+    alert('Tableau copie ! Vous pouvez le coller dans Excel.');
+  });
+}
+
+function exporterCSV() {
+  const table = document.getElementById('recapTable') || document.getElementById('prescriptionsTable');
+  if (!table) return;
+
+  let csv = '';
+  const headers = table.querySelectorAll('thead th');
+  headers.forEach((th, i) => {
+    csv += '"' + th.innerText.replace(/\n/g, ' ').replace(/"/g, '""') + '"';
+    if (i < headers.length - 1) csv += ';';
+  });
+  csv += '\n';
+
+  table.querySelectorAll('tbody tr').forEach(row => {
+    const cells = row.querySelectorAll('td');
+    cells.forEach((td, i) => {
+      csv += '"' + td.innerText.replace(/"/g, '""') + '"';
+      if (i < cells.length - 1) csv += ';';
+    });
+    csv += '\n';
+  });
+
+  const nom = document.getElementById('nomProjet').value || 'projet';
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `analyse_icpe_${nom.replace(/\s/g, '_')}.csv`;
+  link.click();
+}
+
+// ======================================================
+// UTILS
+// ======================================================
+
+function formatNumber(n) {
+  if (n === Infinity) return '\u221E';
+  return n.toLocaleString('fr-FR');
+}
+</script>
 </body>
 </html>
