@@ -112,29 +112,45 @@ def find_zone_section(pages_text: list[str], zone_code: str, page_hint: int = 0)
         all_text = "\n\n".join(pages_text)
         return all_text, list(range(len(pages_text)))
 
+    # Patterns pour detecter le TITRE d'une nouvelle zone (pas une simple reference)
+    new_zone_title_patterns = [
+        # "Zone UA" ou "ZONE 1AU" seul sur une ligne (titre de section)
+        re.compile(r'^\s*(?:ZONE|SOUS[\s-]?ZONE)\s+([A-Z0-9]{1,5}[a-z]?)\s*$', re.IGNORECASE | re.MULTILINE),
+        # "ARTICLE 1 – ZONE UA" ou "ARTICLE 2 – ZONE 1AU"
+        re.compile(r'ARTICLE\s+\d+\s*[\-–—]\s*ZONE\s+([A-Z0-9]{1,5}[a-z]?)\b', re.IGNORECASE),
+        # "DISPOSITIONS APPLICABLES A LA ZONE UA"
+        re.compile(r'DISPOSITIONS\s+APPLICABLES\s+.*\bZONE\s+([A-Z0-9]{1,5}[a-z]?)\b', re.IGNORECASE),
+        # "Zones à urbaniser" / "Zones agricoles" / "Zones naturelles" (changement de categorie)
+        re.compile(r'^\s*Zones?\s+(?:à\s+urbaniser|agricole|naturelle|urbaine)', re.IGNORECASE | re.MULTILINE),
+    ]
+
     # Trouver la page de fin (debut de la zone suivante)
     end_page = len(pages_text)
     for page_idx in range(start_page + 1, len(pages_text)):
         text = pages_text[page_idx]
         if is_toc_page(text):
             continue
-        for match in other_zone_pattern.finditer(text):
-            found_zone = (match.group(1) or match.group(2) or "").upper().strip()
-            # Ignorer les mots-cles parasites
-            if found_zone in ('ZONE', 'SOUS', 'LA', 'DE', 'DU', 'ET'):
-                continue
-            # Si c'est une zone DIFFERENTE de la notre, c'est la fin
-            if found_zone and found_zone != zone_upper:
-                # Verifier que ce n'est pas une reference dans le corps du texte
-                line_start = text.rfind('\n', 0, match.start()) + 1
-                line_end = text.find('\n', match.end())
-                if line_end == -1:
-                    line_end = len(text)
-                line = text[line_start:line_end].strip()
-                # Un titre de zone est generalement court et en debut de ligne
-                if len(line) < 120 and not is_toc_line(line):
-                    end_page = page_idx
-                    break
+        for pattern in new_zone_title_patterns:
+            for match in pattern.finditer(text):
+                found_zone = (match.group(1) if match.lastindex and match.group(1) else "").upper().strip()
+                # Ignorer les mots-cles parasites et les codes trop courts (1 lettre = reference)
+                if found_zone in ('ZONE', 'SOUS', 'LA', 'DE', 'DU', 'ET', 'A', 'N', 'U', ''):
+                    # Sauf pour le pattern "Zones a urbaniser" qui n'a pas de groupe
+                    if not (found_zone == '' and 'urbaniser' in match.group(0).lower()):
+                        continue
+                # Si c'est une zone DIFFERENTE de la notre, c'est la fin
+                if found_zone != zone_upper:
+                    # Verifier que ce n'est pas une ligne de sommaire
+                    line_start = text.rfind('\n', 0, match.start()) + 1
+                    line_end = text.find('\n', match.end())
+                    if line_end == -1:
+                        line_end = len(text)
+                    line = text[line_start:line_end].strip()
+                    if not is_toc_line(line):
+                        end_page = page_idx
+                        break
+            if end_page < len(pages_text):
+                break
         if end_page < len(pages_text):
             break
 
