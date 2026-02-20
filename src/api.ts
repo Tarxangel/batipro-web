@@ -1,6 +1,6 @@
-// API pour communiquer avec le backend n8n
+// API pour communiquer avec le backend Supabase Edge Function
 
-const N8N_WEBHOOK_URL = 'https://n8n.batiproconcept.fr/webhook/batipro-analyse-plu';
+const ANALYZE_PLU_URL = 'https://awhbjbuxbcxszlxcbpjb.supabase.co/functions/v1/analyze-plu';
 
 export interface AnalysePLURequest {
   latitude: number;
@@ -40,10 +40,10 @@ export interface AnalysePLUResponse {
 }
 
 export async function analyserPLU(latitude: number, longitude: number): Promise<AnalysePLUResponse> {
-  console.log('🔄 Appel API n8n:', { latitude, longitude });
+  console.log('🔄 Appel API analyze-plu:', { latitude, longitude });
 
   try {
-    const response = await fetch(N8N_WEBHOOK_URL, {
+    const response = await fetch(ANALYZE_PLU_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
