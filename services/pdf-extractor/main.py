@@ -19,10 +19,13 @@ class ExtractRequest(BaseModel):
 
 class ExtractResponse(BaseModel):
     zone_text: str
+    general_text: str
     total_pages: int
     zone_pages: list[int]
+    general_pages: list[int]
     full_text_length: int
     zone_text_length: int
+    general_text_length: int
 
 
 def is_toc_line(line: str) -> bool:
@@ -141,6 +144,79 @@ def find_zone_section(pages_text: list[str], zone_code: str, page_hint: int = 0)
     return zone_text, zone_pages
 
 
+def find_general_provisions(pages_text: list[str]) -> tuple[str, list[int]]:
+    """Trouve et extrait les dispositions generales / reglement commun du PLU.
+
+    Ces sections contiennent les regles communes a toutes les zones :
+    hauteur, stationnement, espaces verts, emprise au sol, etc.
+    """
+    # Patterns pour trouver le debut des dispositions generales
+    general_start_patterns = [
+        re.compile(r'R[eè]glement\s+de\s+zone\s+applicable\s+[àa]\s+l.ensemble', re.IGNORECASE),
+        re.compile(r'Partie\s+4[.\s]*R[eè]glement\s+de\s+zone', re.IGNORECASE),
+        re.compile(r'DISPOSITIONS\s+G[EÉ]N[EÉ]RALES\s+APPLICABLES\s+[AÀ]\s+TOUTES\s+LES\s+ZONES', re.IGNORECASE),
+        re.compile(r'DISPOSITIONS\s+COMMUNES\s+[AÀ]\s+TOUTES\s+LES\s+ZONES', re.IGNORECASE),
+        re.compile(r'R[EÈ]GLES\s+COMMUNES\s+[AÀ]\s+TOUTES\s+LES\s+ZONES', re.IGNORECASE),
+        re.compile(r'TITRE\s+[IV0-9]+[.\s\-:]+DISPOSITIONS\s+G[EÉ]N[EÉ]RALES', re.IGNORECASE),
+        re.compile(r'TITRE\s+[IV0-9]+[.\s\-:]+DISPOSITIONS\s+COMMUNES', re.IGNORECASE),
+        re.compile(r'TITRE\s+[IV0-9]+[.\s\-:]+R[EÈ]GLES\s+COMMUNES', re.IGNORECASE),
+        re.compile(r'(?:CHAPITRE|PARTIE)\s+[IV0-9]+[.\s\-:]+DISPOSITIONS\s+G[EÉ]N[EÉ]RALES', re.IGNORECASE),
+    ]
+
+    # Patterns pour trouver la fin (debut des zones specifiques)
+    zones_start_patterns = [
+        re.compile(r'DISPOSITIONS\s+APPLICABLES\s+AUX\s+ZONES', re.IGNORECASE),
+        re.compile(r'Partie\s+5[.\s]', re.IGNORECASE),
+        re.compile(r'TITRE\s+[IV0-9]+[.\s\-:]+DISPOSITIONS\s+APPLICABLES\s+AUX\s+ZONES\s+U', re.IGNORECASE),
+        re.compile(r'^\s*ZONE\s+U[A-Z]?\s*$', re.IGNORECASE | re.MULTILINE),
+    ]
+
+    start_page = -1
+    for page_idx, text in enumerate(pages_text):
+        if is_toc_page(text):
+            continue
+        for pattern in general_start_patterns:
+            match = pattern.search(text)
+            if match:
+                line_start = text.rfind('\n', 0, match.start()) + 1
+                line_end = text.find('\n', match.end())
+                if line_end == -1:
+                    line_end = len(text)
+                line = text[line_start:line_end]
+                if not is_toc_line(line):
+                    start_page = page_idx
+                    break
+        if start_page >= 0:
+            break
+
+    if start_page < 0:
+        return "", []
+
+    # Trouver la fin des dispositions generales
+    end_page = min(start_page + 40, len(pages_text))  # Max 40 pages de dispositions generales
+    for page_idx in range(start_page + 2, len(pages_text)):
+        text = pages_text[page_idx]
+        if is_toc_page(text):
+            continue
+        for pattern in zones_start_patterns:
+            match = pattern.search(text)
+            if match:
+                line_start = text.rfind('\n', 0, match.start()) + 1
+                line_end = text.find('\n', match.end())
+                if line_end == -1:
+                    line_end = len(text)
+                line = text[line_start:line_end]
+                if not is_toc_line(line):
+                    end_page = page_idx
+                    break
+        if end_page < min(start_page + 40, len(pages_text)):
+            break
+
+    pages = list(range(start_page, end_page))
+    text = "\n\n".join(pages_text[start_page:end_page])
+    return text, pages
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -179,18 +255,25 @@ async def extract_zone(req: ExtractRequest):
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Erreur lecture PDF: {e}")
 
-    # Trouver la section de la zone
+    # Trouver la section de la zone + dispositions generales
     zone_text, zone_pages = find_zone_section(pages_text, req.zone_code, page_hint)
+    general_text, general_pages = find_general_provisions(pages_text)
 
     # Limiter la taille (Gemini a une limite de tokens)
-    max_chars = 500_000  # ~125K tokens
+    max_chars = 400_000  # ~100K tokens
     if len(zone_text) > max_chars:
         zone_text = zone_text[:max_chars] + "\n\n[... texte tronque ...]"
+    remaining = max_chars - len(zone_text)
+    if len(general_text) > remaining:
+        general_text = general_text[:remaining] + "\n\n[... texte tronque ...]"
 
     return ExtractResponse(
         zone_text=zone_text,
+        general_text=general_text,
         total_pages=total_pages,
-        zone_pages=[p + 1 for p in zone_pages],  # 1-indexed pour lisibilite
+        zone_pages=[p + 1 for p in zone_pages],
+        general_pages=[p + 1 for p in general_pages],
         full_text_length=sum(len(t) for t in pages_text),
         zone_text_length=len(zone_text),
+        general_text_length=len(general_text),
     )
