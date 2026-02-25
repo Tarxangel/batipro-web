@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const globalCadastreLayer = initGlobalCadastreLayer(map);
 
   // Enregistrer la couche dans le gestionnaire UNE SEULE FOIS
-  registerLayer('Cadastre', globalCadastreLayer, 0.5);
+  registerLayer('Cadastre', globalCadastreLayer, 0.15);
   console.log('✅ Couche cadastre globale initialisée et enregistrée');
 
   // Charger les données cadastre quand zoom >= 14

@@ -1,7 +1,7 @@
 import L from 'leaflet';
 import type { ParcelGeoJSON, ParcelProperties } from './types';
 
-let currentCadastreOpacity = 0.5; // Opacité par défaut à 50%
+let currentCadastreOpacity = 0.15; // Opacité par défaut à 15%
 let highlightedLayer: L.Layer | null = null;
 let globalCadastreLayer: L.GeoJSON | null = null; // Couche globale unique
 let loadedBounds: Set<string> = new Set(); // Pour éviter de recharger les mêmes zones

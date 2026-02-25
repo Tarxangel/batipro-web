@@ -62,7 +62,7 @@ export function createLayersUI(): void {
 }
 
 // Ajouter une couche au gestionnaire
-export function registerLayer(name: string, layer: L.GeoJSON, defaultOpacity: number = 0.5): void {
+export function registerLayer(name: string, layer: L.GeoJSON, defaultOpacity: number = 0.15): void {
   // Vérifier si la couche existe déjà
   const existingLayer = layersControl.find(lc => lc.name === name);
   if (existingLayer) {
