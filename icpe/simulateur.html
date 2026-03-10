@@ -155,28 +155,113 @@
     .btn-ghost:hover { background: rgba(255,255,255,0.1); }
 
     /* ========== STEP 1 ========== */
-    .mode-toggle {
+    .pdf-link {
       display: flex;
-      gap: 0;
-      margin-bottom: 24px;
-      background: var(--gray-100);
-      border-radius: var(--radius-sm);
-      padding: 4px;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      border: 1px solid #f59e0b;
+      border-radius: var(--radius);
+      text-decoration: none;
+      color: var(--gray-900);
+      margin-bottom: 20px;
+      transition: all 0.2s;
     }
-    .mode-toggle button {
+    .pdf-link:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(245,158,11,0.3); }
+    .pdf-link strong { display: block; font-size: 14px; margin-bottom: 2px; }
+    .pdf-link span { font-size: 12px; color: var(--gray-500); }
+
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+    }
+    .search-bar input {
       flex: 1;
-      padding: 10px 16px;
+      border: none;
+      background: none;
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      color: var(--gray-900);
+    }
+    .search-bar svg { color: var(--gray-400); flex-shrink: 0; }
+
+    /* Custom rubrique input */
+    .custom-rubrique-section {
+      margin-bottom: 20px;
+      padding: 12px 16px;
+      border: 1px dashed var(--gray-300);
+      border-radius: var(--radius-sm);
+      background: var(--gray-50);
+    }
+    .custom-rubrique-section p {
+      font-size: 12px;
+      color: var(--gray-500);
+      margin-bottom: 8px;
+    }
+    .custom-rubrique-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .custom-rubrique-row input {
+      padding: 8px 12px;
+      border: 1px solid var(--gray-300);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+    }
+    .custom-rubrique-row input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(59,130,246,0.1);
+    }
+    .custom-rubrique-row input:first-child { width: 130px; }
+    .custom-rubrique-row input:nth-child(2) { flex: 1; }
+    .custom-rubrique-row button {
+      padding: 8px 16px;
+      background: var(--primary);
+      color: white;
       border: none;
       border-radius: 6px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      background: transparent;
-      color: var(--gray-500);
-      transition: all 0.2s;
       font-family: inherit;
+      transition: background 0.2s;
+      white-space: nowrap;
     }
-    .mode-toggle button.active { background: white; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .custom-rubrique-row button:hover { background: var(--primary-light); }
+
+    .series-header {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 20px 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .series-header:first-of-type { margin-top: 0; }
+
+    .selected-count {
+      padding: 10px 16px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent-dark);
+    }
 
     .rubriques-grid {
       display: grid;
@@ -209,67 +294,23 @@
       color: var(--gray-400);
       margin-top: 6px;
     }
-
-    /* Products selection */
-    .products-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 10px;
-    }
-    .product-chip {
+    .rubrique-card .regime-badges {
       display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 14px;
-      border: 1px solid var(--gray-200);
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: all 0.2s;
-      font-size: 13px;
-      color: var(--gray-700);
-    }
-    .product-chip:hover { border-color: var(--accent); background: #eff6ff; }
-    .product-chip.selected { border-color: var(--accent); background: #eff6ff; color: var(--primary); font-weight: 600; }
-    .product-chip input { display: none; }
-    .product-chip .chip-check {
-      width: 20px;
-      height: 20px;
-      border-radius: 4px;
-      border: 2px solid var(--gray-300);
-      display: flex;
-      align-items: center;
+      gap: 4px;
       justify-content: center;
-      flex-shrink: 0;
-      transition: all 0.2s;
+      margin-top: 8px;
     }
-    .product-chip.selected .chip-check {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: white;
+    .rubrique-card .regime-badges .mini-badge {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
     }
-
-    .suggested-rubriques {
-      margin-top: 20px;
-      padding: 16px;
-      background: var(--gray-50);
-      border-radius: var(--radius-sm);
-      display: none;
-    }
-    .suggested-rubriques.visible { display: block; }
-    .suggested-rubriques h4 { font-size: 14px; color: var(--primary); margin-bottom: 12px; }
-    .suggested-list { display: flex; flex-wrap: wrap; gap: 8px; }
-    .suggested-tag {
-      padding: 8px 14px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      border: 2px solid var(--gray-200);
-      background: white;
-      transition: all 0.2s;
-    }
-    .suggested-tag:hover { border-color: var(--accent); }
-    .suggested-tag.selected { border-color: var(--accent); background: #eff6ff; }
+    .mini-badge.d { background: var(--yellow-bg); color: #a16207; border: 1px solid var(--yellow-border); }
+    .mini-badge.e { background: var(--orange-bg); color: #c2410c; border: 1px solid var(--orange-border); }
+    .mini-badge.a { background: var(--red-bg); color: #dc2626; border: 1px solid var(--red-border); }
+    .mini-badge.dc { background: var(--yellow-bg); color: #a16207; border: 1px solid var(--yellow-border); }
 
     /* ========== STEP 2 ========== */
     .rubrique-section {
@@ -300,113 +341,40 @@
     .regime-badge.enregistrement { background: var(--orange-bg); color: #c2410c; border: 1px solid var(--orange-border); }
     .regime-badge.autorisation { background: var(--red-bg); color: #dc2626; border: 1px solid var(--red-border); }
 
-    /* Gauge */
-    .gauge-container { margin: 16px 0; }
-    .gauge-bar {
+    /* Regime selector */
+    .regime-selector {
       display: flex;
-      height: 32px;
-      border-radius: 6px;
-      overflow: hidden;
-      position: relative;
-    }
-    .gauge-segment {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 600;
-      color: rgba(255,255,255,0.9);
-      position: relative;
-      transition: opacity 0.3s;
-    }
-    .gauge-segment.seg-non-icpe { background: var(--green); }
-    .gauge-segment.seg-declaration { background: var(--yellow); color: rgba(0,0,0,0.6); }
-    .gauge-segment.seg-enregistrement { background: var(--orange); }
-    .gauge-segment.seg-autorisation { background: var(--red); }
-    .gauge-segment.dimmed { opacity: 0.4; }
-    .gauge-segment.highlight { opacity: 1; box-shadow: inset 0 0 0 2px rgba(0,0,0,0.2); }
-
-    .gauge-marker {
-      position: absolute;
-      top: -8px;
-      transform: translateX(-50%);
-      font-size: 16px;
-      line-height: 1;
-      z-index: 2;
-      color: var(--gray-900);
-      transition: left 0.4s ease;
-    }
-    .gauge-thresholds {
-      display: flex;
-      justify-content: space-between;
-      position: relative;
-      height: 20px;
-      margin-top: 2px;
-    }
-    .gauge-threshold-mark {
-      position: absolute;
-      transform: translateX(-50%);
-      font-size: 10px;
-      color: var(--gray-500);
-      font-weight: 600;
-    }
-
-    /* Input row */
-    .input-row {
-      display: flex;
-      gap: 12px;
-      align-items: end;
+      gap: 10px;
       flex-wrap: wrap;
-      margin-top: 16px;
     }
-    .input-group { display: flex; flex-direction: column; gap: 4px; }
-    .input-group label { font-size: 12px; font-weight: 600; color: var(--gray-500); }
-    .input-group input {
-      padding: 10px 12px;
-      border: 1px solid var(--gray-300);
-      border-radius: var(--radius-sm);
+    .regime-option {
+      flex: 1;
+      min-width: 140px;
+      padding: 14px 16px;
+      border: 2px solid var(--gray-200);
+      border-radius: var(--radius);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+      background: white;
+    }
+    .regime-option:hover { border-color: var(--gray-400); }
+    .regime-option.selected { box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+    .regime-option.selected.opt-declaration { border-color: var(--yellow); background: var(--yellow-bg); }
+    .regime-option.selected.opt-enregistrement { border-color: var(--orange); background: var(--orange-bg); }
+    .regime-option.selected.opt-autorisation { border-color: var(--red); background: var(--red-bg); }
+    .regime-option .regime-option-label {
       font-size: 15px;
-      font-family: inherit;
-      width: 160px;
-      transition: border-color 0.2s;
+      font-weight: 700;
     }
-    .input-group input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
-    .input-group .unit { font-size: 12px; color: var(--gray-400); }
-
-    .volume-helper {
-      font-size: 12px;
-      color: var(--gray-500);
-      background: var(--gray-50);
-      padding: 8px 12px;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+    .regime-option.opt-declaration .regime-option-label { color: #a16207; }
+    .regime-option.opt-enregistrement .regime-option-label { color: #c2410c; }
+    .regime-option.opt-autorisation .regime-option-label { color: #dc2626; }
+    .regime-option .regime-option-desc {
+      font-size: 11px;
+      color: var(--gray-400);
+      margin-top: 4px;
     }
-    .volume-helper input {
-      width: 80px;
-      padding: 5px 8px;
-      border: 1px solid var(--gray-300);
-      border-radius: 4px;
-      font-size: 13px;
-      font-family: inherit;
-    }
-    .volume-helper input:focus { outline: none; border-color: var(--accent); }
-
-    .proximity-info {
-      margin-top: 12px;
-      padding: 10px 14px;
-      border-radius: var(--radius-sm);
-      font-size: 13px;
-      line-height: 1.5;
-      display: none;
-    }
-    .proximity-info.visible { display: block; }
-    .proximity-info.safe { background: var(--green-bg); color: #166534; border: 1px solid var(--green-border); }
-    .proximity-info.warning { background: var(--yellow-bg); color: #854d0e; border: 1px solid var(--yellow-border); }
-    .proximity-info.danger { background: var(--orange-bg); color: #9a3412; border: 1px solid var(--orange-border); }
-    .proximity-info.critical { background: var(--red-bg); color: #991b1b; border: 1px solid var(--red-border); }
 
     /* ========== STEP 3 ========== */
     .step3-controls {
@@ -464,6 +432,24 @@
     .btn-ai:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(139,92,246,0.4); }
     .btn-ai:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: none; }
 
+    .btn-regen {
+      background: transparent;
+      color: #6d28d9;
+      border: 1px solid #c4b5fd;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-regen:hover { background: #f5f3ff; }
+    .btn-regen:disabled { opacity: 0.5; cursor: not-allowed; }
+
     .anticipation-box {
       background: linear-gradient(135deg, #fefce8 0%, #fff7ed 100%);
       border: 1px solid var(--yellow-border);
@@ -475,6 +461,96 @@
     .anticipation-box.visible { display: block; }
     .anticipation-box h4 { font-size: 14px; color: #92400e; margin-bottom: 8px; }
     .anticipation-box p { font-size: 13px; color: #78350f; line-height: 1.6; }
+
+    .no-prescriptions-card {
+      padding: 20px;
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      margin-top: 16px;
+      text-align: center;
+    }
+    .no-prescriptions-card p { font-size: 13px; color: var(--gray-500); margin-bottom: 8px; }
+    .no-prescriptions-card a { color: var(--accent); font-weight: 600; }
+
+    /* AI Disclaimer */
+    .ai-disclaimer {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #fefce8, #fffbeb);
+      border: 1px solid #fbbf24;
+      border-radius: var(--radius-sm);
+      margin-bottom: 20px;
+    }
+    .ai-disclaimer svg { flex-shrink: 0; margin-top: 1px; }
+    .ai-disclaimer p {
+      font-size: 12px;
+      color: #92400e;
+      line-height: 1.5;
+    }
+
+    /* AI Loading for prescriptions */
+    .ai-loading-prescriptions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      color: var(--gray-500);
+      text-align: center;
+    }
+    .ai-loading-prescriptions .ai-presc-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--gray-200);
+      border-top-color: #8b5cf6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+    .ai-loading-prescriptions .ai-presc-text {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gray-700);
+      margin-bottom: 4px;
+    }
+    .ai-loading-prescriptions .ai-presc-sub {
+      font-size: 12px;
+      color: var(--gray-400);
+    }
+
+    /* AI Error */
+    .ai-error-prescriptions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    .ai-error-prescriptions p {
+      font-size: 14px;
+      color: var(--red);
+      margin-bottom: 12px;
+    }
+    .ai-error-prescriptions .error-detail {
+      font-size: 12px;
+      color: var(--gray-400);
+      margin-bottom: 16px;
+    }
+    .ai-error-prescriptions button {
+      padding: 10px 20px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
 
     /* Prescriptions Table */
     .table-container {
@@ -653,12 +729,85 @@
     .btn-export.secondary { background: white; color: var(--gray-700); border: 1px solid var(--gray-300); }
     .btn-export.secondary:hover { background: var(--gray-50); }
 
+    /* Chatbot */
+    .chatbot-section {
+      margin-top: 30px;
+      padding-top: 24px;
+      border-top: 1px solid var(--gray-200);
+    }
+    .chatbot-section h4 {
+      font-size: 16px;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+    .chatbot-subtitle {
+      font-size: 13px;
+      color: var(--gray-500);
+      margin-bottom: 16px;
+    }
+    .chat-messages {
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 16px;
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      min-height: 120px;
+    }
+    .chat-message {
+      margin-bottom: 12px;
+      max-width: 80%;
+      padding: 10px 16px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .chat-message.user {
+      margin-left: auto;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+      color: white;
+      border-radius: 12px 12px 4px 12px;
+    }
+    .chat-message.assistant {
+      margin-right: auto;
+      background: white;
+      border: 1px solid var(--gray-200);
+      color: var(--gray-700);
+      border-radius: 12px 12px 12px 4px;
+    }
+    .chat-input-row {
+      display: flex;
+      gap: 10px;
+    }
+    .chat-input-row input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .chat-input-row input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .btn-chat-send {
+      padding: 12px 24px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+      color: white;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .btn-chat-send:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(59,130,246,0.4); }
+
     /* Print styles */
     @media print {
       body { background: white; padding: 0; }
       .container { max-width: 100%; }
-      .back-button, .step-indicator, .wizard-nav, .mode-toggle,
-      .step3-controls, .btn-ai, .ai-panel, .export-buttons, .btn { display: none !important; }
+      .back-button, .step-indicator, .wizard-nav,
+      .step3-controls, .btn-ai, .btn-regen, .ai-panel, .export-buttons, .btn, .chatbot-section, .ai-disclaimer { display: none !important; }
       .card { box-shadow: none; border: 1px solid var(--gray-200); break-inside: avoid; }
       .wizard-step { display: block !important; }
       .wizard-step#step1, .wizard-step#step2 { display: none !important; }
@@ -678,6 +827,8 @@
       .form-grid { grid-template-columns: 1fr; }
       .wizard-nav { flex-direction: column; }
       .wizard-nav .btn { width: 100%; justify-content: center; }
+      .custom-rubrique-row { flex-direction: column; }
+      .custom-rubrique-row input:first-child { width: 100%; }
     }
   </style>
 </head>
@@ -707,36 +858,56 @@
     <!-- ========== STEP 1 : Choix rubrique ========== -->
     <div class="wizard-step active" id="step1">
       <div class="card">
-        <div class="card-title">Etape 1 — Choix de la rubrique ICPE</div>
+        <div class="card-title">Etape 1 — Identification des rubriques ICPE</div>
 
-        <div class="mode-toggle">
-          <button class="active" onclick="setMode('direct')">Je connais ma rubrique</button>
-          <button onclick="setMode('guided')">Aidez-moi a trouver</button>
-        </div>
-
-        <!-- Direct mode -->
-        <div id="directMode">
-          <p style="font-size:13px; color:var(--gray-500); margin-bottom:14px;">Selectionnez une ou plusieurs rubriques applicables a votre projet :</p>
-          <div class="rubriques-grid" id="rubriquesGrid"></div>
-        </div>
-
-        <!-- Guided mode -->
-        <div id="guidedMode" style="display:none;">
-          <p style="font-size:13px; color:var(--gray-500); margin-bottom:14px;">Quels types de produits seront stockes ?</p>
-          <div class="products-grid" id="productsGrid"></div>
-          <div class="suggested-rubriques" id="suggestedRubriques">
-            <h4>Rubriques suggerees :</h4>
-            <div class="suggested-list" id="suggestedList"></div>
+        <a href="https://aida.ineris.fr/sites/default/files/2023-03/BrochureNom_v53public.pdf" target="_blank" class="pdf-link">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <div>
+            <strong>Consulter la nomenclature officielle (PDF)</strong>
+            <span>Identifiez vos rubriques dans le document officiel, puis selectionnez-les ci-dessous</span>
           </div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+
+        <div class="search-bar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="searchInput" placeholder="Rechercher par numero ou mot-cle..." oninput="filterRubriques(this.value)">
+        </div>
+
+        <div class="custom-rubrique-section">
+          <p>Votre rubrique n'est pas dans la liste ?</p>
+          <div class="custom-rubrique-row">
+            <input type="text" id="customCode" placeholder="N° rubrique (ex: 2345)">
+            <input type="text" id="customIntitule" placeholder="Intitule">
+            <button onclick="addCustomRubrique()">Ajouter</button>
+          </div>
+        </div>
+
+        <div class="selected-count" id="selectedCount" style="display:none;">
+          <span id="selectedCountText">0 rubrique(s) selectionnee(s)</span>
+        </div>
+
+        <div class="series-group" id="series1xxx">
+          <h3 class="series-header">1xxx — Substances</h3>
+          <div class="rubriques-grid" id="grid1xxx"></div>
+        </div>
+        <div class="series-group" id="series2xxx">
+          <h3 class="series-header">2xxx — Activites</h3>
+          <div class="rubriques-grid" id="grid2xxx"></div>
+        </div>
+        <div class="series-group" id="series4xxx">
+          <h3 class="series-header">4xxx — Substances dangereuses</h3>
+          <div class="rubriques-grid" id="grid4xxx"></div>
         </div>
       </div>
     </div>
 
-    <!-- ========== STEP 2 : Seuils & Regime ========== -->
+    <!-- ========== STEP 2 : Choix du regime ========== -->
     <div class="wizard-step" id="step2">
       <div class="card">
-        <div class="card-title">Etape 2 — Seuils et regime applicable</div>
-        <div id="seuilsContainer"></div>
+        <div class="card-title">Etape 2 — Regime applicable</div>
+        <p style="font-size:13px; color:var(--gray-500); margin-bottom:20px;">Pour chaque rubrique, indiquez le regime applicable a votre projet (d'apres la nomenclature).</p>
+        <div id="regimeContainer"></div>
       </div>
     </div>
 
@@ -745,15 +916,28 @@
       <div class="card">
         <div class="card-title">Etape 3 — Prescriptions techniques</div>
 
+        <div class="ai-disclaimer">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <p>Les prescriptions sont extraites par IA a partir des arretes ministeriels. Verifiez systematiquement avec les textes officiels avant application.</p>
+        </div>
+
         <div class="step3-controls">
           <label class="toggle-label" onclick="toggleComparison()">
             <div class="toggle" id="compToggle"></div>
             Comparer avec le regime superieur
           </label>
-          <button class="btn-ai" id="btnAI" onclick="callGemini()">Approfondir avec l'IA</button>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button class="btn-regen" id="btnRegen" onclick="regeneratePrescriptions()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              Regenerer
+            </button>
+            <button class="btn-ai" id="btnAI" onclick="callGemini()">Approfondir avec l'IA</button>
+          </div>
         </div>
 
-        <div class="table-container">
+        <div id="noPrescriptionsContainer"></div>
+
+        <div class="table-container" id="tableContainer">
           <table class="prescriptions-table" id="prescriptionsTable">
             <thead><tr id="tableHeader"></tr></thead>
             <tbody id="tableBody"></tbody>
@@ -810,6 +994,16 @@
           <button class="btn-export secondary" onclick="copierTableau()">Copier pour Excel</button>
           <button class="btn-export secondary" onclick="exporterCSV()">Exporter CSV</button>
         </div>
+
+        <div class="chatbot-section">
+          <h4>Assistant ICPE</h4>
+          <p class="chatbot-subtitle">Posez vos questions sur les rubriques selectionnees, les prescriptions ou la reglementation.</p>
+          <div class="chat-messages" id="chatMessages"></div>
+          <div class="chat-input-row">
+            <input type="text" id="chatInput" placeholder="Ex: Quelles sont les distances d'eloignement pour ma configuration ?" onkeydown="if(event.key==='Enter')sendChat()">
+            <button class="btn-chat-send" onclick="sendChat()">Envoyer</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -820,12 +1014,61 @@
     </div>
   </div>
 
+<script src="/icpe/config.js"></script>
 <script>
 // ======================================================
-// DATA
+// DATA (without prescriptions - fetched via AI)
 // ======================================================
 
 const ICPE_DATA = {
+  '1185': {
+    intitule: 'Ammoniac (emploi ou stockage)',
+    variable: 'quantite',
+    unite: 't',
+    description: 'Emploi ou stockage d\'ammoniac sous forme gazeuse ou liquide.',
+    seuils: [
+      { max: 0.15, regime: null, label: 'Non ICPE' },
+      { max: 1.5, regime: 'Declaration', label: 'Declaration' },
+      { max: 200, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ]
+  },
+  '1435': {
+    intitule: 'Stations-service: distribution de carburants',
+    variable: 'debit',
+    unite: 'm\u00B3/an',
+    description: 'Stations-service: installations ouvertes au public pour le ravitaillement en carburants de vehicules a moteur.',
+    seuils: [
+      { max: 100, regime: null, label: 'Non ICPE' },
+      { max: 3500, regime: 'Declaration', label: 'Declaration avec controle' },
+      { max: 20000, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ]
+  },
+  '1436': {
+    intitule: 'Stockage de liquides inflammables',
+    variable: 'quantite',
+    unite: 't',
+    description: 'Stockage de liquides inflammables en recipients mobiles ou en reservoirs fixes.',
+    seuils: [
+      { max: 10, regime: null, label: 'Non ICPE' },
+      { max: 100, regime: 'Declaration', label: 'Declaration' },
+      { max: 1000, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ]
+  },
+  '1450': {
+    intitule: 'Solides facilement inflammables',
+    variable: 'volume',
+    unite: 'm\u00B3',
+    description: 'Stockage ou emploi de solides facilement inflammables.',
+    seuils: [
+      { max: 50, regime: null, label: 'Non ICPE' },
+      { max: 200, regime: 'Declaration', label: 'Declaration' },
+      { max: 500, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ]
+  },
   '1510': {
     intitule: 'Entrepots couverts (matieres combustibles)',
     variable: 'volume',
@@ -836,162 +1079,31 @@ const ICPE_DATA = {
       { max: 50000, regime: 'Declaration', label: 'Declaration' },
       { max: 900000, regime: 'Enregistrement', label: 'Enregistrement' },
       { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ],
-    prescriptions: {
-      'Declaration': {
-        implantation: {
-          'Distances limites': '20 m des limites de propriete ou mur EI 120',
-          'Distances inter-batiments': '10 m ou mur EI 120'
-        },
-        accessibilite: {
-          'Acces au site': '2 acces si possible',
-          'Voie engin': 'Largeur 3 m, portante',
-          'Echelles': 'Pas d\'exigence specifique',
-          'Issues et quais': 'Degagements 1,40 m'
-        },
-        construction: {
-          'Structure': 'Pas d\'exigence specifique de stabilite au feu',
-          'Toiture': 'Classe Broof t3',
-          'Facades': 'M0 ou B-s3,d0',
-          'Portes et fermetures': 'Ferme-portes'
-        },
-        cantonnement: {
-          'Surface cellules': '3 000 m\u00B2 max',
-          'Murs separatifs': 'REI 120',
-          'Ecrans de cantonnement': 'Retombee DH selon surface'
-        },
-        desenfumage: {
-          'Surface utile': '2% de la surface au sol',
-          'Commandes': 'Manuelles',
-          'Exutoires': 'DENFC'
-        },
-        stockage: {
-          'Hauteur stockage': 'Libre',
-          'Allees de circulation': '2 m minimum',
-          'Distance aux parois': '1 m'
-        },
-        lutte_incendie: {
-          'Extincteurs': '1 pour 200 m\u00B2',
-          'RIA': 'Non exige',
-          'Sprinkler': 'Non exige',
-          'Colonnes seches': 'Non exige'
-        },
-        eau_incendie: {
-          'Besoins en eau': 'D9/D9A',
-          'Retention eaux extinction': 'Confinement eaux d\'extinction'
-        },
-        elec: {
-          'Conformite': 'NF C 15-100',
-          'Coupure d\'urgence': 'Coupure generale accessible'
-        },
-        chauffage: {
-          'Type autorise': 'Eau chaude, air pulse',
-          'Implantation': 'Hors zones de stockage'
-        }
-      },
-      'Enregistrement': {
-        implantation: {
-          'Distances limites': '20 m des limites ou mur REI 120',
-          'Distances inter-batiments': '10 m ou mur REI 120'
-        },
-        accessibilite: {
-          'Acces au site': '2 acces eloignes l\'un de l\'autre',
-          'Voie engin': 'Largeur 6 m, force portante 320 kN',
-          'Echelles': 'Aire de mise en station face a chaque cellule',
-          'Issues et quais': 'Degagements > 10 m devant issues'
-        },
-        construction: {
-          'Structure': 'R15 (ou sprinkler equivalent)',
-          'Toiture': 'Classe Broof t3',
-          'Facades': 'M0 ou B-s3,d0',
-          'Portes et fermetures': 'EI 120 entre cellules'
-        },
-        cantonnement: {
-          'Surface cellules': '6 000 m\u00B2 (12 000 si sprinkler)',
-          'Murs separatifs': 'REI 120, depassement 1 m en toiture',
-          'Ecrans de cantonnement': 'DH selon surface, M0'
-        },
-        desenfumage: {
-          'Surface utile': '2% de la surface utile',
-          'Commandes': 'Manuelles + automatiques (detection)',
-          'Exutoires': 'DENFC'
-        },
-        stockage: {
-          'Hauteur stockage': 'Selon type de sprinkler installe',
-          'Allees de circulation': '2 m minimum',
-          'Distance aux parois': '1 m'
-        },
-        lutte_incendie: {
-          'Extincteurs': '1 pour 150 m\u00B2, distance max 200 m\u00B2',
-          'RIA': 'DN 33/8 tous les 15 m si V > 50 000 m\u00B3',
-          'Sprinkler': 'Si cellule > 3 000 m\u00B2 ou H > 8 m',
-          'Colonnes seches': 'Si hauteur > 15 m'
-        },
-        eau_incendie: {
-          'Besoins en eau': 'D9/D9A',
-          'Retention eaux extinction': 'Confinement eaux d\'extinction'
-        },
-        elec: {
-          'Conformite': 'NF C 15-100',
-          'Coupure d\'urgence': 'Coupure generale + par cellule'
-        },
-        chauffage: {
-          'Type autorise': 'Eau chaude, air chaud',
-          'Implantation': 'Hors cellules ou local isole'
-        }
-      },
-      'Autorisation': {
-        implantation: {
-          'Distances limites': 'Etude de dangers (min 20 m)',
-          'Distances inter-batiments': 'Etude de dangers (min 10 m)'
-        },
-        accessibilite: {
-          'Acces au site': '2 acces eloignes, tour du batiment',
-          'Voie engin': '6 m largeur, portante 320 kN, rayon 11 m',
-          'Echelles': 'Face a chaque cellule, R > 8 m',
-          'Issues et quais': 'Degagements > 10 m devant issues'
-        },
-        construction: {
-          'Structure': 'R60 (ou R15 + sprinkler conforme)',
-          'Toiture': 'Classe Broof t3',
-          'Facades': 'M0 ou B-s3,d0',
-          'Portes et fermetures': 'EI 120, fermeture automatique'
-        },
-        cantonnement: {
-          'Surface cellules': '6 000 m\u00B2 (12 000 si sprinkler)',
-          'Murs separatifs': 'REI 120, depassement 1 m toiture + facade',
-          'Ecrans de cantonnement': 'DH \u2265 25% hauteur, M0'
-        },
-        desenfumage: {
-          'Surface utile': '2% de la surface utile',
-          'Commandes': 'Manuelles + automatiques',
-          'Exutoires': 'DENFC classe B300 T2'
-        },
-        stockage: {
-          'Hauteur stockage': 'Selon type de sprinkler',
-          'Allees de circulation': '2 m, principale \u2265 3 m',
-          'Distance aux parois': '1 m'
-        },
-        lutte_incendie: {
-          'Extincteurs': '1 pour 150 m\u00B2, distance max 200 m\u00B2',
-          'RIA': 'DN 33/8 tous les 15 m',
-          'Sprinkler': 'Obligatoire si > 3 000 m\u00B2 ou H > 8 m',
-          'Colonnes seches': 'Si hauteur > 15 m'
-        },
-        eau_incendie: {
-          'Besoins en eau': 'D9/D9A + etude de dangers',
-          'Retention eaux extinction': 'Volume selon D9A, bassin de confinement'
-        },
-        elec: {
-          'Conformite': 'NF C 15-100',
-          'Coupure d\'urgence': 'Coupure generale + par cellule'
-        },
-        chauffage: {
-          'Type autorise': 'Eau chaude, air chaud, radiant < 700\u00B0C',
-          'Implantation': 'Hors cellules ou local isole REI 120'
-        }
-      }
-    }
+    ]
+  },
+  '1511': {
+    intitule: 'Entrepots frigorifiques',
+    variable: 'volume',
+    unite: 'm\u00B3',
+    description: 'Entrepots frigorifiques, a l\'exception des depots utilises au stade de la production.',
+    seuils: [
+      { max: 5000, regime: null, label: 'Non ICPE' },
+      { max: 50000, regime: 'Declaration', label: 'Declaration' },
+      { max: 300000, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ]
+  },
+  '1520': {
+    intitule: 'Houille, coke, lignite, charbon de bois, goudron',
+    variable: 'volume',
+    unite: 'm\u00B3',
+    description: 'Depots de houille, coke, lignite, charbon de bois, goudron, asphalte, brais et matieres bitumineuses.',
+    seuils: [
+      { max: 500, regime: null, label: 'Non ICPE' },
+      { max: 5000, regime: 'Declaration', label: 'Declaration' },
+      { max: 50000, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ]
   },
   '1530': {
     intitule: 'Depots de papier, carton et materiaux analogues',
@@ -1003,162 +1115,7 @@ const ICPE_DATA = {
       { max: 20000, regime: 'Declaration', label: 'Declaration' },
       { max: 50000, regime: 'Enregistrement', label: 'Enregistrement' },
       { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ],
-    prescriptions: {
-      'Declaration': {
-        implantation: {
-          'Distances limites': '20 m ou mur EI 120',
-          'Distances inter-batiments': '10 m ou mur EI 120'
-        },
-        accessibilite: {
-          'Acces au site': '2 acces',
-          'Voie engin': 'Largeur 3 m, portante',
-          'Echelles': 'Non exige',
-          'Issues et quais': 'Degagements 1,40 m'
-        },
-        construction: {
-          'Structure': 'Pas d\'exigence specifique',
-          'Toiture': 'Classe Broof t3',
-          'Facades': 'M0 ou B-s3,d0',
-          'Portes et fermetures': 'Ferme-portes'
-        },
-        cantonnement: {
-          'Surface cellules': '2 000 m\u00B2 max',
-          'Murs separatifs': 'REI 120',
-          'Ecrans de cantonnement': 'DH selon surface'
-        },
-        desenfumage: {
-          'Surface utile': '2% de la surface',
-          'Commandes': 'Manuelles',
-          'Exutoires': 'DENFC'
-        },
-        stockage: {
-          'Hauteur stockage': 'Libre',
-          'Allees de circulation': '2 m',
-          'Distance aux parois': '1 m'
-        },
-        lutte_incendie: {
-          'Extincteurs': '1 pour 200 m\u00B2',
-          'RIA': 'Non exige',
-          'Sprinkler': 'Non exige',
-          'Colonnes seches': 'Non exige'
-        },
-        eau_incendie: {
-          'Besoins en eau': 'D9/D9A',
-          'Retention eaux extinction': 'Confinement eaux d\'extinction'
-        },
-        elec: {
-          'Conformite': 'NF C 15-100',
-          'Coupure d\'urgence': 'Coupure generale accessible'
-        },
-        chauffage: {
-          'Type autorise': 'Eau chaude',
-          'Implantation': 'Hors zones de stockage'
-        }
-      },
-      'Enregistrement': {
-        implantation: {
-          'Distances limites': '20 m ou mur REI 120',
-          'Distances inter-batiments': '10 m ou mur REI 120'
-        },
-        accessibilite: {
-          'Acces au site': '2 acces eloignes',
-          'Voie engin': 'Largeur 6 m, portante 320 kN',
-          'Echelles': 'Face a chaque cellule',
-          'Issues et quais': 'Degagements > 10 m'
-        },
-        construction: {
-          'Structure': 'R15 minimum',
-          'Toiture': 'Classe Broof t3',
-          'Facades': 'M0 ou B-s3,d0',
-          'Portes et fermetures': 'EI 120 entre cellules'
-        },
-        cantonnement: {
-          'Surface cellules': '3 000 m\u00B2 (6 000 si sprinkler)',
-          'Murs separatifs': 'REI 120, depassement 1 m',
-          'Ecrans de cantonnement': 'DH selon surface, M0'
-        },
-        desenfumage: {
-          'Surface utile': '2% de la surface utile',
-          'Commandes': 'Manuelles + automatiques',
-          'Exutoires': 'DENFC'
-        },
-        stockage: {
-          'Hauteur stockage': 'Selon sprinkler',
-          'Allees de circulation': '2 m minimum',
-          'Distance aux parois': '1 m'
-        },
-        lutte_incendie: {
-          'Extincteurs': '1 pour 150 m\u00B2',
-          'RIA': 'DN 33/8 tous les 15 m',
-          'Sprinkler': 'Si cellule > 2 000 m\u00B2 ou H > 8 m',
-          'Colonnes seches': 'Si hauteur > 15 m'
-        },
-        eau_incendie: {
-          'Besoins en eau': 'D9/D9A',
-          'Retention eaux extinction': 'Confinement + bassin si necessaire'
-        },
-        elec: {
-          'Conformite': 'NF C 15-100',
-          'Coupure d\'urgence': 'Coupure generale + par cellule'
-        },
-        chauffage: {
-          'Type autorise': 'Eau chaude, air chaud',
-          'Implantation': 'Hors cellules ou local isole'
-        }
-      },
-      'Autorisation': {
-        implantation: {
-          'Distances limites': 'Etude de dangers',
-          'Distances inter-batiments': 'Etude de dangers'
-        },
-        accessibilite: {
-          'Acces au site': '2 acces eloignes, tour du batiment',
-          'Voie engin': '6 m, portante 320 kN, rayon 11 m',
-          'Echelles': 'Face a chaque cellule',
-          'Issues et quais': 'Degagements > 10 m'
-        },
-        construction: {
-          'Structure': 'R60 (ou R15 + sprinkler)',
-          'Toiture': 'Classe Broof t3',
-          'Facades': 'M0 ou B-s3,d0',
-          'Portes et fermetures': 'EI 120, fermeture automatique'
-        },
-        cantonnement: {
-          'Surface cellules': '3 000 m\u00B2 (6 000 si sprinkler)',
-          'Murs separatifs': 'REI 120, depassement 1 m toiture + facade',
-          'Ecrans de cantonnement': 'DH \u2265 25% hauteur, M0'
-        },
-        desenfumage: {
-          'Surface utile': '2% de la surface utile',
-          'Commandes': 'Manuelles + automatiques',
-          'Exutoires': 'DENFC classe B300 T2'
-        },
-        stockage: {
-          'Hauteur stockage': 'Selon type de sprinkler',
-          'Allees de circulation': '2 m, principale \u2265 3 m',
-          'Distance aux parois': '1 m'
-        },
-        lutte_incendie: {
-          'Extincteurs': '1 pour 150 m\u00B2',
-          'RIA': 'DN 33/8 tous les 15 m',
-          'Sprinkler': 'Obligatoire',
-          'Colonnes seches': 'Si hauteur > 15 m'
-        },
-        eau_incendie: {
-          'Besoins en eau': 'D9/D9A + etude de dangers',
-          'Retention eaux extinction': 'Volume D9A, bassin confinement'
-        },
-        elec: {
-          'Conformite': 'NF C 15-100',
-          'Coupure d\'urgence': 'Coupure generale + par cellule'
-        },
-        chauffage: {
-          'Type autorise': 'Eau chaude, air chaud',
-          'Implantation': 'Hors cellules ou local isole REI 120'
-        }
-      }
-    }
+    ]
   },
   '1532': {
     intitule: 'Stockage de bois et materiaux analogues',
@@ -1170,162 +1127,87 @@ const ICPE_DATA = {
       { max: 20000, regime: 'Declaration', label: 'Declaration' },
       { max: 50000, regime: 'Enregistrement', label: 'Enregistrement' },
       { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ],
-    prescriptions: {
-      'Declaration': {
-        implantation: {
-          'Distances limites': '20 m ou mur EI 120',
-          'Distances inter-batiments': '10 m ou mur EI 120'
-        },
-        accessibilite: {
-          'Acces au site': '2 acces',
-          'Voie engin': 'Largeur 3 m, portante',
-          'Echelles': 'Non exige',
-          'Issues et quais': 'Degagements 1,40 m'
-        },
-        construction: {
-          'Structure': 'Pas d\'exigence specifique',
-          'Toiture': 'Classe Broof t3',
-          'Facades': 'M0 ou B-s3,d0',
-          'Portes et fermetures': 'Ferme-portes'
-        },
-        cantonnement: {
-          'Surface cellules': '2 500 m\u00B2 max',
-          'Murs separatifs': 'REI 120',
-          'Ecrans de cantonnement': 'DH selon surface'
-        },
-        desenfumage: {
-          'Surface utile': '2% de la surface',
-          'Commandes': 'Manuelles',
-          'Exutoires': 'DENFC'
-        },
-        stockage: {
-          'Hauteur stockage': 'Libre',
-          'Allees de circulation': '2 m',
-          'Distance aux parois': '1 m'
-        },
-        lutte_incendie: {
-          'Extincteurs': '1 pour 200 m\u00B2',
-          'RIA': 'Non exige',
-          'Sprinkler': 'Non exige',
-          'Colonnes seches': 'Non exige'
-        },
-        eau_incendie: {
-          'Besoins en eau': 'D9/D9A',
-          'Retention eaux extinction': 'Confinement eaux d\'extinction'
-        },
-        elec: {
-          'Conformite': 'NF C 15-100',
-          'Coupure d\'urgence': 'Coupure generale accessible'
-        },
-        chauffage: {
-          'Type autorise': 'Eau chaude',
-          'Implantation': 'Hors zones de stockage'
-        }
-      },
-      'Enregistrement': {
-        implantation: {
-          'Distances limites': '20 m ou mur REI 120',
-          'Distances inter-batiments': '10 m ou mur REI 120'
-        },
-        accessibilite: {
-          'Acces au site': '2 acces eloignes',
-          'Voie engin': 'Largeur 6 m, portante 320 kN',
-          'Echelles': 'Face a chaque cellule',
-          'Issues et quais': 'Degagements > 10 m'
-        },
-        construction: {
-          'Structure': 'R15 minimum',
-          'Toiture': 'Classe Broof t3',
-          'Facades': 'M0 ou B-s3,d0',
-          'Portes et fermetures': 'EI 120 entre cellules'
-        },
-        cantonnement: {
-          'Surface cellules': '3 000 m\u00B2 (6 000 si sprinkler)',
-          'Murs separatifs': 'REI 120, depassement 1 m',
-          'Ecrans de cantonnement': 'DH selon surface, M0'
-        },
-        desenfumage: {
-          'Surface utile': '2% de la surface utile',
-          'Commandes': 'Manuelles + automatiques',
-          'Exutoires': 'DENFC'
-        },
-        stockage: {
-          'Hauteur stockage': 'Selon sprinkler',
-          'Allees de circulation': '2 m',
-          'Distance aux parois': '1 m'
-        },
-        lutte_incendie: {
-          'Extincteurs': '1 pour 150 m\u00B2',
-          'RIA': 'DN 33/8 tous les 15 m',
-          'Sprinkler': 'Si cellule > 2 500 m\u00B2 ou H > 8 m',
-          'Colonnes seches': 'Si hauteur > 15 m'
-        },
-        eau_incendie: {
-          'Besoins en eau': 'D9/D9A',
-          'Retention eaux extinction': 'Confinement + bassin si necessaire'
-        },
-        elec: {
-          'Conformite': 'NF C 15-100',
-          'Coupure d\'urgence': 'Coupure generale + par cellule'
-        },
-        chauffage: {
-          'Type autorise': 'Eau chaude, air chaud',
-          'Implantation': 'Hors cellules ou local isole'
-        }
-      },
-      'Autorisation': {
-        implantation: {
-          'Distances limites': 'Etude de dangers',
-          'Distances inter-batiments': 'Etude de dangers'
-        },
-        accessibilite: {
-          'Acces au site': '2 acces eloignes, tour du batiment',
-          'Voie engin': '6 m, portante 320 kN',
-          'Echelles': 'Face a chaque cellule',
-          'Issues et quais': 'Degagements > 10 m'
-        },
-        construction: {
-          'Structure': 'R60 (ou R15 + sprinkler)',
-          'Toiture': 'Classe Broof t3',
-          'Facades': 'M0 ou B-s3,d0',
-          'Portes et fermetures': 'EI 120, fermeture automatique'
-        },
-        cantonnement: {
-          'Surface cellules': '3 000 m\u00B2 (6 000 si sprinkler)',
-          'Murs separatifs': 'REI 120, depassement 1 m toiture + facade',
-          'Ecrans de cantonnement': 'DH \u2265 25% hauteur, M0'
-        },
-        desenfumage: {
-          'Surface utile': '2% de la surface utile',
-          'Commandes': 'Manuelles + automatiques',
-          'Exutoires': 'DENFC classe B300 T2'
-        },
-        stockage: {
-          'Hauteur stockage': 'Selon type de sprinkler',
-          'Allees de circulation': '2 m, principale \u2265 3 m',
-          'Distance aux parois': '1 m'
-        },
-        lutte_incendie: {
-          'Extincteurs': '1 pour 150 m\u00B2',
-          'RIA': 'DN 33/8 tous les 15 m',
-          'Sprinkler': 'Obligatoire',
-          'Colonnes seches': 'Si hauteur > 15 m'
-        },
-        eau_incendie: {
-          'Besoins en eau': 'D9/D9A + etude de dangers',
-          'Retention eaux extinction': 'Volume D9A, bassin confinement'
-        },
-        elec: {
-          'Conformite': 'NF C 15-100',
-          'Coupure d\'urgence': 'Coupure generale + par cellule'
-        },
-        chauffage: {
-          'Type autorise': 'Eau chaude, air chaud',
-          'Implantation': 'Hors cellules ou local isole REI 120'
-        }
-      }
-    }
+    ]
+  },
+  '2160': {
+    intitule: 'Silos et installations de stockage en vrac de cereales',
+    variable: 'volume',
+    unite: 'm\u00B3',
+    description: 'Silos et installations de stockage en vrac de cereales, grains, produits alimentaires ou tout produit organique degageant des poussieres inflammables.',
+    seuils: [
+      { max: 5000, regime: null, label: 'Non ICPE' },
+      { max: 15000, regime: 'Declaration', label: 'Declaration avec controle' },
+      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
+    ]
+  },
+  '2515': {
+    intitule: 'Broyage, concassage, criblage de mineraux',
+    variable: 'puissance',
+    unite: 'kW',
+    description: 'Broyage, concassage, criblage, ensachage, pulverisation, nettoyage, tamisage, melange de pierres, cailloux, minerais et autres produits mineraux naturels ou artificiels ou de dechets non dangereux inertes.',
+    seuils: [
+      { max: 40, regime: null, label: 'Non ICPE' },
+      { max: 200, regime: 'Declaration', label: 'Declaration' },
+      { max: 550, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ]
+  },
+  '2516': {
+    intitule: 'Station de transit de produits mineraux',
+    variable: 'surface',
+    unite: 'm\u00B2',
+    description: 'Station de transit de produits mineraux ou de dechets non dangereux inertes autres que ceux vises par d\'autres rubriques.',
+    seuils: [
+      { max: 10000, regime: null, label: 'Non ICPE' },
+      { max: 25000, regime: 'Declaration', label: 'Declaration' },
+      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
+    ]
+  },
+  '2517': {
+    intitule: 'Station de transit de dechets non dangereux non inertes',
+    variable: 'volume',
+    unite: 'm\u00B3',
+    description: 'Station de transit, regroupement ou tri de dechets non dangereux non inertes.',
+    seuils: [
+      { max: 100, regime: null, label: 'Non ICPE' },
+      { max: 1000, regime: 'Declaration', label: 'Declaration' },
+      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
+    ]
+  },
+  '2518': {
+    intitule: 'Tri, transit de dechets menagers et assimiles',
+    variable: 'quantite',
+    unite: 't/j',
+    description: 'Installation de tri, transit, regroupement de dechets menagers et assimiles en melange.',
+    seuils: [
+      { max: 10, regime: null, label: 'Non ICPE' },
+      { max: 40, regime: 'Declaration', label: 'Declaration' },
+      { max: 100, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ]
+  },
+  '2560': {
+    intitule: 'Travail mecanique des metaux et alliages',
+    variable: 'puissance',
+    unite: 'kW',
+    description: 'Travail mecanique des metaux et alliages (emploi de machines-outils).',
+    seuils: [
+      { max: 50, regime: null, label: 'Non ICPE' },
+      { max: 150, regime: 'Declaration', label: 'Declaration' },
+      { max: 1000, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ]
+  },
+  '2660': {
+    intitule: 'Fabrication de matieres plastiques et caoutchouc',
+    variable: 'quantite',
+    unite: 't/j',
+    description: 'Fabrication, transformation de matieres plastiques et caoutchouc par des procedes exigeant des conditions particulieres de temperature ou de pression.',
+    seuils: [
+      { max: 1, regime: null, label: 'Non ICPE' },
+      { max: 10, regime: 'Declaration', label: 'Declaration' },
+      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
+    ]
   },
   '2662': {
     intitule: 'Stockage de polymeres (matieres plastiques, etc.)',
@@ -1337,162 +1219,7 @@ const ICPE_DATA = {
       { max: 1000, regime: 'Declaration', label: 'Declaration' },
       { max: 10000, regime: 'Enregistrement', label: 'Enregistrement' },
       { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ],
-    prescriptions: {
-      'Declaration': {
-        implantation: {
-          'Distances limites': '20 m ou mur EI 120',
-          'Distances inter-batiments': '10 m ou mur EI 120'
-        },
-        accessibilite: {
-          'Acces au site': '2 acces',
-          'Voie engin': 'Largeur 3 m',
-          'Echelles': 'Non exige',
-          'Issues et quais': 'Degagements 1,40 m'
-        },
-        construction: {
-          'Structure': 'Pas d\'exigence specifique',
-          'Toiture': 'Classe Broof t3',
-          'Facades': 'M0 ou B-s3,d0',
-          'Portes et fermetures': 'Ferme-portes'
-        },
-        cantonnement: {
-          'Surface cellules': '1 500 m\u00B2 max',
-          'Murs separatifs': 'REI 120',
-          'Ecrans de cantonnement': 'DH selon surface'
-        },
-        desenfumage: {
-          'Surface utile': '2% de la surface',
-          'Commandes': 'Manuelles',
-          'Exutoires': 'DENFC'
-        },
-        stockage: {
-          'Hauteur stockage': 'Libre',
-          'Allees de circulation': '2 m',
-          'Distance aux parois': '1 m'
-        },
-        lutte_incendie: {
-          'Extincteurs': '1 pour 150 m\u00B2',
-          'RIA': 'Non exige',
-          'Sprinkler': 'Non exige',
-          'Colonnes seches': 'Non exige'
-        },
-        eau_incendie: {
-          'Besoins en eau': 'D9/D9A',
-          'Retention eaux extinction': 'Confinement eaux d\'extinction'
-        },
-        elec: {
-          'Conformite': 'NF C 15-100',
-          'Coupure d\'urgence': 'Coupure generale accessible'
-        },
-        chauffage: {
-          'Type autorise': 'Eau chaude uniquement',
-          'Implantation': 'Hors zones de stockage'
-        }
-      },
-      'Enregistrement': {
-        implantation: {
-          'Distances limites': '20 m ou mur REI 120',
-          'Distances inter-batiments': '10 m ou mur REI 120'
-        },
-        accessibilite: {
-          'Acces au site': '2 acces eloignes',
-          'Voie engin': 'Largeur 6 m, portante 320 kN',
-          'Echelles': 'Face a chaque cellule',
-          'Issues et quais': 'Degagements > 10 m'
-        },
-        construction: {
-          'Structure': 'R60 (risque eleve polymeres)',
-          'Toiture': 'Classe Broof t3',
-          'Facades': 'M0 ou B-s3,d0',
-          'Portes et fermetures': 'EI 120 entre cellules'
-        },
-        cantonnement: {
-          'Surface cellules': '2 000 m\u00B2 (3 000 si sprinkler)',
-          'Murs separatifs': 'REI 120, depassement 1 m',
-          'Ecrans de cantonnement': 'DH \u2265 25% hauteur, M0'
-        },
-        desenfumage: {
-          'Surface utile': '2% de la surface utile',
-          'Commandes': 'Manuelles + automatiques',
-          'Exutoires': 'DENFC'
-        },
-        stockage: {
-          'Hauteur stockage': 'Selon type de sprinkler',
-          'Allees de circulation': '2 m minimum',
-          'Distance aux parois': '1 m'
-        },
-        lutte_incendie: {
-          'Extincteurs': '1 pour 150 m\u00B2',
-          'RIA': 'DN 33/8 tous les 15 m',
-          'Sprinkler': 'Obligatoire (risque eleve)',
-          'Colonnes seches': 'Si hauteur > 15 m'
-        },
-        eau_incendie: {
-          'Besoins en eau': 'D9/D9A majoree (+30% polymeres)',
-          'Retention eaux extinction': 'Bassin confinement obligatoire'
-        },
-        elec: {
-          'Conformite': 'NF C 15-100',
-          'Coupure d\'urgence': 'Coupure generale + par cellule'
-        },
-        chauffage: {
-          'Type autorise': 'Eau chaude uniquement',
-          'Implantation': 'Hors cellules ou local isole REI 120'
-        }
-      },
-      'Autorisation': {
-        implantation: {
-          'Distances limites': 'Etude de dangers',
-          'Distances inter-batiments': 'Etude de dangers'
-        },
-        accessibilite: {
-          'Acces au site': '2 acces eloignes, tour du batiment',
-          'Voie engin': '6 m, portante 320 kN, rayon 11 m',
-          'Echelles': 'Face a chaque cellule',
-          'Issues et quais': 'Degagements > 10 m'
-        },
-        construction: {
-          'Structure': 'R120 (ou R60 + sprinkler renforce)',
-          'Toiture': 'Classe Broof t3',
-          'Facades': 'M0 ou B-s3,d0',
-          'Portes et fermetures': 'EI 120, fermeture automatique'
-        },
-        cantonnement: {
-          'Surface cellules': '2 000 m\u00B2 (3 000 si sprinkler)',
-          'Murs separatifs': 'REI 120, depassement 1 m toiture + facade',
-          'Ecrans de cantonnement': 'DH \u2265 25% hauteur, M0'
-        },
-        desenfumage: {
-          'Surface utile': '2% de la surface utile',
-          'Commandes': 'Manuelles + automatiques',
-          'Exutoires': 'DENFC classe B300 T2'
-        },
-        stockage: {
-          'Hauteur stockage': 'Selon sprinkler, hauteur limitee',
-          'Allees de circulation': '2 m, principale \u2265 3 m',
-          'Distance aux parois': '1 m'
-        },
-        lutte_incendie: {
-          'Extincteurs': '1 pour 150 m\u00B2',
-          'RIA': 'DN 33/8 tous les 15 m',
-          'Sprinkler': 'Obligatoire, debit renforce',
-          'Colonnes seches': 'Si hauteur > 15 m'
-        },
-        eau_incendie: {
-          'Besoins en eau': 'D9/D9A majoree + etude dangers',
-          'Retention eaux extinction': 'Bassin conforme D9A'
-        },
-        elec: {
-          'Conformite': 'NF C 15-100, ATEX si poussiere',
-          'Coupure d\'urgence': 'Coupure generale + par cellule'
-        },
-        chauffage: {
-          'Type autorise': 'Eau chaude uniquement',
-          'Implantation': 'Hors cellules, local isole REI 120'
-        }
-      }
-    }
+    ]
   },
   '2663': {
     intitule: 'Stockage de pneumatiques et produits en caoutchouc',
@@ -1504,162 +1231,127 @@ const ICPE_DATA = {
       { max: 5000, regime: 'Declaration', label: 'Declaration' },
       { max: 50000, regime: 'Enregistrement', label: 'Enregistrement' },
       { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ],
-    prescriptions: {
-      'Declaration': {
-        implantation: {
-          'Distances limites': '20 m ou mur EI 120',
-          'Distances inter-batiments': '10 m ou mur EI 120'
-        },
-        accessibilite: {
-          'Acces au site': '2 acces',
-          'Voie engin': 'Largeur 3 m',
-          'Echelles': 'Non exige',
-          'Issues et quais': 'Degagements 1,40 m'
-        },
-        construction: {
-          'Structure': 'R15',
-          'Toiture': 'Classe Broof t3',
-          'Facades': 'M0 ou B-s3,d0',
-          'Portes et fermetures': 'Ferme-portes'
-        },
-        cantonnement: {
-          'Surface cellules': '1 500 m\u00B2 max',
-          'Murs separatifs': 'REI 120',
-          'Ecrans de cantonnement': 'DH selon surface'
-        },
-        desenfumage: {
-          'Surface utile': '2% de la surface',
-          'Commandes': 'Manuelles',
-          'Exutoires': 'DENFC'
-        },
-        stockage: {
-          'Hauteur stockage': 'Libre',
-          'Allees de circulation': '2 m',
-          'Distance aux parois': '1 m'
-        },
-        lutte_incendie: {
-          'Extincteurs': '1 pour 150 m\u00B2',
-          'RIA': 'Non exige',
-          'Sprinkler': 'Recommande',
-          'Colonnes seches': 'Non exige'
-        },
-        eau_incendie: {
-          'Besoins en eau': 'D9/D9A',
-          'Retention eaux extinction': 'Confinement eaux d\'extinction'
-        },
-        elec: {
-          'Conformite': 'NF C 15-100',
-          'Coupure d\'urgence': 'Coupure generale accessible'
-        },
-        chauffage: {
-          'Type autorise': 'Eau chaude uniquement',
-          'Implantation': 'Hors zones de stockage'
-        }
-      },
-      'Enregistrement': {
-        implantation: {
-          'Distances limites': '20 m ou mur REI 120',
-          'Distances inter-batiments': '10 m ou mur REI 120'
-        },
-        accessibilite: {
-          'Acces au site': '2 acces eloignes',
-          'Voie engin': 'Largeur 6 m, portante 320 kN',
-          'Echelles': 'Face a chaque cellule',
-          'Issues et quais': 'Degagements > 10 m'
-        },
-        construction: {
-          'Structure': 'R60',
-          'Toiture': 'Classe Broof t3',
-          'Facades': 'M0 ou B-s3,d0',
-          'Portes et fermetures': 'EI 120 entre cellules'
-        },
-        cantonnement: {
-          'Surface cellules': '2 000 m\u00B2 (3 000 si sprinkler)',
-          'Murs separatifs': 'REI 120, depassement 1 m',
-          'Ecrans de cantonnement': 'DH \u2265 25% hauteur, M0'
-        },
-        desenfumage: {
-          'Surface utile': '2% de la surface utile',
-          'Commandes': 'Manuelles + automatiques',
-          'Exutoires': 'DENFC'
-        },
-        stockage: {
-          'Hauteur stockage': 'Selon sprinkler',
-          'Allees de circulation': '2 m minimum',
-          'Distance aux parois': '1 m'
-        },
-        lutte_incendie: {
-          'Extincteurs': '1 pour 150 m\u00B2',
-          'RIA': 'DN 33/8 tous les 15 m',
-          'Sprinkler': 'Obligatoire',
-          'Colonnes seches': 'Si hauteur > 15 m'
-        },
-        eau_incendie: {
-          'Besoins en eau': 'D9/D9A majoree (fumees toxiques)',
-          'Retention eaux extinction': 'Bassin confinement obligatoire'
-        },
-        elec: {
-          'Conformite': 'NF C 15-100',
-          'Coupure d\'urgence': 'Coupure generale + par cellule'
-        },
-        chauffage: {
-          'Type autorise': 'Eau chaude uniquement',
-          'Implantation': 'Hors cellules, local isole REI 120'
-        }
-      },
-      'Autorisation': {
-        implantation: {
-          'Distances limites': 'Etude de dangers',
-          'Distances inter-batiments': 'Etude de dangers'
-        },
-        accessibilite: {
-          'Acces au site': '2 acces eloignes, tour du batiment',
-          'Voie engin': '6 m, portante 320 kN, rayon 11 m',
-          'Echelles': 'Face a chaque cellule',
-          'Issues et quais': 'Degagements > 10 m'
-        },
-        construction: {
-          'Structure': 'R120 (fumees tres toxiques)',
-          'Toiture': 'Classe Broof t3',
-          'Facades': 'M0 ou B-s3,d0',
-          'Portes et fermetures': 'EI 120, fermeture automatique'
-        },
-        cantonnement: {
-          'Surface cellules': '1 500 m\u00B2 (2 000 si sprinkler)',
-          'Murs separatifs': 'REI 120, depassement 1 m toiture + facade',
-          'Ecrans de cantonnement': 'DH \u2265 25% hauteur, M0'
-        },
-        desenfumage: {
-          'Surface utile': '2% de la surface utile',
-          'Commandes': 'Manuelles + automatiques',
-          'Exutoires': 'DENFC classe B300 T2'
-        },
-        stockage: {
-          'Hauteur stockage': 'Limitee selon sprinkler renforce',
-          'Allees de circulation': '2 m, principale \u2265 3 m',
-          'Distance aux parois': '1 m'
-        },
-        lutte_incendie: {
-          'Extincteurs': '1 pour 150 m\u00B2',
-          'RIA': 'DN 33/8 tous les 15 m',
-          'Sprinkler': 'Obligatoire, debit renforce',
-          'Colonnes seches': 'Si hauteur > 15 m'
-        },
-        eau_incendie: {
-          'Besoins en eau': 'D9/D9A majoree + etude dangers',
-          'Retention eaux extinction': 'Bassin conforme D9A, volume majore'
-        },
-        elec: {
-          'Conformite': 'NF C 15-100',
-          'Coupure d\'urgence': 'Coupure generale + par cellule'
-        },
-        chauffage: {
-          'Type autorise': 'Eau chaude uniquement',
-          'Implantation': 'Hors cellules, local isole REI 120'
-        }
-      }
-    }
+    ]
+  },
+  '2710': {
+    intitule: 'Collecte de dechets apportes par le producteur',
+    variable: 'volume',
+    unite: 'm\u00B3',
+    description: 'Installations de collecte de dechets apportes par le producteur initial de ces dechets (decheteries).',
+    seuils: [
+      { max: 100, regime: null, label: 'Non ICPE' },
+      { max: 300, regime: 'Declaration', label: 'Declaration' },
+      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
+    ]
+  },
+  '2714': {
+    intitule: 'Transit de dechets non dangereux inertes',
+    variable: 'surface',
+    unite: 'm\u00B2',
+    description: 'Installation de transit, regroupement de dechets non dangereux de materiaux, produits ou equipements contenant de l\'amiante lie a des materiaux inertes.',
+    seuils: [
+      { max: 1000, regime: null, label: 'Non ICPE' },
+      { max: 10000, regime: 'Declaration', label: 'Declaration' },
+      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
+    ]
+  },
+  '2716': {
+    intitule: 'Transit de dechets non dangereux non inertes',
+    variable: 'volume',
+    unite: 'm\u00B3',
+    description: 'Installation de transit, regroupement ou tri de dechets non dangereux non inertes a l\'exclusion des installations visees aux rubriques 2710 et 2719.',
+    seuils: [
+      { max: 100, regime: null, label: 'Non ICPE' },
+      { max: 1000, regime: 'Declaration', label: 'Declaration' },
+      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
+    ]
+  },
+  '2718': {
+    intitule: 'Transit de dechets dangereux',
+    variable: 'quantite',
+    unite: 't',
+    description: 'Installation de transit, regroupement ou tri de dechets dangereux ou de dechets contenant des polluants organiques persistants.',
+    seuils: [
+      { max: 1, regime: null, label: 'Non ICPE' },
+      { max: 7, regime: 'Declaration', label: 'Declaration' },
+      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
+    ]
+  },
+  '2760': {
+    intitule: 'Stockage de dechets non dangereux',
+    variable: 'quantite',
+    unite: 't/an',
+    description: 'Installation de stockage de dechets non dangereux (ISDND). Toujours soumise a autorisation.',
+    seuils: [
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ]
+  },
+  '2910': {
+    intitule: 'Installations de combustion',
+    variable: 'puissance',
+    unite: 'MW',
+    description: 'Installations de combustion a l\'exclusion des installations visees par les rubriques 2770 et 2771 (chaudieres, turbines, moteurs).',
+    seuils: [
+      { max: 1, regime: null, label: 'Non ICPE' },
+      { max: 20, regime: 'Declaration', label: 'Declaration' },
+      { max: 50, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ]
+  },
+  '2921': {
+    intitule: 'Tours aerorefrigerantes',
+    variable: 'puissance',
+    unite: 'kW',
+    description: 'Installation de refroidissement par dispersion d\'eau dans un flux d\'air (tours aerorefrigerantes, condenseurs evaporatifs).',
+    seuils: [
+      { max: 300, regime: null, label: 'Non ICPE' },
+      { max: 3000, regime: 'Declaration', label: 'Declaration' },
+      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
+    ]
+  },
+  '2925': {
+    intitule: 'Ateliers de charge d\'accumulateurs',
+    variable: 'puissance',
+    unite: 'kW',
+    description: 'Ateliers de charge d\'accumulateurs (plomb, NiCd, lithium, etc.).',
+    seuils: [
+      { max: 10, regime: null, label: 'Non ICPE' },
+      { max: 50, regime: 'Declaration', label: 'Declaration' },
+      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
+    ]
+  },
+  '2930': {
+    intitule: 'Ateliers de reparation de vehicules',
+    variable: 'surface',
+    unite: 'm\u00B2',
+    description: 'Ateliers de reparation et d\'entretien de vehicules et engins a moteur, y compris les activites de carrosserie et de tolerie.',
+    seuils: [
+      { max: 100, regime: null, label: 'Non ICPE' },
+      { max: 2000, regime: 'Declaration', label: 'Declaration' },
+      { max: 5000, regime: 'Enregistrement', label: 'Enregistrement' },
+      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
+    ]
+  },
+  '2935': {
+    intitule: 'Parcs de stationnement couverts',
+    variable: 'surface',
+    unite: 'm\u00B2',
+    description: 'Parcs de stationnement couverts et garages. Soumis a enregistrement au-dela de 6 000 m\u00B2.',
+    seuils: [
+      { max: 6000, regime: null, label: 'Non ICPE' },
+      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
+    ]
+  },
+  '2940': {
+    intitule: 'Application de peintures, vernis, colles',
+    variable: 'quantite',
+    unite: 'kg/j',
+    description: 'Application, cuisson, sechage de peintures, vernis, colles, encres, aprets et autres produits a base de solvants organiques ou aqueux.',
+    seuils: [
+      { max: 10, regime: null, label: 'Non ICPE' },
+      { max: 100, regime: 'Declaration', label: 'Declaration' },
+      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
+    ]
   }
 };
 
@@ -1677,10 +1369,16 @@ const PRESCRIPTION_CATEGORIES = [
 ];
 
 const AIDA_URLS = {
+  '1185': { fiche: 'https://aida.ineris.fr/reglementation/1185-ammoniac', arrete: null },
+  '1435': { fiche: 'https://aida.ineris.fr/reglementation/1435-stations-service', arrete: null },
+  '1436': { fiche: 'https://aida.ineris.fr/reglementation/1436-liquides-inflammables', arrete: null },
+  '1450': { fiche: 'https://aida.ineris.fr/reglementation/1450-solides-inflammables', arrete: null },
   '1510': {
     fiche: 'https://aida.ineris.fr/reglementation/1510-stockage-matieres-produits-substances-combustibles-entrepots-couverts',
     arrete: 'https://aida.ineris.fr/reglementation/arrete-110417-relatif-prescriptions-generales-applicables-entrepots-couverts-soumis'
   },
+  '1511': { fiche: 'https://aida.ineris.fr/reglementation/1511-entrepots-frigorifiques', arrete: null },
+  '1520': { fiche: 'https://aida.ineris.fr/reglementation/1520-houille-coke-lignite-charbon', arrete: null },
   '1530': {
     fiche: 'https://aida.ineris.fr/reglementation/1530-depots-papiers-cartons-materiaux-combustibles-analogues',
     arrete: 'https://aida.ineris.fr/reglementation/arrete-150410-relatif-prescriptions-generales-applicables-depots-papier-carton'
@@ -1689,30 +1387,39 @@ const AIDA_URLS = {
     fiche: 'https://aida.ineris.fr/reglementation/1532-stockage-bois-materiaux-combustibles-analogues',
     arrete: 'https://aida.ineris.fr/reglementation/arrete-110913-relatif-prescriptions-generales-applicables-installations-relevant'
   },
-  '2662': {
-    fiche: 'https://aida.ineris.fr/reglementation/2662-stockage-polymeres',
-    arrete: null
-  },
-  '2663': {
-    fiche: 'https://aida.ineris.fr/reglementation/2663-stockage-pneumatiques-produits-caoutchouc',
-    arrete: null
+  '2160': { fiche: 'https://aida.ineris.fr/reglementation/2160-silos-stockage-cereales', arrete: null },
+  '2515': { fiche: 'https://aida.ineris.fr/reglementation/2515-broyage-concassage-criblage', arrete: null },
+  '2516': { fiche: 'https://aida.ineris.fr/reglementation/2516-transit-produits-mineraux', arrete: null },
+  '2517': { fiche: 'https://aida.ineris.fr/reglementation/2517-transit-dechets-non-dangereux', arrete: null },
+  '2518': { fiche: 'https://aida.ineris.fr/reglementation/2518-tri-dechets-menagers', arrete: null },
+  '2560': { fiche: 'https://aida.ineris.fr/reglementation/2560-travail-metaux', arrete: null },
+  '2660': { fiche: 'https://aida.ineris.fr/reglementation/2660-matieres-plastiques', arrete: null },
+  '2662': { fiche: 'https://aida.ineris.fr/reglementation/2662-stockage-polymeres', arrete: null },
+  '2663': { fiche: 'https://aida.ineris.fr/reglementation/2663-stockage-pneumatiques-produits-caoutchouc', arrete: null },
+  '2710': { fiche: 'https://aida.ineris.fr/reglementation/2710-collecte-dechets', arrete: null },
+  '2714': { fiche: 'https://aida.ineris.fr/reglementation/2714-dechets-inertes', arrete: null },
+  '2716': { fiche: 'https://aida.ineris.fr/reglementation/2716-dechets-non-dangereux', arrete: null },
+  '2718': { fiche: 'https://aida.ineris.fr/reglementation/2718-dechets-dangereux', arrete: null },
+  '2760': { fiche: 'https://aida.ineris.fr/reglementation/2760-stockage-dechets', arrete: null },
+  '2910': { fiche: 'https://aida.ineris.fr/reglementation/2910-combustion', arrete: null },
+  '2921': { fiche: 'https://aida.ineris.fr/reglementation/2921-tours-aerorefrigerantes', arrete: null },
+  '2925': { fiche: 'https://aida.ineris.fr/reglementation/2925-charge-accumulateurs', arrete: null },
+  '2930': { fiche: 'https://aida.ineris.fr/reglementation/2930-reparation-vehicules', arrete: null },
+  '2935': { fiche: 'https://aida.ineris.fr/reglementation/2935-parcs-stationnement', arrete: null },
+  '2940': { fiche: 'https://aida.ineris.fr/reglementation/2940-peintures-vernis', arrete: null }
+};
+
+// Gemini API config
+const GEMINI_API_KEY = (typeof ICPE_CONFIG !== 'undefined' && ICPE_CONFIG.GEMINI_API_KEY) ? ICPE_CONFIG.GEMINI_API_KEY : null;
+const GEMINI_MODEL_PRO = 'gemini-2.5-pro';
+const GEMINI_MODEL_FLASH = 'gemini-2.0-flash';
+
+function getGeminiUrl(model) {
+  if (GEMINI_API_KEY) {
+    return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
   }
-};
-
-const PRODUCT_RUBRIQUE_MAP = {
-  combustibles: { label: 'Matieres combustibles', rubriques: ['1510'] },
-  papier_carton: { label: 'Papier / Carton', rubriques: ['1510', '1530'] },
-  bois: { label: 'Bois', rubriques: ['1510', '1532'] },
-  plastiques: { label: 'Plastiques / Polymeres', rubriques: ['1510', '2662'] },
-  pneumatiques: { label: 'Pneumatiques / Caoutchouc', rubriques: ['1510', '2663'] },
-  denrees_alimentaires: { label: 'Denrees alimentaires', rubriques: ['1510'] },
-  textiles: { label: 'Textiles', rubriques: ['1510'] },
-  liquides_inflammables: { label: 'Liquides inflammables', rubriques: [] },
-  aerosols: { label: 'Aerosols', rubriques: [] },
-  produits_chimiques: { label: 'Produits chimiques', rubriques: [] }
-};
-
-const GEMINI_URL = '/api/gemini';
+  return '/api/gemini';
+}
 
 // ======================================================
 // STATE
@@ -1720,10 +1427,11 @@ const GEMINI_URL = '/api/gemini';
 
 const state = {
   currentStep: 1,
-  selectionMode: 'direct',
   selectedRubriques: new Set(),
-  values: {},
-  comparisonMode: false
+  regimes: {},
+  comparisonMode: false,
+  prescriptionsCache: {},
+  prescriptionsLoading: false
 };
 
 // ======================================================
@@ -1734,49 +1442,68 @@ document.getElementById('dateAnalyse').value = new Date().toISOString().split('T
 initStep1();
 
 function initStep1() {
-  const grid = document.getElementById('rubriquesGrid');
-  grid.innerHTML = '';
-  for (const [code, data] of Object.entries(ICPE_DATA)) {
-    const seuils = data.seuils;
-    const seuilMin = formatNumber(seuils[0].max);
-    const seuilMax = formatNumber(seuils[seuils.length - 2].max);
-    grid.innerHTML += `
+  const grid1 = document.getElementById('grid1xxx');
+  const grid2 = document.getElementById('grid2xxx');
+  const grid4 = document.getElementById('grid4xxx');
+  grid1.innerHTML = '';
+  grid2.innerHTML = '';
+  grid4.innerHTML = '';
+
+  const sortedCodes = Object.keys(ICPE_DATA).sort();
+  for (const code of sortedCodes) {
+    const data = ICPE_DATA[code];
+    const codeNum = parseInt(code);
+    let targetGrid;
+    if (codeNum < 2000) targetGrid = grid1;
+    else if (codeNum < 4000) targetGrid = grid2;
+    else targetGrid = grid4;
+
+    // Build regime badges
+    const regimes = new Set();
+    data.seuils.forEach(s => {
+      if (s.regime) {
+        if (s.regime === 'Declaration') regimes.add('D');
+        else if (s.label === 'Declaration avec controle') regimes.add('DC');
+        else if (s.regime === 'Enregistrement') regimes.add('E');
+        else if (s.regime === 'Autorisation') regimes.add('A');
+      }
+    });
+    let badgesHtml = '';
+    if (regimes.has('DC')) badgesHtml += '<span class="mini-badge dc">DC</span>';
+    if (regimes.has('D')) badgesHtml += '<span class="mini-badge d">D</span>';
+    if (regimes.has('E')) badgesHtml += '<span class="mini-badge e">E</span>';
+    if (regimes.has('A')) badgesHtml += '<span class="mini-badge a">A</span>';
+
+    targetGrid.innerHTML += `
       <div class="rubrique-card" data-code="${code}" onclick="toggleRubrique('${code}')">
         <div class="rubrique-num">${code}</div>
         <div class="rubrique-label">${data.intitule}</div>
-        <div class="rubrique-var">${data.variable} (${data.unite}) : ${seuilMin} - ${seuilMax}</div>
+        <div class="regime-badges">${badgesHtml}</div>
       </div>
     `;
   }
 
-  const productsGrid = document.getElementById('productsGrid');
-  productsGrid.innerHTML = '';
-  for (const [key, prod] of Object.entries(PRODUCT_RUBRIQUE_MAP)) {
-    productsGrid.innerHTML += `
-      <label class="product-chip" data-product="${key}" onclick="toggleProduct(event, '${key}')">
-        <input type="checkbox">
-        <div class="chip-check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></div>
-        <span>${prod.label}</span>
-      </label>
-    `;
-  }
+  // Hide empty series groups
+  if (grid4.innerHTML === '') document.getElementById('series4xxx').style.display = 'none';
 }
 
 // ======================================================
 // STEP 1 LOGIC
 // ======================================================
 
-function setMode(mode) {
-  state.selectionMode = mode;
-  const btns = document.querySelectorAll('.mode-toggle button');
-  btns[0].classList.toggle('active', mode === 'direct');
-  btns[1].classList.toggle('active', mode === 'guided');
-  document.getElementById('directMode').style.display = mode === 'direct' ? 'block' : 'none';
-  document.getElementById('guidedMode').style.display = mode === 'guided' ? 'block' : 'none';
-
-  if (mode === 'direct') {
-    syncCardsSelection();
-  }
+function filterRubriques(query) {
+  const q = query.toLowerCase().trim();
+  document.querySelectorAll('.rubrique-card').forEach(card => {
+    const code = card.dataset.code;
+    const data = ICPE_DATA[code];
+    if (!data) { card.style.display = 'none'; return; }
+    const searchText = (code + ' ' + data.intitule + ' ' + data.description).toLowerCase();
+    card.style.display = !q || searchText.includes(q) ? '' : 'none';
+  });
+  document.querySelectorAll('.series-group').forEach(group => {
+    const visibleCards = group.querySelectorAll('.rubrique-card:not([style*="display: none"])');
+    group.style.display = visibleCards.length > 0 ? '' : 'none';
+  });
 }
 
 function toggleRubrique(code) {
@@ -1786,6 +1513,7 @@ function toggleRubrique(code) {
     state.selectedRubriques.add(code);
   }
   syncCardsSelection();
+  updateSelectedCount();
   updateNextButton();
 }
 
@@ -1795,59 +1523,68 @@ function syncCardsSelection() {
   });
 }
 
-function toggleProduct(e, key) {
-  e.preventDefault();
-  const chip = e.currentTarget;
-  const isSelected = chip.classList.contains('selected');
-  chip.classList.toggle('selected');
-  chip.querySelector('input').checked = !isSelected;
-  updateSuggestedRubriques();
-}
-
-function updateSuggestedRubriques() {
-  const selectedProducts = Array.from(document.querySelectorAll('.product-chip.selected')).map(c => c.dataset.product);
-  const suggestedSet = new Set();
-  selectedProducts.forEach(p => {
-    PRODUCT_RUBRIQUE_MAP[p].rubriques.forEach(r => suggestedSet.add(r));
-  });
-
-  const container = document.getElementById('suggestedRubriques');
-  const list = document.getElementById('suggestedList');
-
-  if (suggestedSet.size === 0) {
-    container.classList.remove('visible');
-    state.selectedRubriques.clear();
-    updateNextButton();
-    return;
-  }
-
-  container.classList.add('visible');
-  list.innerHTML = '';
-  suggestedSet.forEach(code => {
-    const data = ICPE_DATA[code];
-    const isSelected = state.selectedRubriques.has(code);
-    list.innerHTML += `
-      <button class="suggested-tag ${isSelected ? 'selected' : ''}" onclick="toggleSuggested('${code}', this)">
-        ${code} - ${data.intitule}
-      </button>
-    `;
-  });
-
-  // Auto-select all suggested
-  suggestedSet.forEach(code => state.selectedRubriques.add(code));
-  list.querySelectorAll('.suggested-tag').forEach(t => t.classList.add('selected'));
-  updateNextButton();
-}
-
-function toggleSuggested(code, el) {
-  if (state.selectedRubriques.has(code)) {
-    state.selectedRubriques.delete(code);
-    el.classList.remove('selected');
+function updateSelectedCount() {
+  const count = state.selectedRubriques.size;
+  const el = document.getElementById('selectedCount');
+  const text = document.getElementById('selectedCountText');
+  if (count > 0) {
+    el.style.display = '';
+    text.textContent = count + ' rubrique(s) selectionnee(s)';
   } else {
-    state.selectedRubriques.add(code);
-    el.classList.add('selected');
+    el.style.display = 'none';
   }
+}
+
+function addCustomRubrique() {
+  const codeInput = document.getElementById('customCode');
+  const intituleInput = document.getElementById('customIntitule');
+  const code = codeInput.value.trim();
+  const intitule = intituleInput.value.trim();
+
+  if (!code) { alert('Veuillez saisir un numero de rubrique.'); return; }
+  if (!intitule) { alert('Veuillez saisir un intitule.'); return; }
+  if (ICPE_DATA[code]) { alert('Cette rubrique existe deja dans la liste.'); return; }
+
+  // Add to ICPE_DATA
+  ICPE_DATA[code] = {
+    intitule: intitule,
+    variable: 'quantite',
+    unite: '',
+    description: intitule,
+    seuils: [
+      { max: Infinity, regime: 'Declaration', label: 'Declaration' }
+    ]
+  };
+
+  // Add card to appropriate grid
+  const codeNum = parseInt(code);
+  let targetGrid;
+  if (codeNum < 2000) targetGrid = document.getElementById('grid1xxx');
+  else if (codeNum < 4000) targetGrid = document.getElementById('grid2xxx');
+  else targetGrid = document.getElementById('grid4xxx');
+
+  // Show the series group if hidden
+  if (codeNum < 2000) document.getElementById('series1xxx').style.display = '';
+  else if (codeNum < 4000) document.getElementById('series2xxx').style.display = '';
+  else document.getElementById('series4xxx').style.display = '';
+
+  targetGrid.innerHTML += `
+    <div class="rubrique-card" data-code="${code}" onclick="toggleRubrique('${code}')">
+      <div class="rubrique-num">${code}</div>
+      <div class="rubrique-label">${intitule}</div>
+      <div class="regime-badges"><span class="mini-badge d">D</span></div>
+    </div>
+  `;
+
+  // Auto-select
+  state.selectedRubriques.add(code);
+  syncCardsSelection();
+  updateSelectedCount();
   updateNextButton();
+
+  // Clear inputs
+  codeInput.value = '';
+  intituleInput.value = '';
 }
 
 // ======================================================
@@ -1855,195 +1592,82 @@ function toggleSuggested(code, el) {
 // ======================================================
 
 function renderStep2() {
-  const container = document.getElementById('seuilsContainer');
+  const container = document.getElementById('regimeContainer');
   container.innerHTML = '';
 
   state.selectedRubriques.forEach(code => {
     const data = ICPE_DATA[code];
-    const currentValue = state.values[code] || '';
+    const currentRegime = state.regimes[code] || null;
+
+    // Get available regimes for this rubrique
+    const availableRegimes = getAvailableRegimes(code);
+
+    let optionsHtml = '';
+    availableRegimes.forEach(r => {
+      const selected = currentRegime === r.regime ? 'selected' : '';
+      const optClass = 'opt-' + r.regime.toLowerCase();
+      optionsHtml += `
+        <div class="regime-option ${optClass} ${selected}" onclick="selectRegime('${code}', '${r.regime}', this)">
+          <div class="regime-option-label">${r.label}</div>
+        </div>
+      `;
+    });
 
     container.innerHTML += `
       <div class="rubrique-section" id="section-${code}">
         <div class="rubrique-section-header">
           <h3>Rubrique ${code} — ${data.intitule}</h3>
-          <div class="regime-badge" id="badge-${code}">-</div>
         </div>
-
-        <div class="gauge-container" id="gauge-${code}"></div>
-
-        <div class="input-row">
-          <div class="input-group">
-            <label>Volume stocke (${data.unite})</label>
-            <input type="number" id="input-${code}" value="${currentValue}"
-              placeholder="Ex: 75 000" oninput="onValueChange('${code}', this.value)">
-            <span class="unit">${data.unite}</span>
-          </div>
-          <div class="volume-helper" id="helper-${code}">
-            Calcul : <input type="number" placeholder="Surface m\u00B2" id="helperS-${code}" oninput="calcHelper('${code}')">
-            &times;
-            <input type="number" placeholder="Hauteur m" id="helperH-${code}" oninput="calcHelper('${code}')">
-            = volume
-          </div>
-        </div>
-
-        <div class="proximity-info" id="proximity-${code}"></div>
+        <p style="font-size:13px; color:var(--gray-500); margin-bottom:12px;">${data.description || ''}</p>
+        <div class="regime-selector">${optionsHtml}</div>
       </div>
     `;
-
-    renderGauge(code, parseFloat(currentValue) || 0);
-    updateRegime(code, parseFloat(currentValue) || 0);
   });
 }
 
-function calcHelper(code) {
-  const s = parseFloat(document.getElementById(`helperS-${code}`).value) || 0;
-  const h = parseFloat(document.getElementById(`helperH-${code}`).value) || 0;
-  if (s > 0 && h > 0) {
-    const vol = Math.round(s * h);
-    document.getElementById(`input-${code}`).value = vol;
-    onValueChange(code, vol);
-  }
+function getAvailableRegimes(code) {
+  const data = ICPE_DATA[code];
+  const regimes = [];
+  const seen = new Set();
+  data.seuils.forEach(s => {
+    if (s.regime && !seen.has(s.regime)) {
+      seen.add(s.regime);
+      regimes.push({ regime: s.regime, label: s.label || s.regime });
+    }
+  });
+  return regimes;
 }
 
-function onValueChange(code, value) {
-  const v = parseFloat(value) || 0;
-  state.values[code] = v;
-  renderGauge(code, v);
-  updateRegime(code, v);
-  updateProximity(code, v);
+function selectRegime(code, regime, el) {
+  // Toggle: click again to deselect
+  if (state.regimes[code] === regime) {
+    delete state.regimes[code];
+    el.classList.remove('selected');
+  } else {
+    state.regimes[code] = regime;
+    // Deselect siblings
+    el.parentElement.querySelectorAll('.regime-option').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+  }
   updateNextButton();
 }
 
-function getRegimeInfo(code, value) {
-  const seuils = ICPE_DATA[code].seuils;
-  for (let i = 0; i < seuils.length; i++) {
-    if (value < seuils[i].max) {
-      return { regime: seuils[i].regime, label: seuils[i].label, index: i };
-    }
-  }
-  return { regime: 'Autorisation', label: 'Autorisation', index: seuils.length - 1 };
+function getRegimeInfo(code) {
+  const regime = state.regimes[code] || null;
+  if (!regime) return { regime: null, label: 'Non defini' };
+  return { regime: regime, label: regime };
 }
 
-function getNextSeuil(code, value) {
-  const seuils = ICPE_DATA[code].seuils;
-  for (let i = 0; i < seuils.length; i++) {
-    if (value < seuils[i].max && seuils[i].max !== Infinity) {
-      return { threshold: seuils[i].max, nextRegime: seuils[i + 1] ? seuils[i + 1].label : null };
-    }
-  }
-  return null;
-}
+// ======================================================
+// PRESCRIPTIONS CACHE
+// ======================================================
 
-function renderGauge(code, value) {
-  const data = ICPE_DATA[code];
-  const seuils = data.seuils;
-  const container = document.getElementById(`gauge-${code}`);
-  const regimeInfo = getRegimeInfo(code, value);
-  const segCount = seuils.length;
-
-  // Calculate marker position (piecewise linear)
-  let markerPos = 0;
-  if (value <= 0) {
-    markerPos = 0;
-  } else {
-    for (let i = 0; i < seuils.length; i++) {
-      const segMin = i === 0 ? 0 : seuils[i - 1].max;
-      const segMax = seuils[i].max;
-      if (value < segMax) {
-        const frac = (value - segMin) / (segMax === Infinity ? segMin * 2 : segMax - segMin);
-        markerPos = (i / segCount + frac / segCount) * 100;
-        break;
-      }
-      if (segMax === Infinity) {
-        // Last segment: cap at 95%
-        const capMax = seuils[i - 1].max * 2;
-        const frac = Math.min((value - seuils[i - 1].max) / (capMax - seuils[i - 1].max), 1);
-        markerPos = ((segCount - 1) / segCount + frac / segCount) * 100;
-        break;
-      }
-    }
-  }
-
-  const segNames = ['seg-non-icpe', 'seg-declaration', 'seg-enregistrement', 'seg-autorisation'];
-  const segLabels = seuils.map(s => s.label);
-
-  let html = '<div class="gauge-bar" style="position:relative;">';
-  for (let i = 0; i < segCount; i++) {
-    const cls = `gauge-segment ${segNames[i]} ${i === regimeInfo.index ? 'highlight' : 'dimmed'}`;
-    html += `<div class="${cls}">${segLabels[i]}</div>`;
-  }
-  // Marker
-  html += `<div class="gauge-marker" style="left:${Math.max(1, Math.min(99, markerPos))}%;">\u25BC</div>`;
-  html += '</div>';
-
-  // Threshold labels
-  html += '<div class="gauge-thresholds">';
-  html += `<span class="gauge-threshold-mark" style="left:0;">0</span>`;
-  for (let i = 0; i < seuils.length - 1; i++) {
-    const pos = ((i + 1) / segCount) * 100;
-    html += `<span class="gauge-threshold-mark" style="left:${pos}%;">${formatNumber(seuils[i].max)}</span>`;
-  }
-  html += '</div>';
-
-  container.innerHTML = html;
-}
-
-function updateRegime(code, value) {
-  const badge = document.getElementById(`badge-${code}`);
-  const info = getRegimeInfo(code, value);
-
-  if (value <= 0) {
-    badge.textContent = '-';
-    badge.className = 'regime-badge';
-    return;
-  }
-
-  badge.textContent = info.label;
-  const cls = info.regime ? info.regime.toLowerCase().replace('é', 'e') : 'non-icpe';
-  badge.className = `regime-badge ${cls}`;
-}
-
-function updateProximity(code, value) {
-  const el = document.getElementById(`proximity-${code}`);
-  if (value <= 0) {
-    el.classList.remove('visible');
-    return;
-  }
-
-  const seuils = ICPE_DATA[code].seuils;
-  const regimeInfo = getRegimeInfo(code, value);
-
-  // Find next threshold
-  let nextThreshold = null;
-  let nextRegimeLabel = null;
-  if (regimeInfo.index < seuils.length - 1 && seuils[regimeInfo.index].max !== Infinity) {
-    nextThreshold = seuils[regimeInfo.index].max;
-    nextRegimeLabel = seuils[regimeInfo.index + 1] ? seuils[regimeInfo.index + 1].label : null;
-    if (!nextRegimeLabel && regimeInfo.index + 1 < seuils.length) {
-      nextRegimeLabel = seuils[regimeInfo.index + 1].label;
-    }
-  }
-
-  if (!nextThreshold) {
-    if (regimeInfo.regime === 'Autorisation') {
-      el.innerHTML = `<strong>Regime Autorisation</strong> — Regime maximum. Etude de dangers obligatoire.`;
-      el.className = 'proximity-info visible critical';
-    } else {
-      el.classList.remove('visible');
-    }
-    return;
-  }
-
-  const delta = nextThreshold - value;
-  const pct = Math.round((value / nextThreshold) * 100);
-
-  let severity = 'safe';
-  if (pct >= 90) severity = 'danger';
-  else if (pct >= 75) severity = 'warning';
-
-  const currentLabel = regimeInfo.label;
-  el.innerHTML = `Vous etes a <strong>${formatNumber(value)} ${ICPE_DATA[code].unite}</strong> (${currentLabel}). Le prochain seuil <strong>${nextRegimeLabel || ''}</strong> est a <strong>${formatNumber(nextThreshold)} ${ICPE_DATA[code].unite}</strong> (+${formatNumber(delta)} ${ICPE_DATA[code].unite}).`;
-  el.className = `proximity-info visible ${severity}`;
+function getCacheKey() {
+  const parts = [];
+  state.selectedRubriques.forEach(code => {
+    parts.push(code + ':' + (state.regimes[code] || 'none'));
+  });
+  return parts.sort().join('|');
 }
 
 // ======================================================
@@ -2051,28 +1675,265 @@ function updateProximity(code, value) {
 // ======================================================
 
 function renderStep3() {
+  const tableContainer = document.getElementById('tableContainer');
+  const noPrescContainer = document.getElementById('noPrescriptionsContainer');
+  noPrescContainer.innerHTML = '';
+
+  // Check cache
+  const cacheKey = getCacheKey();
+  if (state.prescriptionsCache[cacheKey]) {
+    renderPrescriptionsFromData(state.prescriptionsCache[cacheKey]);
+    renderAnticipation();
+    return;
+  }
+
+  // Show loading
+  tableContainer.innerHTML = `
+    <div class="ai-loading-prescriptions">
+      <div class="ai-presc-spinner"></div>
+      <div class="ai-presc-text">Recherche des prescriptions reglementaires...</div>
+      <div class="ai-presc-sub">Analyse des arretes ministeriels en cours (peut prendre quelques secondes)</div>
+    </div>
+  `;
+  tableContainer.style.display = '';
+
+  fetchPrescriptions();
+}
+
+function regeneratePrescriptions() {
+  // Clear cache for current selection and re-fetch
+  const cacheKey = getCacheKey();
+  delete state.prescriptionsCache[cacheKey];
+  renderStep3();
+}
+
+async function fetchPrescriptions() {
+  if (state.prescriptionsLoading) return;
+  state.prescriptionsLoading = true;
+
+  const rubriques = Array.from(state.selectedRubriques);
+
+  // Build context for each rubrique
+  const rubriquesContext = rubriques.map(code => {
+    const data = ICPE_DATA[code];
+    const regime = state.regimes[code] || 'Non defini';
+    return `- Rubrique ${code} : ${data.intitule} — Regime : ${regime}`;
+  }).join('\n');
+
+  const prompt = `Tu es un assistant specialise en reglementation ICPE (Installations Classees pour la Protection de l'Environnement) en France.
+
+MISSION : Extraire les prescriptions techniques reglementaires pour les rubriques ICPE suivantes.
+
+${rubriquesContext}
+
+REGLES STRICTES :
+- Base-toi UNIQUEMENT sur les arretes ministeriels en vigueur (arretes types, arretes de prescriptions generales)
+- Si une prescription n'est pas explicitement prevue par la reglementation pour cette rubrique/regime, indique "Non reglemente" ou "Non applicable"
+- NE JAMAIS INVENTER de valeur. En cas de doute, indique "A verifier - non trouve dans l'arrete type"
+- Pour les rubriques soumises a Autorisation, les prescriptions sont definies par l'arrete prefectoral : indique "Selon arrete prefectoral" quand applicable
+- Utilise la terminologie technique exacte (REI, EI, R15, R30, R60, R120, Broof t3, DENFC, NF C 15-100, D9/D9A, etc.)
+
+Reponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans commentaire, avec cette structure exacte :
+{
+  "[code_rubrique]": {
+    "[regime]": {
+      "implantation": {
+        "Distances limites": "...",
+        "Distances inter-batiments": "..."
+      },
+      "accessibilite": {
+        "Acces au site": "...",
+        "Voie engin": "...",
+        "Echelles": "...",
+        "Issues et quais": "..."
+      },
+      "construction": {
+        "Structure": "...",
+        "Toiture": "...",
+        "Facades": "...",
+        "Portes et fermetures": "..."
+      },
+      "cantonnement": {
+        "Surface cellules": "...",
+        "Murs separatifs": "...",
+        "Ecrans de cantonnement": "..."
+      },
+      "desenfumage": {
+        "Surface utile": "...",
+        "Commandes": "...",
+        "Exutoires": "..."
+      },
+      "stockage": {
+        "Hauteur stockage": "...",
+        "Allees de circulation": "...",
+        "Distance aux parois": "..."
+      },
+      "lutte_incendie": {
+        "Extincteurs": "...",
+        "RIA": "...",
+        "Sprinkler": "...",
+        "Colonnes seches": "..."
+      },
+      "eau_incendie": {
+        "Besoins en eau": "...",
+        "Retention eaux extinction": "..."
+      },
+      "elec": {
+        "Conformite": "...",
+        "Coupure d'urgence": "..."
+      },
+      "chauffage": {
+        "Type autorise": "...",
+        "Implantation": "..."
+      }
+    }
+  }
+}`;
+
+  try {
+    const response = await fetch(getGeminiUrl(GEMINI_MODEL_PRO), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0,
+          maxOutputTokens: 16000,
+          responseMimeType: 'application/json'
+        }
+      })
+    });
+
+    const result = await response.json();
+    if (result.error) throw new Error(result.error.message);
+
+    let text = result.candidates[0].content.parts[0].text;
+    // Clean up if wrapped in markdown
+    if (text.startsWith('```json')) text = text.slice(7);
+    if (text.startsWith('```')) text = text.slice(3);
+    if (text.endsWith('```')) text = text.slice(0, -3);
+
+    const prescData = JSON.parse(text.trim());
+
+    // Inject into ICPE_DATA and cache
+    const cacheKey = getCacheKey();
+    state.prescriptionsCache[cacheKey] = prescData;
+
+    // Inject prescriptions into ICPE_DATA for each rubrique
+    for (const code of Object.keys(prescData)) {
+      if (ICPE_DATA[code]) {
+        if (!ICPE_DATA[code].prescriptions) ICPE_DATA[code].prescriptions = {};
+        for (const regime of Object.keys(prescData[code])) {
+          ICPE_DATA[code].prescriptions[regime] = prescData[code][regime];
+        }
+      }
+    }
+
+    renderPrescriptionsFromData(prescData);
+    renderAnticipation();
+  } catch (error) {
+    console.error('Gemini prescriptions error:', error);
+    const tableContainer = document.getElementById('tableContainer');
+    tableContainer.innerHTML = `
+      <div class="ai-error-prescriptions">
+        <p>Impossible de charger les prescriptions</p>
+        <div class="error-detail">${error.message}</div>
+        <button onclick="renderStep3()">Reessayer</button>
+      </div>
+    `;
+  } finally {
+    state.prescriptionsLoading = false;
+  }
+}
+
+function renderPrescriptionsFromData(prescData) {
+  // Rebuild the table container with proper table
+  const tableContainer = document.getElementById('tableContainer');
+  tableContainer.innerHTML = `
+    <table class="prescriptions-table" id="prescriptionsTable">
+      <thead><tr id="tableHeader"></tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  `;
+
   renderPrescriptionsTable();
-  renderAnticipation();
 }
 
 function toggleComparison() {
   state.comparisonMode = !state.comparisonMode;
   document.getElementById('compToggle').classList.toggle('active', state.comparisonMode);
-  renderPrescriptionsTable();
-  renderAnticipation();
+
+  // Only re-render if we have data
+  const cacheKey = getCacheKey();
+  if (state.prescriptionsCache[cacheKey] || hasAnyPrescriptions()) {
+    renderPrescriptionsTable();
+    renderAnticipation();
+  }
+}
+
+function hasAnyPrescriptions() {
+  const rubriques = Array.from(state.selectedRubriques);
+  return rubriques.some(code => {
+    const data = ICPE_DATA[code];
+    const info = getRegimeInfo(code);
+    return data.prescriptions && info.regime && data.prescriptions[info.regime];
+  });
 }
 
 function renderPrescriptionsTable() {
   const headerRow = document.getElementById('tableHeader');
   const tableBody = document.getElementById('tableBody');
+  const noPrescContainer = document.getElementById('noPrescriptionsContainer');
+
+  if (!headerRow || !tableBody) return;
+
   headerRow.innerHTML = '<th style="min-width:180px;">Theme</th>';
   tableBody.innerHTML = '';
+  noPrescContainer.innerHTML = '';
 
   const rubriques = Array.from(state.selectedRubriques);
 
-  // Build header
+  // Separate rubriques with and without prescriptions
+  const withPresc = [];
+  const withoutPresc = [];
   rubriques.forEach(code => {
-    const info = getRegimeInfo(code, state.values[code] || 0);
+    const data = ICPE_DATA[code];
+    const info = getRegimeInfo(code);
+    if (data.prescriptions && info.regime && data.prescriptions[info.regime]) {
+      withPresc.push(code);
+    } else {
+      withoutPresc.push(code);
+    }
+  });
+
+  // Show message cards for rubriques without prescriptions
+  withoutPresc.forEach(code => {
+    const data = ICPE_DATA[code];
+    const info = getRegimeInfo(code);
+    const urls = AIDA_URLS[code];
+    let linkHtml = '';
+    if (urls && urls.fiche) {
+      linkHtml = `<a href="${urls.fiche}" target="_blank">Fiche AIDA rubrique ${code}</a>`;
+    }
+    noPrescContainer.innerHTML += `
+      <div class="no-prescriptions-card">
+        <p><strong>Rubrique ${code} — ${data.intitule}</strong> (${info.label || 'Non ICPE'})</p>
+        <p>Prescriptions en attente de chargement. Consultez la fiche AIDA :</p>
+        ${linkHtml}
+      </div>
+    `;
+  });
+
+  // If no rubriques have prescriptions, hide the table
+  if (withPresc.length === 0) {
+    document.getElementById('tableContainer').style.display = 'none';
+    return;
+  }
+  document.getElementById('tableContainer').style.display = '';
+
+  // Build header
+  withPresc.forEach(code => {
+    const info = getRegimeInfo(code);
     const regime = info.regime || 'Non ICPE';
     headerRow.innerHTML += `<th style="min-width:140px;">Rub. ${code}<br><small style="font-weight:normal;opacity:0.8;">${regime}</small></th>`;
 
@@ -2086,14 +1947,14 @@ function renderPrescriptionsTable() {
 
   // Build rows
   PRESCRIPTION_CATEGORIES.forEach(cat => {
-    const colSpan = getColSpan(rubriques);
+    const colSpan = getColSpan(withPresc);
     tableBody.innerHTML += `<tr class="cat-row"><td colspan="${colSpan}">${cat.label}</td></tr>`;
 
     cat.items.forEach(item => {
       let row = `<tr class="sub-row"><td>${item}</td>`;
 
-      rubriques.forEach(code => {
-        const info = getRegimeInfo(code, state.values[code] || 0);
+      withPresc.forEach(code => {
+        const info = getRegimeInfo(code);
         const regime = info.regime;
         const val = getPrescription(code, regime, cat.id, item);
         row += `<td class="${val === '-' ? 'empty' : ''}">${val}</td>`;
@@ -2124,9 +1985,14 @@ function getColSpan(rubriques) {
 }
 
 function getNextRegime(code) {
-  const info = getRegimeInfo(code, state.values[code] || 0);
-  const regimes = ['Declaration', 'Enregistrement', 'Autorisation'];
-  if (!info.regime) return 'Declaration';
+  const data = ICPE_DATA[code];
+  const info = getRegimeInfo(code);
+  // Get unique regimes from seuils
+  const regimes = [];
+  data.seuils.forEach(s => {
+    if (s.regime && !regimes.includes(s.regime)) regimes.push(s.regime);
+  });
+  if (!info.regime) return regimes.length > 0 ? regimes[0] : null;
   const idx = regimes.indexOf(info.regime);
   if (idx < regimes.length - 1) return regimes[idx + 1];
   return null;
@@ -2135,7 +2001,7 @@ function getNextRegime(code) {
 function getPrescription(code, regime, catId, item) {
   if (!regime) return '-';
   const data = ICPE_DATA[code];
-  if (!data || !data.prescriptions[regime]) return '-';
+  if (!data || !data.prescriptions || !data.prescriptions[regime]) return '-';
   const cat = data.prescriptions[regime][catId];
   if (!cat) return '-';
   return cat[item] || '-';
@@ -2153,40 +2019,29 @@ function renderAnticipation() {
   const lines = [];
   state.selectedRubriques.forEach(code => {
     const data = ICPE_DATA[code];
-    const value = state.values[code] || 0;
-    const info = getRegimeInfo(code, value);
+    const info = getRegimeInfo(code);
     const nextRegime = getNextRegime(code);
 
     if (!nextRegime || !info.regime) return;
 
-    const seuils = data.seuils;
-    let nextThreshold = null;
-    for (const s of seuils) {
-      if (s.max > value && s.max !== Infinity) {
-        nextThreshold = s.max;
-        break;
-      }
-    }
+    let line = `Rubrique ${code} : actuellement ${info.label}.`;
 
-    let line = `Rubrique ${code} : actuellement ${info.label} (${formatNumber(value)} ${data.unite}).`;
-    if (nextThreshold) {
-      line += ` ${nextRegime} a partir de ${formatNumber(nextThreshold)} ${data.unite}.`;
-    }
-
-    // Key differences
-    const diffs = [];
-    const keyItems = ['Structure', 'Surface cellules', 'Sprinkler', 'RIA'];
-    keyItems.forEach(item => {
-      const catId = findCategoryForItem(item);
-      if (!catId) return;
-      const curr = getPrescription(code, info.regime, catId, item);
-      const next = getPrescription(code, nextRegime, catId, item);
-      if (curr !== next && next !== '-') {
-        diffs.push(`${item} : ${curr} \u2192 ${next}`);
+    // Key differences (only for rubriques with prescriptions)
+    if (data.prescriptions) {
+      const diffs = [];
+      const keyItems = ['Structure', 'Surface cellules', 'Sprinkler', 'RIA'];
+      keyItems.forEach(item => {
+        const catId = findCategoryForItem(item);
+        if (!catId) return;
+        const curr = getPrescription(code, info.regime, catId, item);
+        const next = getPrescription(code, nextRegime, catId, item);
+        if (curr !== next && next !== '-') {
+          diffs.push(`${item} : ${curr} \u2192 ${next}`);
+        }
+      });
+      if (diffs.length > 0) {
+        line += ` Differences cles avec ${nextRegime} : ${diffs.join(' ; ')}.`;
       }
-    });
-    if (diffs.length > 0) {
-      line += ` Differences cles : ${diffs.join(' ; ')}.`;
     }
     lines.push(line);
   });
@@ -2207,7 +2062,7 @@ function findCategoryForItem(item) {
 }
 
 // ======================================================
-// AI INTEGRATION
+// AI INTEGRATION (Step 3 - Approfondir)
 // ======================================================
 
 async function callGemini() {
@@ -2222,8 +2077,8 @@ async function callGemini() {
   const rubriques = Array.from(state.selectedRubriques);
   const rubriquesInfo = rubriques.map(code => {
     const data = ICPE_DATA[code];
-    const info = getRegimeInfo(code, state.values[code] || 0);
-    return `Rubrique ${code} (${data.intitule}): ${formatNumber(state.values[code] || 0)} ${data.unite} => ${info.label}`;
+    const info = getRegimeInfo(code);
+    return `Rubrique ${code} (${data.intitule}): Regime ${info.label}`;
   }).join('\n');
 
   const prompt = `Tu es un expert ICPE specialise dans les entrepots et batiments industriels en France.
@@ -2246,7 +2101,7 @@ Reponds en JSON avec cette structure:
 }`;
 
   try {
-    const response = await fetch(GEMINI_URL, {
+    const response = await fetch(getGeminiUrl(GEMINI_MODEL_FLASH), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2303,46 +2158,70 @@ function renderStep4() {
   html += '<div class="summary-section"><h4>Recapitulatif des rubriques</h4><div class="summary-grid">';
   state.selectedRubriques.forEach(code => {
     const data = ICPE_DATA[code];
-    const value = state.values[code] || 0;
-    const info = getRegimeInfo(code, value);
-    const cls = info.regime ? info.regime.toLowerCase().replace('é', 'e') : 'non-icpe';
+    const info = getRegimeInfo(code);
 
     html += `
       <div class="summary-item">
         <div class="s-label">Rubrique ${code}</div>
         <div class="s-value">${info.label}</div>
-        <div class="s-detail">${data.intitule} — ${formatNumber(value)} ${data.unite}</div>
+        <div class="s-detail">${data.intitule}</div>
       </div>
     `;
   });
   html += '</div></div>';
 
-  // Prescriptions table (recap)
-  html += '<div class="summary-section"><h4>Tableau des prescriptions</h4>';
-  html += '<div class="table-container"><table class="prescriptions-table" id="recapTable"><thead><tr>';
-  html += '<th style="min-width:180px;">Theme</th>';
-
+  // Prescriptions table (recap) - only for rubriques with prescriptions
   const rubriques = Array.from(state.selectedRubriques);
-  rubriques.forEach(code => {
-    const info = getRegimeInfo(code, state.values[code] || 0);
-    html += `<th>Rub. ${code} (${info.label || 'Non ICPE'})</th>`;
+  const withPresc = rubriques.filter(code => {
+    const data = ICPE_DATA[code];
+    const info = getRegimeInfo(code);
+    return data.prescriptions && info.regime && data.prescriptions[info.regime];
   });
-  html += '</tr></thead><tbody>';
 
-  PRESCRIPTION_CATEGORIES.forEach(cat => {
-    html += `<tr class="cat-row"><td colspan="${rubriques.length + 1}">${cat.label}</td></tr>`;
-    cat.items.forEach(item => {
-      html += `<tr class="sub-row"><td>${item}</td>`;
-      rubriques.forEach(code => {
-        const info = getRegimeInfo(code, state.values[code] || 0);
-        const val = getPrescription(code, info.regime, cat.id, item);
-        html += `<td class="${val === '-' ? 'empty' : ''}">${val}</td>`;
-      });
-      html += '</tr>';
+  if (withPresc.length > 0) {
+    html += '<div class="summary-section"><h4>Tableau des prescriptions</h4>';
+    html += '<div class="table-container"><table class="prescriptions-table" id="recapTable"><thead><tr>';
+    html += '<th style="min-width:180px;">Theme</th>';
+
+    withPresc.forEach(code => {
+      const info = getRegimeInfo(code);
+      html += `<th>Rub. ${code} (${info.label || 'Non ICPE'})</th>`;
     });
-  });
+    html += '</tr></thead><tbody>';
 
-  html += '</tbody></table></div></div>';
+    PRESCRIPTION_CATEGORIES.forEach(cat => {
+      html += `<tr class="cat-row"><td colspan="${withPresc.length + 1}">${cat.label}</td></tr>`;
+      cat.items.forEach(item => {
+        html += `<tr class="sub-row"><td>${item}</td>`;
+        withPresc.forEach(code => {
+          const info = getRegimeInfo(code);
+          const val = getPrescription(code, info.regime, cat.id, item);
+          html += `<td class="${val === '-' ? 'empty' : ''}">${val}</td>`;
+        });
+        html += '</tr>';
+      });
+    });
+
+    html += '</tbody></table></div></div>';
+  }
+
+  // Note for rubriques without prescriptions
+  const withoutPresc = rubriques.filter(code => !withPresc.includes(code));
+  if (withoutPresc.length > 0) {
+    html += '<div class="summary-section"><h4>Rubriques sans prescriptions detaillees</h4>';
+    withoutPresc.forEach(code => {
+      const data = ICPE_DATA[code];
+      const info = getRegimeInfo(code);
+      const urls = AIDA_URLS[code];
+      html += `<p style="margin-bottom:8px;font-size:13px;"><strong>${code}</strong> — ${data.intitule} (${info.label}). `;
+      if (urls && urls.fiche) {
+        html += `<a href="${urls.fiche}" target="_blank" style="color:var(--accent);">Consulter la fiche AIDA</a>`;
+      }
+      html += '</p>';
+    });
+    html += '</div>';
+  }
+
   container.innerHTML = html;
 
   // Documents
@@ -2367,24 +2246,99 @@ function renderDocuments() {
 }
 
 // ======================================================
+// CHATBOT
+// ======================================================
+
+let chatMsgId = 0;
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  addChatMessage(msg, 'user');
+  input.value = '';
+
+  const rubriques = Array.from(state.selectedRubriques);
+  const context = rubriques.map(code => {
+    const data = ICPE_DATA[code];
+    const info = getRegimeInfo(code);
+    return `Rubrique ${code} (${data.intitule}): Regime ${info.label}`;
+  }).join('\n');
+
+  const loadingId = addChatMessage('Analyse en cours...', 'assistant', true);
+
+  const prompt = `Tu es un expert ICPE (Installations Classees pour la Protection de l'Environnement) specialise dans la reglementation francaise des batiments industriels et entrepots.
+
+Contexte du projet en cours:
+${context}
+
+${document.getElementById('nomProjet').value ? 'Projet: ' + document.getElementById('nomProjet').value : ''}
+${document.getElementById('localisation').value ? 'Localisation: ' + document.getElementById('localisation').value : ''}
+
+Question de l'utilisateur: ${msg}
+
+Reponds de maniere precise et concise. Cite les references reglementaires quand c'est pertinent. Si tu n'es pas sur d'une information, indique-le clairement.`;
+
+  try {
+    const response = await fetch(getGeminiUrl(GEMINI_MODEL_FLASH), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 2000 }
+      })
+    });
+
+    const result = await response.json();
+    if (result.error) throw new Error(result.error.message);
+
+    const text = result.candidates[0].content.parts[0].text;
+    removeChatMessage(loadingId);
+    addChatMessage(text, 'assistant');
+  } catch (error) {
+    removeChatMessage(loadingId);
+    addChatMessage('Erreur : ' + error.message + '. Verifiez la configuration de l\'API.', 'assistant');
+  }
+}
+
+function addChatMessage(text, role, isLoading = false) {
+  const container = document.getElementById('chatMessages');
+  const id = 'chat-' + (++chatMsgId);
+  const div = document.createElement('div');
+  div.className = 'chat-message ' + role;
+  div.id = id;
+  if (isLoading) {
+    div.innerHTML = '<div class="ai-spinner" style="width:20px;height:20px;border-width:2px;margin:0 auto;"></div>';
+  } else {
+    div.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+  }
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return id;
+}
+
+function removeChatMessage(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+// ======================================================
 // NAVIGATION
 // ======================================================
 
 function goToStep(n) {
   if (n < 1 || n > 4) return;
 
-  // Render step content
   if (n === 2) renderStep2();
   if (n === 3) renderStep3();
   if (n === 4) renderStep4();
 
   state.currentStep = n;
 
-  // Toggle visibility
   document.querySelectorAll('.wizard-step').forEach(el => el.classList.remove('active'));
   document.getElementById(`step${n}`).classList.add('active');
 
-  // Update indicator
   document.querySelectorAll('.step-dot').forEach(dot => {
     const s = parseInt(dot.dataset.step);
     dot.classList.remove('active', 'completed');
@@ -2396,7 +2350,6 @@ function goToStep(n) {
     line.classList.toggle('completed', l < n);
   });
 
-  // Nav buttons
   document.getElementById('btnPrev').style.visibility = n === 1 ? 'hidden' : 'visible';
   const btnNext = document.getElementById('btnNext');
   if (n === 4) {
@@ -2427,7 +2380,7 @@ function canProceed() {
   if (state.currentStep === 2) {
     let allFilled = true;
     state.selectedRubriques.forEach(code => {
-      if (!state.values[code] || state.values[code] <= 0) allFilled = false;
+      if (!state.regimes[code]) allFilled = false;
     });
     return allFilled;
   }
@@ -2510,6 +2463,7 @@ function formatNumber(n) {
   if (n === Infinity) return '\u221E';
   return n.toLocaleString('fr-FR');
 }
+
 </script>
 </body>
 </html>
