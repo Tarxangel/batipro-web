@@ -1496,6 +1496,13 @@ const AIDA_URLS = {
 const SUPABASE_URL = 'https://awhbjbuxbcxszlxcbpjb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3aGJqYnV4YmN4c3pseGNicGpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzOTM5NTgsImV4cCI6MjA4Mzk2OTk1OH0.za0Cg7EbcPYGlVckQf_8CNmRY9FbaDB-20OCLFZzSV0';
 
+// Gemini direct — pour chatbot et analyse contextuelle (pas les prescriptions)
+const GEMINI_API_KEY = (typeof ICPE_CONFIG !== 'undefined' && ICPE_CONFIG.GEMINI_API_KEY) ? ICPE_CONFIG.GEMINI_API_KEY : null;
+const GEMINI_MODEL_FLASH = 'gemini-2.0-flash';
+function getGeminiUrl(model) {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+}
+
 async function callEdgeFunction(rubriques, mode) {
   const response = await fetch(`${SUPABASE_URL}/functions/v1/icpe-prescriptions`, {
     method: 'POST',
@@ -2218,6 +2225,7 @@ Reponds en JSON avec cette structure:
   "recommandations": ["reco 1", "reco 2", ...]
 }`;
 
+  if (!GEMINI_API_KEY) { console.warn('Gemini API key non configuree pour analyse contextuelle'); return; }
   try {
     const response = await fetch(getGeminiUrl(GEMINI_MODEL_FLASH), {
       method: 'POST',
@@ -2398,6 +2406,11 @@ Question de l'utilisateur: ${msg}
 
 Reponds de maniere precise et concise. Cite les references reglementaires quand c'est pertinent. Si tu n'es pas sur d'une information, indique-le clairement.`;
 
+  if (!GEMINI_API_KEY) {
+    removeChatMessage(loadingId);
+    addChatMessage('Chatbot non disponible : cle API Gemini non configuree.', 'assistant');
+    return;
+  }
   try {
     const response = await fetch(getGeminiUrl(GEMINI_MODEL_FLASH), {
       method: 'POST',
