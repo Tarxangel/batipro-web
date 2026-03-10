@@ -172,145 +172,131 @@
     .pdf-link strong { display: block; font-size: 14px; margin-bottom: 2px; }
     .pdf-link span { font-size: 12px; color: var(--gray-500); }
 
-    .search-bar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 16px;
-      background: var(--gray-50);
-      border: 1px solid var(--gray-200);
-      border-radius: var(--radius);
-      margin-bottom: 20px;
+    /* Rubrique add section */
+    .rubrique-add-section {
+      margin-bottom: 24px;
     }
-    .search-bar input {
+    .rubrique-add-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--gray-700);
+      margin-bottom: 8px;
+    }
+    .rubrique-add-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .rubrique-add-field {
       flex: 1;
-      border: none;
-      background: none;
+    }
+    .rubrique-add-field input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--radius-sm);
       font-size: 15px;
       font-family: inherit;
       outline: none;
       color: var(--gray-900);
+      background: white;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .search-bar svg { color: var(--gray-400); flex-shrink: 0; }
-
-    /* Custom rubrique input */
-    .custom-rubrique-section {
-      margin-bottom: 20px;
-      padding: 12px 16px;
-      border: 1px dashed var(--gray-300);
-      border-radius: var(--radius-sm);
-      background: var(--gray-50);
-    }
-    .custom-rubrique-section p {
-      font-size: 12px;
-      color: var(--gray-500);
-      margin-bottom: 8px;
-    }
-    .custom-rubrique-row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-    .custom-rubrique-row input {
-      padding: 8px 12px;
-      border: 1px solid var(--gray-300);
-      border-radius: 6px;
-      font-size: 13px;
-      font-family: inherit;
-      outline: none;
-    }
-    .custom-rubrique-row input:focus {
+    .rubrique-add-field input:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 2px rgba(59,130,246,0.1);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
     }
-    .custom-rubrique-row input:first-child { width: 130px; }
-    .custom-rubrique-row input:nth-child(2) { flex: 1; }
-    .custom-rubrique-row button {
-      padding: 8px 16px;
+    .rubrique-add-field input::placeholder { color: var(--gray-400); }
+    .btn-add-rubrique {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 20px;
       background: var(--primary);
       color: white;
       border: none;
-      border-radius: 6px;
-      font-size: 13px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       font-family: inherit;
-      transition: background 0.2s;
+      transition: background 0.2s, transform 0.1s;
       white-space: nowrap;
     }
-    .custom-rubrique-row button:hover { background: var(--primary-light); }
-
-    .series-header {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--gray-500);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin: 20px 0 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--gray-200);
-    }
-    .series-header:first-of-type { margin-top: 0; }
-
-    .selected-count {
-      padding: 10px 16px;
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      border-radius: var(--radius-sm);
-      margin-bottom: 16px;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--accent-dark);
-    }
-
-    .rubriques-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 12px;
-    }
-    .rubrique-card {
-      border: 2px solid var(--gray-200);
-      border-radius: var(--radius);
-      padding: 16px;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-align: center;
-    }
-    .rubrique-card:hover { border-color: var(--accent); background: #eff6ff; }
-    .rubrique-card.selected { border-color: var(--accent); background: #eff6ff; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
-    .rubrique-card .rubrique-num {
-      font-size: 24px;
-      font-weight: 800;
-      color: var(--primary);
-      margin-bottom: 4px;
-    }
-    .rubrique-card .rubrique-label {
+    .btn-add-rubrique:hover { background: var(--primary-light); transform: translateY(-1px); }
+    .btn-add-rubrique:active { transform: translateY(0); }
+    .rubrique-add-hint {
       font-size: 12px;
-      color: var(--gray-500);
-      line-height: 1.4;
-    }
-    .rubrique-card .rubrique-var {
-      font-size: 11px;
       color: var(--gray-400);
       margin-top: 6px;
     }
-    .rubrique-card .regime-badges {
+
+    /* Selected rubriques list */
+    .selected-rubriques-list {
+      min-height: 80px;
+    }
+    .empty-selection {
+      text-align: center;
+      padding: 30px 20px;
+      color: var(--gray-400);
+    }
+    .empty-selection p {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--gray-500);
+      margin-top: 12px;
+    }
+    .empty-selection span {
+      font-size: 13px;
+      display: block;
+      margin-top: 4px;
+    }
+    .selected-rubrique-tag {
       display: flex;
-      gap: 4px;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 18px;
+      background: var(--gray-50);
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+      transition: all 0.2s;
+    }
+    .selected-rubrique-tag:hover {
+      border-color: var(--accent);
+      background: #eff6ff;
+    }
+    .selected-rubrique-tag .tag-code {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--primary);
+      min-width: 55px;
+    }
+    .selected-rubrique-tag .tag-intitule {
+      flex: 1;
+      font-size: 14px;
+      color: var(--gray-700);
+      line-height: 1.4;
+    }
+    .selected-rubrique-tag .tag-remove {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      background: var(--gray-200);
+      color: var(--gray-500);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
       justify-content: center;
-      margin-top: 8px;
+      transition: all 0.2s;
+      flex-shrink: 0;
     }
-    .rubrique-card .regime-badges .mini-badge {
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.3px;
+    .selected-rubrique-tag .tag-remove:hover {
+      background: var(--red);
+      color: white;
     }
-    .mini-badge.d { background: var(--yellow-bg); color: #a16207; border: 1px solid var(--yellow-border); }
-    .mini-badge.e { background: var(--orange-bg); color: #c2410c; border: 1px solid var(--orange-border); }
-    .mini-badge.a { background: var(--red-bg); color: #dc2626; border: 1px solid var(--red-border); }
-    .mini-badge.dc { background: var(--yellow-bg); color: #a16207; border: 1px solid var(--yellow-border); }
 
     /* ========== STEP 2 ========== */
     .rubrique-section {
@@ -864,40 +850,32 @@
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           <div>
             <strong>Consulter la nomenclature officielle (PDF)</strong>
-            <span>Identifiez vos rubriques dans le document officiel, puis selectionnez-les ci-dessous</span>
+            <span>Identifiez vos rubriques dans le document officiel, puis ajoutez-les ci-dessous</span>
           </div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
 
-        <div class="search-bar">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input type="text" id="searchInput" placeholder="Rechercher par numero ou mot-cle..." oninput="filterRubriques(this.value)">
-        </div>
-
-        <div class="custom-rubrique-section">
-          <p>Votre rubrique n'est pas dans la liste ?</p>
-          <div class="custom-rubrique-row">
-            <input type="text" id="customCode" placeholder="N° rubrique (ex: 2345)">
-            <input type="text" id="customIntitule" placeholder="Intitule">
-            <button onclick="addCustomRubrique()">Ajouter</button>
+        <div class="rubrique-add-section">
+          <label class="rubrique-add-label">Ajouter une rubrique</label>
+          <div class="rubrique-add-row">
+            <div class="rubrique-add-field">
+              <input type="text" id="rubriqueInput" list="rubriques-datalist" placeholder="N° ou recherche (ex: 1510, entrepot...)" autocomplete="off">
+              <datalist id="rubriques-datalist"></datalist>
+            </div>
+            <button class="btn-add-rubrique" onclick="addRubriqueFromInput()">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Ajouter
+            </button>
           </div>
+          <p class="rubrique-add-hint">Selectionnez dans la liste ou saisissez un numero libre</p>
         </div>
 
-        <div class="selected-count" id="selectedCount" style="display:none;">
-          <span id="selectedCountText">0 rubrique(s) selectionnee(s)</span>
-        </div>
-
-        <div class="series-group" id="series1xxx">
-          <h3 class="series-header">1xxx — Substances</h3>
-          <div class="rubriques-grid" id="grid1xxx"></div>
-        </div>
-        <div class="series-group" id="series2xxx">
-          <h3 class="series-header">2xxx — Activites</h3>
-          <div class="rubriques-grid" id="grid2xxx"></div>
-        </div>
-        <div class="series-group" id="series4xxx">
-          <h3 class="series-header">4xxx — Substances dangereuses</h3>
-          <div class="rubriques-grid" id="grid4xxx"></div>
+        <div class="selected-rubriques-list" id="selectedRubriquesList">
+          <div class="empty-selection" id="emptySelection">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            <p>Aucune rubrique selectionnee</p>
+            <span>Utilisez le champ ci-dessus pour ajouter des rubriques a votre analyse</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1352,7 +1330,112 @@ const ICPE_DATA = {
       { max: 100, regime: 'Declaration', label: 'Declaration' },
       { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
     ]
-  }
+  },
+  // ─── SERIE 1xxx — SUBSTANCES ───
+  '1110': { intitule: 'Fabrication industrielle de substances tres toxiques', variable: 'quantite', unite: 't', description: 'Fabrication industrielle de substances et melanges tres toxiques.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '1111': { intitule: 'Emploi/stockage de substances tres toxiques', variable: 'quantite', unite: 't', description: 'Emploi ou stockage de substances et melanges tres toxiques.', seuils: [{ max: 0.02, regime: null, label: 'Non ICPE' }, { max: 1, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '1116': { intitule: 'Stockage de substances et melanges toxiques', variable: 'quantite', unite: 't', description: 'Stockage de substances et melanges toxiques pour l\'environnement aquatique.', seuils: [{ max: 20, regime: null, label: 'Non ICPE' }, { max: 100, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '1136': { intitule: 'Fabrication de substances comburantes', variable: 'quantite', unite: 't', description: 'Fabrication industrielle de substances et melanges comburants.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '1138': { intitule: 'Emploi/stockage de substances comburantes', variable: 'quantite', unite: 't', description: 'Emploi ou stockage de substances et melanges comburants.', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '1155': { intitule: 'Depot d\'explosifs', variable: 'quantite', unite: 'kg', description: 'Depot d\'explosifs ou d\'articles pyrotechniques.', seuils: [{ max: 100, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '1172': { intitule: 'Stockage/emploi de gaz inflammables', variable: 'quantite', unite: 't', description: 'Stockage ou emploi de gaz inflammables liquefies.', seuils: [{ max: 6, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '1173': { intitule: 'Stockage de gaz inflammables en reservoirs', variable: 'quantite', unite: 't', description: 'Stockage de gaz inflammables liquefies en reservoirs manufactures.', seuils: [{ max: 6, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '1200': { intitule: 'Stockage ou emploi de comburants (oxygene)', variable: 'quantite', unite: 't', description: 'Stockage ou emploi d\'oxygene.', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
+  '1310': { intitule: 'Stockage de produits explosifs', variable: 'quantite', unite: 'kg', description: 'Stockage de produits explosifs et pyrotechniques.', seuils: [{ max: 500, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '1410': { intitule: 'Stockage de gaz industriels', variable: 'quantite', unite: 't', description: 'Fabrication et stockage de gaz industriels (azote, argon, CO2, etc.).', seuils: [{ max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '1412': { intitule: 'Stockage en reservoirs de gaz inflammables liquefies', variable: 'quantite', unite: 't', description: 'Stockage en reservoirs manufactures de gaz inflammables liquefies.', seuils: [{ max: 6, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '1414': { intitule: 'GPL: installations de remplissage ou distribution', variable: 'quantite', unite: 't', description: 'Installations de remplissage ou de distribution de gaz de petrole liquefies (GPL).', seuils: [{ max: 2.5, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '1416': { intitule: 'Stockage de liquides inflammables en reservoirs aeriens', variable: 'quantite', unite: 't', description: 'Stockage de liquides inflammables en reservoirs aeriens manufactures.', seuils: [{ max: 10, regime: null, label: 'Non ICPE' }, { max: 100, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
+  '1432': { intitule: 'Stockage en reservoirs de liquides inflammables', variable: 'quantite', unite: 'm\u00B3', description: 'Stockage en reservoirs manufactures de liquides inflammables.', seuils: [{ max: 10, regime: null, label: 'Non ICPE' }, { max: 100, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '1434': { intitule: 'Remplissage/distribution de liquides inflammables', variable: 'debit', unite: 'm\u00B3/an', description: 'Installation de remplissage ou de distribution de liquides inflammables.', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: 1000, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '1455': { intitule: 'Stockage de carbure de calcium', variable: 'quantite', unite: 't', description: 'Stockage de carbure de calcium.', seuils: [{ max: 0.5, regime: null, label: 'Non ICPE' }, { max: 5, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '1510a': { intitule: 'Entrepots couverts (matieres ou produits combustibles)', variable: 'volume', unite: 'm\u00B3', description: 'Entrepots couverts hors installations classees au titre d\'un autre rubrique.', seuils: [{ max: 5000, regime: null, label: 'Non ICPE' }, { max: 50000, regime: 'Declaration', label: 'Declaration' }, { max: 300000, regime: 'Enregistrement', label: 'Enregistrement' }, { max: 600000, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '1521': { intitule: 'Stockage de bois, papier, carton (exterieur)', variable: 'volume', unite: 'm\u00B3', description: 'Depot en plein air de bois, papier, carton ou materiaux analogues.', seuils: [{ max: 1000, regime: null, label: 'Non ICPE' }, { max: 20000, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
+  // ─── SERIE 2xxx — ACTIVITES ───
+  '2101': { intitule: 'Elevage de bovins', variable: 'quantite', unite: 'animaux', description: 'Elevage de bovins (vaches laitieres, vaches allaitantes, veaux de boucherie, etc.).', seuils: [{ max: 50, regime: null, label: 'Non ICPE' }, { max: 200, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
+  '2102': { intitule: 'Elevage de porcs', variable: 'quantite', unite: 'animaux', description: 'Elevage de porcs, verrats, truies et porcelets.', seuils: [{ max: 50, regime: null, label: 'Non ICPE' }, { max: 450, regime: 'Declaration', label: 'Declaration' }, { max: 2000, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2110': { intitule: 'Elevage de volailles/gibier a plumes', variable: 'quantite', unite: 'animaux', description: 'Elevage, vente, etc. de volailles, gibier a plumes.', seuils: [{ max: 5000, regime: null, label: 'Non ICPE' }, { max: 20000, regime: 'Declaration', label: 'Declaration' }, { max: 30000, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2111': { intitule: 'Elevage de chiens', variable: 'quantite', unite: 'animaux', description: 'Chenil, elevage, fourriere, transit de chiens.', seuils: [{ max: 10, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2170': { intitule: 'Fabrication d\'engrais et supports de culture', variable: 'quantite', unite: 't/j', description: 'Fabrication de composts, engrais et supports de culture.', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: 75, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2210': { intitule: 'Abattoirs', variable: 'quantite', unite: 't/j', description: 'Abattage d\'animaux.', seuils: [{ max: 0.5, regime: null, label: 'Non ICPE' }, { max: 5, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2220': { intitule: 'Preparation de produits alimentaires d\'origine vegetale', variable: 'quantite', unite: 't/j', description: 'Preparation ou conservation de produits alimentaires d\'origine vegetale.', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2230': { intitule: 'Preparation de produits alimentaires d\'origine animale', variable: 'quantite', unite: 't/j', description: 'Preparation ou conservation de produits alimentaires d\'origine animale.', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
+  '2240': { intitule: 'Extraction d\'huiles, graisses', variable: 'quantite', unite: 't/j', description: 'Extraction d\'huiles, graisses, cires, colorants naturels.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
+  '2250': { intitule: 'Distilleries', variable: 'quantite', unite: 'm\u00B3/j', description: 'Distillation d\'alcools d\'origine agricole et fabrication de levure.', seuils: [{ max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2260': { intitule: 'Broyage/trituration de substances vegetales', variable: 'puissance', unite: 'kW', description: 'Broyage, concassage, trituration, etc. de substances vegetales.', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: 500, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2340': { intitule: 'Transformation du bois (scierie)', variable: 'puissance', unite: 'kW', description: 'Transformation du bois : sciage, rabotage, profilage, etc.', seuils: [{ max: 200, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
+  '2345': { intitule: 'Nettoyage, degraissage, decapage de surfaces', variable: 'surface', unite: 'm\u00B2', description: 'Utilisation de solvants organiques pour nettoyage, degraissage, decapage.', seuils: [{ max: 500, regime: null, label: 'Non ICPE' }, { max: 1500, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2350': { intitule: 'Teinturerie, blanchisserie', variable: 'puissance', unite: 'kW', description: 'Teinture, impression, appret, enduction, blanchiment de matieres textiles.', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
+  '2410': { intitule: 'Ateliers de traitement de surface', variable: 'volume', unite: 'l', description: 'Traitement de surfaces (degraissage, decapage, revetement metallique, etc.) par voie electrolytique ou chimique.', seuils: [{ max: 500, regime: null, label: 'Non ICPE' }, { max: 1500, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2415': { intitule: 'Mise en oeuvre de produits de preservation du bois', variable: 'volume', unite: 'l', description: 'Mise en oeuvre de produits de preservation du bois et derives.', seuils: [{ max: 1000, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2420': { intitule: 'Fabrication de ciment, chaux, platre', variable: 'quantite', unite: 't/j', description: 'Fabrication de ciment, chaux, platre et produits en pletre.', seuils: [{ max: 5, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2430': { intitule: 'Verrerie, cristallerie, fabrication de fibres minerales', variable: 'quantite', unite: 't/j', description: 'Verrerie, cristallerie, fabrication de fibres de verre ou minerales.', seuils: [{ max: 5, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2440': { intitule: 'Fabrication de produits ceramiques, briques, tuiles', variable: 'quantite', unite: 't/j', description: 'Fabrication de produits ceramiques et refractaires par cuisson.', seuils: [{ max: 5, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2445': { intitule: 'Transformation de matieres plastiques', variable: 'quantite', unite: 't/j', description: 'Transformation de matieres plastiques et caoutchouc.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2450': { intitule: 'Imprimeries, reprographie', variable: 'quantite', unite: 'kg/j', description: 'Imprimeries ou ateliers de reproduction graphique sur tout support.', seuils: [{ max: 50, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
+  '2510': { intitule: 'Exploitation de carrieres', variable: 'surface', unite: 'm\u00B2', description: 'Exploitation de carrieres (extraction de mineraux).', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2521': { intitule: 'Station de transit de produits mineraux non dangereux', variable: 'surface', unite: 'm\u00B2', description: 'Station de transit de produits mineraux ou de dechets non dangereux inertes (hors 2516/2517).', seuils: [{ max: 10000, regime: null, label: 'Non ICPE' }, { max: 30000, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
+  '2550': { intitule: 'Fonderie de metaux et alliages', variable: 'quantite', unite: 't/j', description: 'Fonderie (fabrication de produits moules) de metaux et alliages ferreux et non ferreux.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2551': { intitule: 'Forgeage, estampage, matriçage', variable: 'puissance', unite: 'kW', description: 'Forge, estampage, matriçage, decoupage des metaux.', seuils: [{ max: 150, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
+  '2564': { intitule: 'Nettoyage-degraissage de pieces metalliques', variable: 'volume', unite: 'l', description: 'Nettoyage, degraissage, decapage de surfaces metalliques par des procedes utilisant des liquides organohalogenes ou solvants organiques.', seuils: [{ max: 200, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
+  '2565': { intitule: 'Revetements metalliques (galvanisation, etamage)', variable: 'surface', unite: 'm\u00B2/j', description: 'Revetement metallique ou traitement de metaux par immersion (galvanisation, etamage, etc.).', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
+  '2570': { intitule: 'Email sur metaux', variable: 'surface', unite: 'm\u00B2', description: 'Fabrication d\'email et emaillage.', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
+  '2575': { intitule: 'Emploi de fluor et derives', variable: 'quantite', unite: 'kg/j', description: 'Emploi de fluor, d\'acide fluorhydrique et de derives.', seuils: [{ max: 5, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
+  '2630': { intitule: 'Fabrication de caoutchouc synthetique', variable: 'quantite', unite: 't/j', description: 'Fabrication et traitement du caoutchouc synthetique.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2640': { intitule: 'Colorants et pigments mineraux', variable: 'quantite', unite: 't/j', description: 'Fabrication de colorants et pigments mineraux et organiques.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2661': { intitule: 'Transformation de polymeres', variable: 'quantite', unite: 't/j', description: 'Transformation de polymeres (matieres plastiques, caoutchouc, etc.).', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
+  '2680': { intitule: 'Fabrication d\'engrais chimiques', variable: 'quantite', unite: 't/j', description: 'Fabrication d\'engrais et d\'acides phosphoriques.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2712': { intitule: 'Installation de stockage de dechets inertes', variable: 'quantite', unite: 't/an', description: 'Installation de stockage de dechets inertes (ISDI).', seuils: [{ max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
+  '2720': { intitule: 'Installation de stockage de dechets non dangereux', variable: 'quantite', unite: 't/an', description: 'Installation de stockage de dechets non dangereux non inertes (ISDND).', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2731': { intitule: 'Depot de ferrailles, casses automobiles', variable: 'surface', unite: 'm\u00B2', description: 'Depot de ferrailles, de casses de vehicules, d\'equipements hors d\'usage.', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: 2500, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
+  '2740': { intitule: 'Incineration de dechets non dangereux', variable: 'quantite', unite: 't/h', description: 'Incineration de dechets non dangereux.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2750': { intitule: 'Station d\'epuration collective', variable: 'quantite', unite: 'kg DBO5/j', description: 'Station d\'epuration collective d\'eaux usees.', seuils: [{ max: 12, regime: null, label: 'Non ICPE' }, { max: 120, regime: 'Declaration', label: 'Declaration' }, { max: 600, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2770': { intitule: 'Fabrication de produits pharmaceutiques', variable: 'quantite', unite: 't/an', description: 'Fabrication de produits pharmaceutiques ou de produits biocides.', seuils: [{ max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2790': { intitule: 'Traitement et elimination de DEEE', variable: 'volume', unite: 'm\u00B3', description: 'Installations de traitement de dechets d\'equipements electriques et electroniques (DEEE).', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: 1000, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
+  '2791': { intitule: 'Traitement de vehicules hors d\'usage (VHU)', variable: 'quantite', unite: 'vehicules', description: 'Installation de traitement de vehicules hors d\'usage (VHU).', seuils: [{ max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
+  '2792': { intitule: 'Tri/transit/traitement de dechets d\'emballages', variable: 'quantite', unite: 't/j', description: 'Installation de tri, transit ou traitement de dechets d\'emballages.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
+  '2795': { intitule: 'Installation de lavage de futs, conteneurs', variable: 'quantite', unite: 'futs/j', description: 'Installation de lavage de futs, conteneurs et citernes de transport de matieres alimentaires, chimiques ou industrielles.', seuils: [{ max: 20, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
+  '2910a': { intitule: 'Combustion (biomasse)', variable: 'puissance', unite: 'MW', description: 'Installations de combustion utilisant de la biomasse.', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: 20, regime: 'Declaration', label: 'Declaration' }, { max: 50, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2915': { intitule: 'Chaufferies urbaines', variable: 'puissance', unite: 'MW', description: 'Installations de production de chaleur a usage collectif (chaufferies urbaines).', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: 20, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2920': { intitule: 'Installations de refrigeration ou compression', variable: 'puissance', unite: 'kW', description: 'Installations de refrigeration ou de compression (groupes frigorifiques).', seuils: [{ max: 50, regime: null, label: 'Non ICPE' }, { max: 500, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2950': { intitule: 'Traitement et developpement de surfaces photosensibles', variable: 'volume', unite: 'l', description: 'Ateliers de traitement et developpement de surfaces photosensibles.', seuils: [{ max: 500, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
+  '2960': { intitule: 'Eoliennes', variable: 'puissance', unite: 'MW', description: 'Installation terrestre de production d\'electricite a partir de l\'energie eolienne (parc eolien).', seuils: [{ max: 20, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '2971': { intitule: 'Installations photovoltaiques au sol', variable: 'puissance', unite: 'kW', description: 'Installations de production d\'electricite a partir de l\'energie solaire photovoltaique.', seuils: [{ max: 250, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
+  '2980': { intitule: 'Installation de methanisation', variable: 'quantite', unite: 't/j', description: 'Installation de methanisation de dechets non dangereux ou de matiere vegetale brute.', seuils: [{ max: 30, regime: null, label: 'Non ICPE' }, { max: 60, regime: 'Declaration', label: 'Declaration' }, { max: 100, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  // ─── SERIE 3xxx — IED ───
+  '3110': { intitule: 'Combustion (puissance >= 50 MW)', variable: 'puissance', unite: 'MW', description: 'Combustion de combustibles dans des installations d\'une puissance thermique nominale >= 50 MW.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
+  '3210': { intitule: 'Traitement de minerais metalliques', variable: 'quantite', unite: 't/j', description: 'Grillage ou frittage de minerais metalliques, y compris minerai sulfure.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
+  '3230': { intitule: 'Fonderie de metaux ferreux (>= 20 t/j)', variable: 'quantite', unite: 't/j', description: 'Fonderie de metaux ferreux pour une capacite >= 20 tonnes par jour.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
+  '3250': { intitule: 'Traitement de surface avec solvants (>= 150 kg/h)', variable: 'quantite', unite: 'kg/h', description: 'Traitement de surface de metaux et matieres plastiques avec des solvants organiques >= 150 kg/h.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
+  '3260': { intitule: 'Fabrication de ciment (>= 500 t/j)', variable: 'quantite', unite: 't/j', description: 'Fabrication de clinker (ciment) pour une capacite >= 500 tonnes par jour.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
+  '3410': { intitule: 'Fabrication de produits chimiques organiques', variable: 'quantite', unite: 't/j', description: 'Fabrication de produits chimiques organiques de base.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
+  '3510': { intitule: 'Elimination de dechets dangereux (>= 10 t/j)', variable: 'quantite', unite: 't/j', description: 'Elimination ou valorisation de dechets dangereux >= 10 t/j.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
+  '3520': { intitule: 'Incineration de dechets non dangereux (>= 3 t/h)', variable: 'quantite', unite: 't/h', description: 'Incineration de dechets non dangereux >= 3 tonnes par heure.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
+  '3531': { intitule: 'ISDND (>= 10 t/j)', variable: 'quantite', unite: 't/j', description: 'Installation de stockage de dechets non dangereux recevant >= 10 tonnes par jour.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
+  '3540': { intitule: 'Stockage temporaire de dechets dangereux', variable: 'quantite', unite: 't', description: 'Stockage temporaire de dechets dangereux (capacite > 50 tonnes).', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
+  '3550': { intitule: 'Stockage souterrain de dechets dangereux', variable: 'quantite', unite: 't', description: 'Stockage souterrain de dechets dangereux.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
+  '3560': { intitule: 'Traitement biologique de dechets', variable: 'quantite', unite: 't/j', description: 'Traitement biologique de dechets non dangereux.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
+  '3610': { intitule: 'Fabrication de pate a papier', variable: 'quantite', unite: 't/j', description: 'Fabrication de pate a papier a partir de bois ou d\'autres matieres fibreuses.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
+  '3700': { intitule: 'Elevage intensif de volailles/porcs (IED)', variable: 'quantite', unite: 'animaux', description: 'Elevage intensif de volailles (>= 40 000) ou de porcs (>= 2 000 de > 30 kg ou >= 750 truies).', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
+  // ─── SERIE 4xxx — CLP (principales) ───
+  '4110': { intitule: 'Toxicite aigue categorie 1 (substances/melanges)', variable: 'quantite', unite: 't', description: 'Substances et melanges de toxicite aigue categorie 1 (voie orale, cutanee, inhalation).', seuils: [{ max: 0.001, regime: null, label: 'Non ICPE' }, { max: 5, regime: 'Declaration', label: 'Declaration' }, { max: 20, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '4120': { intitule: 'Toxicite aigue categorie 2 (substances/melanges)', variable: 'quantite', unite: 't', description: 'Substances et melanges de toxicite aigue categorie 2.', seuils: [{ max: 0.1, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: 200, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '4130': { intitule: 'Toxicite aigue categorie 3 (substances/melanges)', variable: 'quantite', unite: 't', description: 'Substances et melanges de toxicite aigue categorie 3.', seuils: [{ max: 0.5, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: 200, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '4210': { intitule: 'Gaz inflammables categorie 1 et 2', variable: 'quantite', unite: 't', description: 'Gaz inflammables de categorie 1 et 2.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: 50, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '4220': { intitule: 'Aerosols extremement inflammables ou inflammables', variable: 'quantite', unite: 't', description: 'Aerosols extremement inflammables ou inflammables de categorie 1 ou 2.', seuils: [{ max: 0.15, regime: null, label: 'Non ICPE' }, { max: 5, regime: 'Declaration', label: 'Declaration' }, { max: 150, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '4310': { intitule: 'Liquides inflammables categorie 1', variable: 'quantite', unite: 't', description: 'Liquides inflammables de categorie 1 (point eclair < 23°C et point ebullition <= 35°C).', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: 50, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '4320': { intitule: 'Liquides inflammables categorie 2', variable: 'quantite', unite: 't', description: 'Liquides inflammables de categorie 2 (point eclair < 23°C et point ebullition > 35°C).', seuils: [{ max: 10, regime: null, label: 'Non ICPE' }, { max: 100, regime: 'Declaration', label: 'Declaration' }, { max: 1000, regime: 'Enregistrement', label: 'Enregistrement' }, { max: 5000, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '4330': { intitule: 'Liquides inflammables categorie 3', variable: 'quantite', unite: 't', description: 'Liquides inflammables de categorie 3 (point eclair >= 23°C et <= 60°C).', seuils: [{ max: 50, regime: null, label: 'Non ICPE' }, { max: 500, regime: 'Declaration', label: 'Declaration' }, { max: 5000, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '4331': { intitule: 'Liquides inflammables categorie 3 (non vises par 4330)', variable: 'quantite', unite: 't', description: 'Liquides inflammables maintenus a une temperature > point eclair.', seuils: [{ max: 50, regime: null, label: 'Non ICPE' }, { max: 500, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '4440': { intitule: 'Solides comburants categorie 1, 2, 3', variable: 'quantite', unite: 't', description: 'Solides comburants de categorie 1, 2 ou 3.', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
+  '4510': { intitule: 'Peroxides organiques type A, B', variable: 'quantite', unite: 't', description: 'Peroxides organiques de type A et B.', seuils: [{ max: 0.5, regime: null, label: 'Non ICPE' }, { max: 5, regime: 'Declaration', label: 'Declaration' }, { max: 50, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '4718': { intitule: 'Gaz a effet de serre fluores (HFC, PFC, SF6)', variable: 'quantite', unite: 't', description: 'Emploi ou stockage de gaz a effet de serre fluores (HFC, PFC, SF6) ou substances appauvrissant la couche d\'ozone.', seuils: [{ max: 0.3, regime: null, label: 'Non ICPE' }, { max: 30, regime: 'Declaration', label: 'Declaration' }, { max: 300, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '4734': { intitule: 'Produits petroliers et carburants de substitution', variable: 'quantite', unite: 't', description: 'Produits petroliers specifiques et carburants de substitution : essences, naphtas.', seuils: [{ max: 10, regime: null, label: 'Non ICPE' }, { max: 100, regime: 'Declaration', label: 'Declaration' }, { max: 1000, regime: 'Enregistrement', label: 'Enregistrement' }, { max: 2500, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '4735': { intitule: 'Alcools de categorie 2 (methanol, ethanol)', variable: 'quantite', unite: 't', description: 'Alcools de categorie 2 de liquide inflammable (methanol, ethanol).', seuils: [{ max: 10, regime: null, label: 'Non ICPE' }, { max: 100, regime: 'Declaration', label: 'Declaration' }, { max: 1000, regime: 'Enregistrement', label: 'Enregistrement' }, { max: 5000, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '4741': { intitule: 'Ammoniac (stockage)', variable: 'quantite', unite: 't', description: 'Stockage d\'ammoniac anhydre ou en solution (>= 50 % d\'ammoniac).', seuils: [{ max: 0.15, regime: null, label: 'Non ICPE' }, { max: 1.5, regime: 'Declaration', label: 'Declaration' }, { max: 200, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '4747': { intitule: 'Chlore (emploi ou stockage)', variable: 'quantite', unite: 't', description: 'Emploi ou stockage de chlore.', seuils: [{ max: 0.1, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '4755': { intitule: 'Hydrogene (stockage)', variable: 'quantite', unite: 'kg', description: 'Stockage d\'hydrogene gazeux ou liquide.', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: 1000, regime: 'Declaration', label: 'Declaration' }, { max: 5000, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
+  '4801': { intitule: 'Batteries lithium-ion (stockage)', variable: 'quantite', unite: 't', description: 'Stockage de batteries lithium-ion.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: 5, regime: 'Declaration', label: 'Declaration' }, { max: 20, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] }
 };
 
 const PRESCRIPTION_CATEGORIES = [
@@ -1409,16 +1492,161 @@ const AIDA_URLS = {
   '2940': { fiche: 'https://aida.ineris.fr/reglementation/2940-peintures-vernis', arrete: null }
 };
 
-// Gemini API config
-const GEMINI_API_KEY = (typeof ICPE_CONFIG !== 'undefined' && ICPE_CONFIG.GEMINI_API_KEY) ? ICPE_CONFIG.GEMINI_API_KEY : null;
-const GEMINI_MODEL_PRO = 'gemini-2.5-pro';
-const GEMINI_MODEL_FLASH = 'gemini-2.0-flash';
+// API config — Edge Function Supabase
+const SUPABASE_URL = 'https://awhbjbuxbcxszlxcbpjb.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3aGJqYnV4YmN4c3pseGNicGpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzOTM5NTgsImV4cCI6MjA4Mzk2OTk1OH0.za0Cg7EbcPYGlVckQf_8CNmRY9FbaDB-20OCLFZzSV0';
 
-function getGeminiUrl(model) {
-  if (GEMINI_API_KEY) {
-    return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+async function callEdgeFunction(rubriques, mode) {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/icpe-prescriptions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+    },
+    body: JSON.stringify({ rubriques, mode })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+    throw new Error(err.error || `Erreur serveur (${response.status})`);
   }
-  return '/api/gemini';
+  return await response.json();
+}
+
+// ======================================================
+// BASE DE DONNEES DES ARRETES MINISTERIELS
+// ======================================================
+
+const ARRETES_DB = {
+  '1185': {
+    declaration: { title: 'Arrete du 04/08/14', url: 'https://aida.ineris.fr/reglementation/arrete-040814-relatif-prescriptions-generales-applicables-installations-classees' }
+  },
+  '1435': {
+    declaration: { title: 'Arrete du 15/04/10 (declaration)', url: 'https://aida.ineris.fr/reglementation/arrete-150410-relatif-prescriptions-generales-applicables-stations-service-0' },
+    enregistrement: { title: 'Arrete du 15/04/10 (enregistrement)', url: 'https://aida.ineris.fr/reglementation/arrete-150410-relatif-prescriptions-generales-applicables-stations-service-relevant' },
+    autorisation: { title: 'Arrete du 15/04/10 (autorisation)', url: 'https://aida.ineris.fr/reglementation/arrete-150410-fixant-regles-generales-prescriptions-techniques-applicables-stations' }
+  },
+  '1436': {
+    declaration: { title: 'Arrete du 22/12/08', url: 'https://aida.ineris.fr/reglementation/arrete-221208-relatif-prescriptions-generales-applicables-installations-classees-0' },
+    autorisation: { title: 'Arrete du 03/10/10', url: 'https://aida.ineris.fr/reglementation/arrete-031010-relatif-stockage-reservoirs-aeriens-manufactures-liquides-0' }
+  },
+  '1450': {
+    declaration: { title: 'Arrete du 05/12/16 (multi-rubriques)', url: 'https://aida.ineris.fr/reglementation/arrete-051216-relatif-prescriptions-applicables-a-certaines-installations-classees' }
+  },
+  '1510': {
+    declaration: { title: 'Arrete du 11/04/17 (entrepots couverts)', url: 'https://aida.ineris.fr/reglementation/arrete-110417-relatif-prescriptions-generales-applicables-entrepots-couverts-soumis' },
+    enregistrement: { title: 'Arrete du 11/04/17 (entrepots couverts)', url: 'https://aida.ineris.fr/reglementation/arrete-110417-relatif-prescriptions-generales-applicables-entrepots-couverts-soumis' },
+    autorisation: { title: 'Arrete du 11/04/17 (entrepots couverts)', url: 'https://aida.ineris.fr/reglementation/arrete-110417-relatif-prescriptions-generales-applicables-entrepots-couverts-soumis' }
+  },
+  '1511': {
+    declaration: { title: 'Arrete du 27/03/14', url: 'https://aida.ineris.fr/reglementation/arrete-270314-relatif-prescriptions-generales-applicables-installations-classees' },
+    enregistrement: { title: 'Arrete du 15/04/10', url: 'https://aida.ineris.fr/reglementation/arrete-150410-relatif-prescriptions-generales-applicables-entrepots-frigorifiques' }
+  },
+  '1530': {
+    declaration: { title: 'Arrete du 30/09/08', url: 'https://aida.ineris.fr/reglementation/arrete-300908-relatif-prescriptions-generales-applicables-depots-papier-carton' },
+    enregistrement: { title: 'Arrete du 15/04/10', url: 'https://aida.ineris.fr/reglementation/arrete-150410-relatif-prescriptions-generales-applicables-depots-papier-carton' },
+    autorisation: { title: 'Arrete du 29/09/08', url: 'https://aida.ineris.fr/reglementation/arrete-290908-relatif-a-prevention-sinistres-depots-papier-carton-soumis-a' }
+  },
+  '1532': {
+    declaration: { title: 'Arrete du 05/12/16 (multi-rubriques)', url: 'https://aida.ineris.fr/reglementation/arrete-051216-relatif-prescriptions-applicables-a-certaines-installations-classees' },
+    enregistrement: { title: 'Arrete du 11/09/13', url: 'https://aida.ineris.fr/reglementation/arrete-110913-relatif-prescriptions-generales-applicables-installations-relevant' }
+  },
+  '2160': {
+    declaration: { title: 'Arrete du 28/12/07', url: 'https://aida.ineris.fr/reglementation/arrete-281207-relatif-prescriptions-generales-applicables-installations-classees' },
+    enregistrement: { title: 'Arrete du 26/11/12', url: 'https://aida.ineris.fr/reglementation/arrete-261112-relatif-prescriptions-generales-applicables-installations-relevant' },
+    autorisation: { title: 'Arrete du 29/03/04', url: 'https://aida.ineris.fr/reglementation/arrete-290304-relatif-a-prevention-risques-presentes-silos-cereales-grains-produits' }
+  },
+  '2515': {
+    declaration: { title: 'Arrete du 30/06/97', url: 'https://aida.ineris.fr/reglementation/arrete-300697-relatif-prescriptions-generales-applicables-installations-classees' },
+    enregistrement: { title: 'Arrete du 26/11/12', url: 'https://aida.ineris.fr/reglementation/arrete-261112-relatif-prescriptions-generales-applicables-installations-broyage' }
+  },
+  '2516': {
+    declaration: { title: 'Arrete du 30/06/97', url: 'https://aida.ineris.fr/reglementation/arrete-300697-relatif-prescriptions-generales-applicables-installations-classees-0' },
+    enregistrement: { title: 'Arrete du 10/12/13', url: 'https://aida.ineris.fr/reglementation/arrete-101213-relatif-prescriptions-generales-applicables-stations-transit-produits' }
+  },
+  '2517': {
+    declaration: { title: 'Arrete du 30/06/97', url: 'https://aida.ineris.fr/reglementation/arrete-300697-relatif-prescriptions-generales-applicables-installations-classees-1' },
+    enregistrement: { title: 'Arrete du 10/12/13', url: 'https://aida.ineris.fr/reglementation/arrete-101213-relatif-prescriptions-generales-applicables-stations-transit-0' }
+  },
+  '2518': {
+    declaration: { title: 'Arrete du 26/11/11', url: 'https://aida.ineris.fr/reglementation/arrete-261111-relatif-prescriptions-generales-applicables-installations-0' },
+    enregistrement: { title: 'Arrete du 08/08/11', url: 'https://aida.ineris.fr/reglementation/arrete-080811-relatif-prescriptions-generales-applicables-installations-relevant-0' }
+  },
+  '2560': {
+    declaration: { title: 'Arrete du 27/07/15', url: 'https://aida.ineris.fr/reglementation/arrete-270715-relatif-prescriptions-generales-applicables-installations-classees' },
+    enregistrement: { title: 'Arrete du 14/12/13', url: 'https://aida.ineris.fr/reglementation/arrete-141213-relatif-prescriptions-generales-applicables-installations-relevant-1' }
+  },
+  '2660': {
+    declaration: { title: 'Arrete du 14/01/00', url: 'https://aida.ineris.fr/reglementation/arrete-140100-relatif-prescriptions-generales-applicables-installations-classees-1' }
+  },
+  '2662': {
+    declaration: { title: 'Arrete du 14/01/00', url: 'https://aida.ineris.fr/reglementation/arrete-140100-relatif-prescriptions-generales-applicables-installations-classees-0' },
+    enregistrement: { title: 'Arrete du 15/04/10', url: 'https://aida.ineris.fr/reglementation/arrete-150410-relatif-prescriptions-generales-applicables-stockages-polymeres' }
+  },
+  '2663': {
+    declaration: { title: 'Arrete du 14/01/00', url: 'https://aida.ineris.fr/reglementation/arrete-140100-relatif-prescriptions-generales-applicables-installations-classees' },
+    enregistrement: { title: 'Arrete du 15/04/10', url: 'https://aida.ineris.fr/reglementation/arrete-150410-relatif-prescriptions-generales-applicables-stockages-pneumatiques' }
+  },
+  '2710': {
+    declaration: { title: 'Arrete du 27/03/12', url: 'https://aida.ineris.fr/reglementation/arrete-270312-relatif-prescriptions-generales-applicables-installations-classees' },
+    enregistrement: { title: 'Arrete du 26/03/12', url: 'https://aida.ineris.fr/reglementation/arrete-260312-relatif-prescriptions-generales-applicables-installations-classees' },
+    autorisation: { title: 'Arrete du 22/12/23', url: 'https://aida.ineris.fr/reglementation/arrete-221223-relatif-a-prevention-risque-dincendie-sein-installations-soumises-a' }
+  },
+  '2714': {
+    declaration: { title: 'Arrete du 06/06/18 (dechets non dangereux)', url: 'https://aida.ineris.fr/reglementation/arrete-060618-relatif-prescriptions-generales-applicables-installations-transit-1' },
+    enregistrement: { title: 'Arrete du 06/06/18 (dechets non dangereux)', url: 'https://aida.ineris.fr/reglementation/arrete-060618-relatif-prescriptions-generales-applicables-installations-transit-0' }
+  },
+  '2716': {
+    declaration: { title: 'Arrete du 06/06/18 (dechets non dangereux)', url: 'https://aida.ineris.fr/reglementation/arrete-060618-relatif-prescriptions-generales-applicables-installations-transit-1' },
+    enregistrement: { title: 'Arrete du 06/06/18 (dechets non dangereux)', url: 'https://aida.ineris.fr/reglementation/arrete-060618-relatif-prescriptions-generales-applicables-installations-transit-0' }
+  },
+  '2718': {
+    declaration: { title: 'Arrete du 06/06/18 (dechets dangereux)', url: 'https://aida.ineris.fr/reglementation/arrete-060618-relatif-prescriptions-generales-applicables-installations-transit' },
+    autorisation: { title: 'Arrete du 22/12/23', url: 'https://aida.ineris.fr/reglementation/arrete-221223-relatif-a-prevention-risque-dincendie-sein-installations-soumises-a' }
+  },
+  '2760': {
+    enregistrement: { title: 'Arrete du 12/12/14', url: 'https://aida.ineris.fr/reglementation/arrete-121214-relatif-prescriptions-generales-applicables-installations-regime' },
+    autorisation: { title: 'Arrete du 15/02/16', url: 'https://aida.ineris.fr/reglementation/arrete-150216-relatif-installations-stockage-dechets-non-dangereux' }
+  },
+  '2910': {
+    declaration: { title: 'Arrete du 03/08/18 (combustion)', url: 'https://aida.ineris.fr/reglementation/arrete-030818-relatif-prescriptions-generales-applicables-installations-classees' },
+    enregistrement: { title: 'Arrete du 03/08/18 (combustion)', url: 'https://aida.ineris.fr/reglementation/arrete-030818-relatif-prescriptions-generales-applicables-installations-relevant' },
+    autorisation: { title: 'Arrete du 03/08/18 (combustion < 50MW)', url: 'https://aida.ineris.fr/reglementation/arrete-030818-relatif-installations-combustion-dune-puissance-thermique-nominale' }
+  },
+  '2921': {
+    declaration: { title: 'Arrete du 14/12/13', url: 'https://aida.ineris.fr/reglementation/arrete-141213-relatif-prescriptions-generales-applicables-installations-relevant' },
+    enregistrement: { title: 'Arrete du 14/12/13', url: 'https://aida.ineris.fr/reglementation/arrete-141213-relatif-prescriptions-generales-applicables-installations-relevant-2' }
+  },
+  '2925': {
+    declaration: { title: 'Arrete du 29/05/00', url: 'https://aida.ineris.fr/reglementation/arrete-290500-relatif-prescriptions-generales-applicables-installations-classees' }
+  },
+  '2930': {
+    declaration: { title: 'Arrete du 04/06/04', url: 'https://aida.ineris.fr/reglementation/arrete-040604-relatif-prescriptions-generales-applicables-installations-classees' },
+    enregistrement: { title: 'Arrete du 12/05/20', url: 'https://aida.ineris.fr/reglementation/arrete-120520-relatif-prescriptions-generales-applicables-installations-relevant-0' }
+  },
+  '2935': {
+    declaration: { title: 'Arrete du 03/04/00', url: 'https://aida.ineris.fr/reglementation/arrete-030400-relatif-prescriptions-applicables-installations-classees-soumises-a' },
+    autorisation: { title: 'Arrete du 03/04/00', url: 'https://aida.ineris.fr/reglementation/arrete-030400-relatif-prescriptions-applicables-installations-classees-soumises-a' }
+  },
+  '2940': {
+    declaration: { title: 'Arrete du 02/05/02', url: 'https://aida.ineris.fr/reglementation/arrete-020502-relatif-prescriptions-generales-applicables-installations-classees-1' },
+    enregistrement: { title: 'Arrete du 12/05/20', url: 'https://aida.ineris.fr/reglementation/arrete-120520-relatif-prescriptions-generales-applicables-installations-relevant-1' }
+  }
+};
+
+// Helper: get arrêté URLs for a rubrique + regime
+function getArretesForRubrique(code, regime) {
+  const db = ARRETES_DB[code];
+  if (!db) return [];
+  const regimeKey = regime ? regime.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') : null;
+  const urls = [];
+  if (regimeKey && db[regimeKey]) {
+    urls.push(db[regimeKey]);
+  }
+  // Also include all available arrêtés for context
+  for (const key of Object.keys(db)) {
+    if (key !== regimeKey) urls.push(db[key]);
+  }
+  return urls;
 }
 
 // ======================================================
@@ -1442,149 +1670,133 @@ document.getElementById('dateAnalyse').value = new Date().toISOString().split('T
 initStep1();
 
 function initStep1() {
-  const grid1 = document.getElementById('grid1xxx');
-  const grid2 = document.getElementById('grid2xxx');
-  const grid4 = document.getElementById('grid4xxx');
-  grid1.innerHTML = '';
-  grid2.innerHTML = '';
-  grid4.innerHTML = '';
-
+  // Populate datalist with all known rubriques
+  const datalist = document.getElementById('rubriques-datalist');
+  datalist.innerHTML = '';
   const sortedCodes = Object.keys(ICPE_DATA).sort();
   for (const code of sortedCodes) {
     const data = ICPE_DATA[code];
-    const codeNum = parseInt(code);
-    let targetGrid;
-    if (codeNum < 2000) targetGrid = grid1;
-    else if (codeNum < 4000) targetGrid = grid2;
-    else targetGrid = grid4;
-
-    // Build regime badges
-    const regimes = new Set();
-    data.seuils.forEach(s => {
-      if (s.regime) {
-        if (s.regime === 'Declaration') regimes.add('D');
-        else if (s.label === 'Declaration avec controle') regimes.add('DC');
-        else if (s.regime === 'Enregistrement') regimes.add('E');
-        else if (s.regime === 'Autorisation') regimes.add('A');
-      }
-    });
-    let badgesHtml = '';
-    if (regimes.has('DC')) badgesHtml += '<span class="mini-badge dc">DC</span>';
-    if (regimes.has('D')) badgesHtml += '<span class="mini-badge d">D</span>';
-    if (regimes.has('E')) badgesHtml += '<span class="mini-badge e">E</span>';
-    if (regimes.has('A')) badgesHtml += '<span class="mini-badge a">A</span>';
-
-    targetGrid.innerHTML += `
-      <div class="rubrique-card" data-code="${code}" onclick="toggleRubrique('${code}')">
-        <div class="rubrique-num">${code}</div>
-        <div class="rubrique-label">${data.intitule}</div>
-        <div class="regime-badges">${badgesHtml}</div>
-      </div>
-    `;
+    const option = document.createElement('option');
+    option.value = code;
+    option.label = `${code} - ${data.intitule}`;
+    datalist.appendChild(option);
   }
 
-  // Hide empty series groups
-  if (grid4.innerHTML === '') document.getElementById('series4xxx').style.display = 'none';
+  // Allow Enter key to add
+  document.getElementById('rubriqueInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addRubriqueFromInput();
+    }
+  });
+
+  renderSelectedRubriques();
 }
 
 // ======================================================
 // STEP 1 LOGIC
 // ======================================================
 
-function filterRubriques(query) {
-  const q = query.toLowerCase().trim();
-  document.querySelectorAll('.rubrique-card').forEach(card => {
-    const code = card.dataset.code;
-    const data = ICPE_DATA[code];
-    if (!data) { card.style.display = 'none'; return; }
-    const searchText = (code + ' ' + data.intitule + ' ' + data.description).toLowerCase();
-    card.style.display = !q || searchText.includes(q) ? '' : 'none';
-  });
-  document.querySelectorAll('.series-group').forEach(group => {
-    const visibleCards = group.querySelectorAll('.rubrique-card:not([style*="display: none"])');
-    group.style.display = visibleCards.length > 0 ? '' : 'none';
-  });
-}
+function addRubriqueFromInput() {
+  const input = document.getElementById('rubriqueInput');
+  const value = input.value.trim();
+  if (!value) return;
 
-function toggleRubrique(code) {
-  if (state.selectedRubriques.has(code)) {
-    state.selectedRubriques.delete(code);
-  } else {
+  // Check if it's a known rubrique code
+  const code = value.split(' ')[0]; // In case datalist adds text after code
+
+  if (ICPE_DATA[code]) {
+    // Known rubrique
+    if (state.selectedRubriques.has(code)) {
+      input.value = '';
+      return; // Already selected
+    }
     state.selectedRubriques.add(code);
+  } else if (/^\d{4}$/.test(code)) {
+    // Custom rubrique code (4 digits)
+    if (state.selectedRubriques.has(code)) {
+      input.value = '';
+      return;
+    }
+    // Add to ICPE_DATA as custom
+    ICPE_DATA[code] = {
+      intitule: 'Rubrique ' + code,
+      variable: 'quantite',
+      unite: '',
+      description: 'Rubrique personnalisee ' + code,
+      seuils: [
+        { max: Infinity, regime: 'Declaration', label: 'Declaration' }
+      ]
+    };
+    state.selectedRubriques.add(code);
+    // Update datalist
+    initStep1DataList();
+  } else {
+    alert('Veuillez saisir un numero de rubrique valide (4 chiffres) ou selectionner dans la liste.');
+    return;
   }
-  syncCardsSelection();
-  updateSelectedCount();
+
+  input.value = '';
+  renderSelectedRubriques();
   updateNextButton();
 }
 
-function syncCardsSelection() {
-  document.querySelectorAll('.rubrique-card').forEach(card => {
-    card.classList.toggle('selected', state.selectedRubriques.has(card.dataset.code));
+function initStep1DataList() {
+  const datalist = document.getElementById('rubriques-datalist');
+  datalist.innerHTML = '';
+  const sortedCodes = Object.keys(ICPE_DATA).sort();
+  for (const code of sortedCodes) {
+    const data = ICPE_DATA[code];
+    const option = document.createElement('option');
+    option.value = code;
+    option.label = `${code} - ${data.intitule}`;
+    datalist.appendChild(option);
+  }
+}
+
+function removeRubrique(code) {
+  state.selectedRubriques.delete(code);
+  delete state.regimes[code];
+  renderSelectedRubriques();
+  updateNextButton();
+}
+
+function renderSelectedRubriques() {
+  const container = document.getElementById('selectedRubriquesList');
+  const empty = document.getElementById('emptySelection');
+
+  if (state.selectedRubriques.size === 0) {
+    container.innerHTML = '';
+    container.appendChild(createEmptySelection());
+    return;
+  }
+
+  container.innerHTML = '';
+  state.selectedRubriques.forEach(code => {
+    const data = ICPE_DATA[code];
+    const tag = document.createElement('div');
+    tag.className = 'selected-rubrique-tag';
+    tag.innerHTML = `
+      <div class="tag-code">${code}</div>
+      <div class="tag-intitule">${data ? data.intitule : 'Rubrique ' + code}</div>
+      <button class="tag-remove" onclick="removeRubrique('${code}')" title="Retirer">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    `;
+    container.appendChild(tag);
   });
 }
 
-function updateSelectedCount() {
-  const count = state.selectedRubriques.size;
-  const el = document.getElementById('selectedCount');
-  const text = document.getElementById('selectedCountText');
-  if (count > 0) {
-    el.style.display = '';
-    text.textContent = count + ' rubrique(s) selectionnee(s)';
-  } else {
-    el.style.display = 'none';
-  }
-}
-
-function addCustomRubrique() {
-  const codeInput = document.getElementById('customCode');
-  const intituleInput = document.getElementById('customIntitule');
-  const code = codeInput.value.trim();
-  const intitule = intituleInput.value.trim();
-
-  if (!code) { alert('Veuillez saisir un numero de rubrique.'); return; }
-  if (!intitule) { alert('Veuillez saisir un intitule.'); return; }
-  if (ICPE_DATA[code]) { alert('Cette rubrique existe deja dans la liste.'); return; }
-
-  // Add to ICPE_DATA
-  ICPE_DATA[code] = {
-    intitule: intitule,
-    variable: 'quantite',
-    unite: '',
-    description: intitule,
-    seuils: [
-      { max: Infinity, regime: 'Declaration', label: 'Declaration' }
-    ]
-  };
-
-  // Add card to appropriate grid
-  const codeNum = parseInt(code);
-  let targetGrid;
-  if (codeNum < 2000) targetGrid = document.getElementById('grid1xxx');
-  else if (codeNum < 4000) targetGrid = document.getElementById('grid2xxx');
-  else targetGrid = document.getElementById('grid4xxx');
-
-  // Show the series group if hidden
-  if (codeNum < 2000) document.getElementById('series1xxx').style.display = '';
-  else if (codeNum < 4000) document.getElementById('series2xxx').style.display = '';
-  else document.getElementById('series4xxx').style.display = '';
-
-  targetGrid.innerHTML += `
-    <div class="rubrique-card" data-code="${code}" onclick="toggleRubrique('${code}')">
-      <div class="rubrique-num">${code}</div>
-      <div class="rubrique-label">${intitule}</div>
-      <div class="regime-badges"><span class="mini-badge d">D</span></div>
-    </div>
+function createEmptySelection() {
+  const div = document.createElement('div');
+  div.className = 'empty-selection';
+  div.id = 'emptySelection';
+  div.innerHTML = `
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--gray-300)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    <p>Aucune rubrique selectionnee</p>
+    <span>Utilisez le champ ci-dessus pour ajouter des rubriques a votre analyse</span>
   `;
-
-  // Auto-select
-  state.selectedRubriques.add(code);
-  syncCardsSelection();
-  updateSelectedCount();
-  updateNextButton();
-
-  // Clear inputs
-  codeInput.value = '';
-  intituleInput.value = '';
+  return div;
 }
 
 // ======================================================
@@ -1711,109 +1923,15 @@ async function fetchPrescriptions() {
   if (state.prescriptionsLoading) return;
   state.prescriptionsLoading = true;
 
-  const rubriques = Array.from(state.selectedRubriques);
-
-  // Build context for each rubrique
-  const rubriquesContext = rubriques.map(code => {
-    const data = ICPE_DATA[code];
-    const regime = state.regimes[code] || 'Non defini';
-    return `- Rubrique ${code} : ${data.intitule} — Regime : ${regime}`;
-  }).join('\n');
-
-  const prompt = `Tu es un assistant specialise en reglementation ICPE (Installations Classees pour la Protection de l'Environnement) en France.
-
-MISSION : Extraire les prescriptions techniques reglementaires pour les rubriques ICPE suivantes.
-
-${rubriquesContext}
-
-REGLES STRICTES :
-- Base-toi UNIQUEMENT sur les arretes ministeriels en vigueur (arretes types, arretes de prescriptions generales)
-- Si une prescription n'est pas explicitement prevue par la reglementation pour cette rubrique/regime, indique "Non reglemente" ou "Non applicable"
-- NE JAMAIS INVENTER de valeur. En cas de doute, indique "A verifier - non trouve dans l'arrete type"
-- Pour les rubriques soumises a Autorisation, les prescriptions sont definies par l'arrete prefectoral : indique "Selon arrete prefectoral" quand applicable
-- Utilise la terminologie technique exacte (REI, EI, R15, R30, R60, R120, Broof t3, DENFC, NF C 15-100, D9/D9A, etc.)
-
-Reponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans commentaire, avec cette structure exacte :
-{
-  "[code_rubrique]": {
-    "[regime]": {
-      "implantation": {
-        "Distances limites": "...",
-        "Distances inter-batiments": "..."
-      },
-      "accessibilite": {
-        "Acces au site": "...",
-        "Voie engin": "...",
-        "Echelles": "...",
-        "Issues et quais": "..."
-      },
-      "construction": {
-        "Structure": "...",
-        "Toiture": "...",
-        "Facades": "...",
-        "Portes et fermetures": "..."
-      },
-      "cantonnement": {
-        "Surface cellules": "...",
-        "Murs separatifs": "...",
-        "Ecrans de cantonnement": "..."
-      },
-      "desenfumage": {
-        "Surface utile": "...",
-        "Commandes": "...",
-        "Exutoires": "..."
-      },
-      "stockage": {
-        "Hauteur stockage": "...",
-        "Allees de circulation": "...",
-        "Distance aux parois": "..."
-      },
-      "lutte_incendie": {
-        "Extincteurs": "...",
-        "RIA": "...",
-        "Sprinkler": "...",
-        "Colonnes seches": "..."
-      },
-      "eau_incendie": {
-        "Besoins en eau": "...",
-        "Retention eaux extinction": "..."
-      },
-      "elec": {
-        "Conformite": "...",
-        "Coupure d'urgence": "..."
-      },
-      "chauffage": {
-        "Type autorise": "...",
-        "Implantation": "..."
-      }
-    }
-  }
-}`;
+  const rubriques = Array.from(state.selectedRubriques).map(code => ({
+    code,
+    regime: state.regimes[code] || 'Non defini',
+    intitule: ICPE_DATA[code]?.intitule || ''
+  }));
 
   try {
-    const response = await fetch(getGeminiUrl(GEMINI_MODEL_PRO), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0,
-          maxOutputTokens: 16000,
-          responseMimeType: 'application/json'
-        }
-      })
-    });
-
-    const result = await response.json();
-    if (result.error) throw new Error(result.error.message);
-
-    let text = result.candidates[0].content.parts[0].text;
-    // Clean up if wrapped in markdown
-    if (text.startsWith('```json')) text = text.slice(7);
-    if (text.startsWith('```')) text = text.slice(3);
-    if (text.endsWith('```')) text = text.slice(0, -3);
-
-    const prescData = JSON.parse(text.trim());
+    // Appel Edge Function — elle fetch AIDA + Gemini cote serveur
+    const prescData = await callEdgeFunction(rubriques, 'simulateur');
 
     // Inject into ICPE_DATA and cache
     const cacheKey = getCacheKey();
@@ -1832,7 +1950,7 @@ Reponds UNIQUEMENT avec un objet JSON valide, sans markdown, sans commentaire, a
     renderPrescriptionsFromData(prescData);
     renderAnticipation();
   } catch (error) {
-    console.error('Gemini prescriptions error:', error);
+    console.error('Prescriptions error:', error);
     const tableContainer = document.getElementById('tableContainer');
     tableContainer.innerHTML = `
       <div class="ai-error-prescriptions">

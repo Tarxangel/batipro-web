@@ -562,14 +562,23 @@
 // ======================================================
 // CONFIG
 // ======================================================
-const GEMINI_API_KEY = (typeof ICPE_CONFIG !== 'undefined' && ICPE_CONFIG.GEMINI_API_KEY) ? ICPE_CONFIG.GEMINI_API_KEY : null;
-const GEMINI_MODEL_PRO = 'gemini-2.5-pro';
+const SUPABASE_URL = 'https://awhbjbuxbcxszlxcbpjb.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3aGJqYnV4YmN4c3pseGNicGpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzOTM5NTgsImV4cCI6MjA4Mzk2OTk1OH0.za0Cg7EbcPYGlVckQf_8CNmRY9FbaDB-20OCLFZzSV0';
 
-function getGeminiUrl(model) {
-  if (GEMINI_API_KEY) {
-    return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+async function callEdgeFunction(rubriques, mode) {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/icpe-prescriptions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+    },
+    body: JSON.stringify({ rubriques, mode })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+    throw new Error(err.error || `Erreur serveur (${response.status})`);
   }
-  return '/api/gemini';
+  return await response.json();
 }
 
 // ======================================================
@@ -677,11 +686,6 @@ async function generateAnalysis() {
   if (!rubrique) { alert('Veuillez saisir un numero de rubrique.'); return; }
   if (!selectedRegime) { alert('Veuillez selectionner un regime.'); return; }
 
-  if (!GEMINI_API_KEY) {
-    showError('Cle API Gemini non configuree. Verifiez le fichier config.js.');
-    return;
-  }
-
   // UI states
   const btn = document.getElementById('generate-btn');
   const loading = document.getElementById('loading');
@@ -693,72 +697,11 @@ async function generateAnalysis() {
   errorEl.classList.remove('active');
   results.classList.remove('active');
 
-  const prompt = `Tu es un expert en reglementation ICPE (Installations Classees pour la Protection de l'Environnement) en France.
-
-MISSION : Generer l'analyse detaillee des prescriptions reglementaires pour la rubrique ICPE suivante.
-
-Rubrique : ${rubrique} ${intitule ? '(' + intitule + ')' : ''}
-Regime : ${selectedRegime}
-${arrete ? 'Arrete de reference : ' + arrete : ''}
-
-REGLES STRICTES :
-- Base-toi UNIQUEMENT sur les arretes ministeriels, arretes types et prescriptions generales en vigueur pour cette rubrique et ce regime
-- Fournis le texte reglementaire COMPLET et DETAILLE, pas des resumes
-- Inclus les valeurs numeriques exactes (distances, surfaces, debits, classes de resistance au feu, etc.)
-- Cite les normes applicables (NF EN, NF C, etc.) quand elles sont mentionnees dans l'arrete
-- Si une prescription n'est pas applicable a cette rubrique/regime, indique "Non applicable pour ce regime"
-- NE JAMAIS INVENTER de valeur. En cas de doute, indique "A verifier dans l'arrete type"
-- Pour les rubriques soumises a Autorisation, precise "Selon arrete prefectoral" quand les prescriptions sont definies localement
-- Mentionne les non-conformites majeures quand elles existent
-
-Reponds UNIQUEMENT avec un objet JSON valide (sans markdown, sans commentaire) avec cette structure exacte :
-{
-  "reseaux_eau": "Texte complet des prescriptions relatives aux reseaux d'eau (prelevement, dispositifs de mesure, antiretour, circuits de refroidissement)...",
-  "reseaux_eaux_pluviales": "Texte complet des prescriptions relatives aux eaux pluviales (reseau separatif, decanteur-deshuileur, SDAGE/SAGE, epandage)...",
-  "dechets": "Texte complet des prescriptions relatives a la gestion des dechets (hierarchie, tri, stockage, registre, bordereau)...",
-  "implantation": "Texte complet des prescriptions d'implantation (distances limites, esthetique, interdictions, toitures)...",
-  "accessibilite_site": "Texte complet des prescriptions d'accessibilite au site (facades, ouvrants, voie engins)...",
-  "accessibilite_voie_engin": "Texte complet des prescriptions pour les voies engin (largeur, force portante, rayon de braquage)...",
-  "accessibilite_echelles": "Texte complet des prescriptions pour la mise en station des echelles...",
-  "accessibilite_issues": "Texte complet des prescriptions pour les issues et quais de dechargement...",
-  "locaux_risques": "Texte complet des prescriptions pour les locaux a risques (murs, planchers, portes, resistance au feu)...",
-  "desenfumage": "Texte complet des prescriptions de desenfumage (commandes, surface, normes NF EN 12101-2, classes RE/SL/T/HE, dispositifs)...",
-  "eau_incendie_retention": "Texte complet des prescriptions de retention (etancheite sols, cuvettes, jauges, limiteurs)...",
-  "eau_incendie_isolement": "Texte complet des prescriptions d'isolement du reseau de collecte...",
-  "eau_incendie_moyens": "Texte complet des moyens de prevention et lutte incendie (appareils, extincteurs, plans, verifications)...",
-  "ventilation": "Texte complet des prescriptions de ventilation (atmosphere explosive/toxique, debouche, conduit)...",
-  "installations_electriques": "Texte complet des prescriptions electriques (conformite normes, mise a terre, ATEX si applicable)...",
-  "chauffage": "Texte complet des prescriptions de chauffage (types autorises, implantation, conditions)...",
-  "exploitation_entretien": "Texte complet des prescriptions d'exploitation (FDS, etiquetage, stocks, plan stockage, matieres dangereuses)..."
-}`;
-
   try {
-    const url = getGeminiUrl(GEMINI_MODEL_PRO);
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0,
-          responseMimeType: 'application/json'
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Erreur API (${response.status}): ${errText}`);
-    }
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!text) {
-      throw new Error('Reponse vide de l\'API Gemini.');
-    }
-
-    analysisData = JSON.parse(text);
+    analysisData = await callEdgeFunction(
+      [{ code: rubrique, regime: selectedRegime, intitule, arrete }],
+      'analyse'
+    );
     renderTable(analysisData);
     updatePrintHeader({ rubrique, intitule, regime: selectedRegime, projet, client, date });
 
