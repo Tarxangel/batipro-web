@@ -13,7 +13,8 @@ export default defineConfig({
         articles: resolve(__dirname, 'articles.html'),
         chantiers: resolve(__dirname, 'chantiers.html'),
         icpeCarte: resolve(__dirname, 'icpe/index.html'),
-        icpeSimulateur: resolve(__dirname, 'icpe/simulateur.html')
+        icpeSimulateur: resolve(__dirname, 'icpe/simulateur.html'),
+        icpeAnalyse: resolve(__dirname, 'icpe/analyse.html')
       }
     }
   },
