@@ -1950,7 +1950,8 @@ async function fetchPrescriptions() {
     // Appel Edge Function — elle fetch AIDA + Gemini cote serveur
     const prescData = await callEdgeFunction(rubriques, 'simulateur');
 
-    // Inject into ICPE_DATA and cache
+    // Store for chatbot context + cache
+    state.prescriptionsData = prescData;
     const cacheKey = getCacheKey();
     state.prescriptionsCache[cacheKey] = prescData;
 
@@ -2216,15 +2217,39 @@ async function callGemini() {
     return `Rubrique ${code} (${data.intitule}): Regime ${info.label}`;
   }).join('\n');
 
+  // Inclure les prescriptions extraites pour une analyse pertinente
+  let prescSummary = '';
+  if (state.prescriptionsData) {
+    prescSummary = '\n\nPrescriptions extraites des arretes:\n';
+    for (const code of rubriques) {
+      const rubData = state.prescriptionsData[code];
+      if (!rubData) continue;
+      const regime = Object.keys(rubData)[0];
+      const presc = rubData[regime];
+      if (!presc) continue;
+      prescSummary += `\n--- Rubrique ${code} (${regime}) ---\n`;
+      for (const [cat, fields] of Object.entries(presc)) {
+        if (typeof fields === 'object' && fields !== null) {
+          for (const [key, val] of Object.entries(fields)) {
+            if (val && val !== 'Non precise dans l\'arrete' && val !== 'Selon arrete prefectoral') {
+              prescSummary += `${cat} > ${key}: ${val}\n`;
+            }
+          }
+        }
+      }
+    }
+  }
+
   const prompt = `Tu es un expert ICPE specialise dans les entrepots et batiments industriels en France.
 
 Voici les rubriques identifiees pour ce projet:
 ${rubriquesInfo}
+${prescSummary}
 
-Fournis une analyse contextuelle complementaire:
-1. Interactions possibles entre les rubriques selectionnees
+A partir des prescriptions extraites ci-dessus, fournis une analyse contextuelle:
+1. Interactions et cumuls entre les rubriques: quand plusieurs rubriques imposent des prescriptions sur le meme theme, identifie la valeur la PLUS CONTRAIGNANTE (ex: la distance la plus grande, le REI le plus eleve)
 2. Points de vigilance specifiques a cette combinaison
-3. Prescriptions qui pourraient se cumuler ou entrer en conflit
+3. Prescriptions qui se cumulent ou entrent en conflit — avec les valeurs chiffrees
 4. Recommandations pratiques pour le maitre d'ouvrage
 
 Reponds en JSON avec cette structure:
@@ -2391,19 +2416,47 @@ async function sendChat() {
     return `Rubrique ${code} (${data.intitule}): Regime ${info.label}`;
   }).join('\n');
 
+  // Inclure les prescriptions extraites dans le contexte du chatbot
+  let prescContext = '';
+  if (state.prescriptionsData) {
+    prescContext = '\n\nPRESCRIPTIONS EXTRAITES DES ARRETES :\n';
+    for (const code of rubriques) {
+      const rubData = state.prescriptionsData[code];
+      if (!rubData) continue;
+      const regime = Object.keys(rubData)[0];
+      const presc = rubData[regime];
+      if (!presc) continue;
+      prescContext += `\n--- Rubrique ${code} (${regime}) ---\n`;
+      for (const [cat, fields] of Object.entries(presc)) {
+        if (typeof fields === 'object' && fields !== null) {
+          for (const [key, val] of Object.entries(fields)) {
+            if (val && val !== 'Non precise dans l\'arrete' && val !== 'Selon arrete prefectoral') {
+              prescContext += `${cat} > ${key}: ${val}\n`;
+            }
+          }
+        }
+      }
+    }
+  }
+
   const loadingId = addChatMessage('Analyse en cours...', 'assistant', true);
 
   const prompt = `Tu es un expert ICPE (Installations Classees pour la Protection de l'Environnement) specialise dans la reglementation francaise des batiments industriels et entrepots.
 
 Contexte du projet en cours:
 ${context}
-
+${prescContext}
 ${document.getElementById('nomProjet').value ? 'Projet: ' + document.getElementById('nomProjet').value : ''}
 ${document.getElementById('localisation').value ? 'Localisation: ' + document.getElementById('localisation').value : ''}
 
 Question de l'utilisateur: ${msg}
 
-Reponds de maniere precise et concise. Cite les references reglementaires quand c'est pertinent. Si tu n'es pas sur d'une information, indique-le clairement.`;
+INSTRUCTIONS :
+- Base tes reponses sur les PRESCRIPTIONS EXTRAITES ci-dessus quand elles sont disponibles
+- Quand plusieurs rubriques ont des prescriptions sur le meme theme, indique la valeur la plus contraignante
+- Cite les rubriques sources (ex: "Rubrique 1510 impose REI 120, plus contraignant que la 1511 qui impose REI 60")
+- Reponds de maniere precise et concise
+- Si tu n'es pas sur d'une information, indique-le clairement`;
 
   try {
     const result = await callEdgeFunctionChat(prompt, 0.3, 2000);
