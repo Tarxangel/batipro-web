@@ -306,14 +306,41 @@ serve(async (req: Request) => {
   }
 
   try {
-    const { rubriques, mode } = await req.json()
-
-    if (!rubriques || !Array.isArray(rubriques) || rubriques.length === 0) {
-      throw new Error('Parametre "rubriques" requis (tableau)')
-    }
+    const body = await req.json()
+    const { rubriques, mode } = body
 
     if (!GEMINI_API_KEY) {
       throw new Error('GEMINI_API_KEY non configuree')
+    }
+
+    // ─── MODE CHAT : appel Gemini direct avec un prompt libre ───
+    if (mode === 'chat') {
+      const { prompt, temperature, maxTokens } = body
+      if (!prompt) throw new Error('Parametre "prompt" requis pour mode chat')
+
+      const response = await fetch(GEMINI_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: temperature ?? 0.3,
+            maxOutputTokens: maxTokens ?? 4000
+          }
+        })
+      })
+
+      const result = await response.json()
+      if (result.error) throw new Error(result.error.message)
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || ''
+      return new Response(JSON.stringify({ text }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // ─── MODES SIMULATEUR / ANALYSE ───
+    if (!rubriques || !Array.isArray(rubriques) || rubriques.length === 0) {
+      throw new Error('Parametre "rubriques" requis (tableau)')
     }
 
     // For each rubrique, fetch the relevant arrêté text (if available)

@@ -1496,11 +1496,21 @@ const AIDA_URLS = {
 const SUPABASE_URL = 'https://awhbjbuxbcxszlxcbpjb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3aGJqYnV4YmN4c3pseGNicGpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzOTM5NTgsImV4cCI6MjA4Mzk2OTk1OH0.za0Cg7EbcPYGlVckQf_8CNmRY9FbaDB-20OCLFZzSV0';
 
-// Gemini direct — pour chatbot et analyse contextuelle (pas les prescriptions)
-const GEMINI_API_KEY = (typeof ICPE_CONFIG !== 'undefined' && ICPE_CONFIG.GEMINI_API_KEY) ? ICPE_CONFIG.GEMINI_API_KEY : null;
-const GEMINI_MODEL_FLASH = 'gemini-2.0-flash';
-function getGeminiUrl(model) {
-  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+// Chat via Edge Function (chatbot + analyse contextuelle)
+async function callEdgeFunctionChat(prompt, temperature = 0.3, maxTokens = 4000) {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/icpe-prescriptions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+    },
+    body: JSON.stringify({ mode: 'chat', prompt, temperature, maxTokens })
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+    throw new Error(err.error || `Erreur serveur (${response.status})`);
+  }
+  return await response.json();
 }
 
 async function callEdgeFunction(rubriques, mode) {
@@ -2225,21 +2235,10 @@ Reponds en JSON avec cette structure:
   "recommandations": ["reco 1", "reco 2", ...]
 }`;
 
-  if (!GEMINI_API_KEY) { console.warn('Gemini API key non configuree pour analyse contextuelle'); return; }
   try {
-    const response = await fetch(getGeminiUrl(GEMINI_MODEL_FLASH), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 4000 }
-      })
-    });
+    const result = await callEdgeFunctionChat(prompt, 0.2, 4000);
 
-    const result = await response.json();
-    if (result.error) throw new Error(result.error.message);
-
-    let text = result.candidates[0].content.parts[0].text;
+    let text = result.text;
     if (text.startsWith('```json')) text = text.slice(7);
     if (text.startsWith('```')) text = text.slice(3);
     if (text.endsWith('```')) text = text.slice(0, -3);
@@ -2406,30 +2405,13 @@ Question de l'utilisateur: ${msg}
 
 Reponds de maniere precise et concise. Cite les references reglementaires quand c'est pertinent. Si tu n'es pas sur d'une information, indique-le clairement.`;
 
-  if (!GEMINI_API_KEY) {
-    removeChatMessage(loadingId);
-    addChatMessage('Chatbot non disponible : cle API Gemini non configuree.', 'assistant');
-    return;
-  }
   try {
-    const response = await fetch(getGeminiUrl(GEMINI_MODEL_FLASH), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 2000 }
-      })
-    });
-
-    const result = await response.json();
-    if (result.error) throw new Error(result.error.message);
-
-    const text = result.candidates[0].content.parts[0].text;
+    const result = await callEdgeFunctionChat(prompt, 0.3, 2000);
     removeChatMessage(loadingId);
-    addChatMessage(text, 'assistant');
+    addChatMessage(result.text, 'assistant');
   } catch (error) {
     removeChatMessage(loadingId);
-    addChatMessage('Erreur : ' + error.message + '. Verifiez la configuration de l\'API.', 'assistant');
+    addChatMessage('Erreur : ' + error.message, 'assistant');
   }
 }
 
