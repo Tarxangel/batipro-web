@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.n8n-publish]
 verify_jwt = false
+
+[functions.manage-users]
+verify_jwt = false
+
+[functions.chat-article]
+verify_jwt = false

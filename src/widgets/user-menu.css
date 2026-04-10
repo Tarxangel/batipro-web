@@ -1,0 +1,308 @@
+/* Widget user-menu — bouton flottant + menu + modale feedback */
+
+.um-root {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9000;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ── FAB ──────────────────────────────────────────────── */
+.um-fab {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #1d1d1f;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.12);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.um-fab:hover {
+  transform: scale(1.06);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.24), 0 3px 8px rgba(0, 0, 0, 0.16);
+}
+
+.um-fab:active {
+  transform: scale(0.98);
+}
+
+/* ── Menu ─────────────────────────────────────────────── */
+.um-menu {
+  position: absolute;
+  bottom: 70px;
+  right: 0;
+  min-width: 240px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.16), 0 4px 10px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  animation: um-pop 0.15s ease-out;
+}
+
+.um-menu[hidden] {
+  display: none;
+}
+
+@keyframes um-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.um-menu-header {
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  background: #f8f9fb;
+}
+
+.um-menu-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.um-menu-email {
+  font-size: 12px;
+  color: #6e6e73;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.um-menu-badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.um-menu-items {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+}
+
+.um-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 18px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  color: #1d1d1f;
+  font-family: inherit;
+  transition: background 0.1s;
+}
+
+.um-menu-item:hover {
+  background: #f3f4f6;
+}
+
+.um-menu-item svg {
+  flex-shrink: 0;
+  color: #6e6e73;
+}
+
+.um-menu-item-danger {
+  color: #dc2626;
+}
+
+.um-menu-item-danger svg {
+  color: #dc2626;
+}
+
+/* ── Modal feedback ──────────────────────────────────── */
+.um-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.um-modal[hidden] {
+  display: none;
+}
+
+.um-modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.um-modal-content {
+  position: relative;
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.um-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.um-modal-header h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.um-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  color: #6e6e73;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+}
+
+.um-feedback-form {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.um-feedback-form[hidden] {
+  display: none;
+}
+
+.um-feedback-hint {
+  margin: 0;
+  font-size: 13px;
+  color: #6e6e73;
+  line-height: 1.5;
+}
+
+.um-feedback-textarea {
+  width: 100%;
+  min-height: 130px;
+  padding: 12px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  background: #f9fafb;
+  color: #1d1d1f;
+}
+
+.um-feedback-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #ffffff;
+}
+
+.um-feedback-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.um-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.um-btn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.um-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.um-btn-primary {
+  background: #1d1d1f;
+  color: #ffffff;
+}
+
+.um-btn-primary:hover:not(:disabled) {
+  background: #000;
+}
+
+.um-btn-ghost {
+  background: #f3f4f6;
+  color: #1d1d1f;
+  border: 1px solid #e5e7eb;
+}
+
+.um-btn-ghost:hover {
+  background: #e5e7eb;
+}
+
+.um-feedback-success {
+  padding: 32px 22px;
+  text-align: center;
+}
+
+.um-feedback-success[hidden] {
+  display: none;
+}
+
+.um-feedback-success-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #d1fae5;
+  color: #065f46;
+  font-size: 28px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.um-feedback-success p {
+  margin: 0 0 18px;
+  color: #1d1d1f;
+  font-size: 15px;
+}
+
+/* Cache le widget pendant l'impression */
+@media print {
+  .um-root { display: none; }
+}

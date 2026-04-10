@@ -670,3 +670,167 @@ body {
     flex-direction: column;
   }
 }
+
+/* ─────────────────────────────────────────────────────── */
+/* Historique du chantier (timeline d'événements)         */
+/* ─────────────────────────────────────────────────────── */
+
+.events-section {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px 22px;
+  margin-top: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.events-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+.events-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.events-hint {
+  font-size: 12px;
+  color: #6e6e73;
+  margin: 0 0 18px;
+  line-height: 1.5;
+}
+
+.events-loading,
+.events-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: #8e8e93;
+  font-size: 14px;
+  background: #f8f9fb;
+  border-radius: 10px;
+}
+
+.events-empty.error {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.events-timeline {
+  position: relative;
+  padding-left: 20px;
+}
+
+.events-timeline::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: linear-gradient(to bottom, #e5e7eb, #d1d5db);
+  border-radius: 1px;
+}
+
+.event-item {
+  position: relative;
+  padding-bottom: 18px;
+}
+
+.event-item:last-child {
+  padding-bottom: 0;
+}
+
+.event-marker {
+  position: absolute;
+  left: -19px;
+  top: 6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #1d1d1f;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 2px #1d1d1f;
+}
+
+.event-content {
+  background: #f8f9fb;
+  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1px solid #eef0f3;
+}
+
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.event-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.event-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d1d1f;
+}
+
+.event-type {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #1d1d1f;
+  color: #ffffff;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.event-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.event-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 4px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #8e8e93;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.event-btn:hover {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  color: #1d1d1f;
+}
+
+.event-btn-danger:hover {
+  color: #dc2626;
+  border-color: #fecaca;
+}
+
+.event-description {
+  font-size: 13px;
+  color: #1d1d1f;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}

@@ -21,36 +21,10 @@
         </svg>
       </a>
       <h1>Articles Chantier</h1>
-      <button id="admin-toggle" class="admin-toggle" title="Mode admin">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" stroke-width="2"/>
-          <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </button>
     </header>
 
     <!-- Toast container -->
     <div id="toast-container" class="toast-container"></div>
-
-    <!-- Modal Admin Login -->
-    <div id="admin-modal" class="modal-overlay" hidden>
-      <div class="modal-card">
-        <button id="modal-close" class="modal-close">&times;</button>
-        <h2>Espace Admin</h2>
-        <p class="modal-subtitle">Entrez le mot de passe administrateur</p>
-        <div class="form-group">
-          <input type="password" id="admin-password" placeholder="Mot de passe" autocomplete="off" />
-        </div>
-        <p id="admin-error" class="modal-error" hidden></p>
-        <button id="admin-login-btn" class="btn-primary">
-          <span class="btn-text">Se connecter</span>
-          <span class="btn-loading">
-            <span class="spinner-small"></span>
-            Connexion...
-          </span>
-        </button>
-      </div>
-    </div>
 
     <!-- Modal Confirmation -->
     <div id="confirm-modal" class="modal-overlay" hidden>
@@ -85,14 +59,28 @@
 
         <!-- Sélecteur de chantier -->
         <div class="chantier-selector">
-          <label for="chantier-select">Chantier associé</label>
+          <label for="chantier-select">Chantier associé <span class="required-star">*</span></label>
           <select id="chantier-select">
-            <option value="">Sans chantier (article libre)</option>
+            <option value="">Sélectionner un chantier…</option>
           </select>
           <div id="chantier-badge" class="chantier-badge" hidden></div>
+          <p class="field-hint">Le chantier est obligatoire pour la conversation IA — son historique est utilisé comme source factuelle.</p>
         </div>
 
-        <!-- Contexte SEO -->
+        <button id="btn-start-chat" class="btn-primary" disabled>
+          <span class="btn-text">💬 Démarrer la conversation IA</span>
+          <span class="btn-loading">
+            <span class="spinner-small"></span>
+            Démarrage…
+          </span>
+        </button>
+
+        <button type="button" id="btn-toggle-fallback" class="btn-link">
+          Mode rapide (génération directe) — pour publier directement sur WordPress
+        </button>
+
+        <!-- Contexte SEO (caché par défaut, révélé via le bouton fallback) -->
+        <div id="fallback-fields" hidden>
         <div class="seo-fields">
           <h3 class="seo-fields-title">Contexte de l'article</h3>
 
@@ -151,24 +139,64 @@
             <input type="text" id="seo-keywords" placeholder="Ex: bâtiment logistique Mulhouse, entrepôt clé en main Alsace" />
             <p class="field-hint">Séparez par des virgules. Laissez vide pour des suggestions auto.</p>
           </div>
-        </div>
 
-        <div class="form-group">
-          <label for="description">Description du chantier</label>
-          <textarea
-            id="description"
-            placeholder="Décrivez ce qui se passe sur le chantier : travaux en cours, matériaux, techniques utilisées..."
-            rows="4"
-          ></textarea>
-        </div>
+          <div class="form-group">
+            <label for="description">Description du chantier</label>
+            <textarea
+              id="description"
+              placeholder="Décrivez ce qui se passe sur le chantier : travaux en cours, matériaux, techniques utilisées..."
+              rows="4"
+            ></textarea>
+          </div>
 
-        <button id="btn-generate" class="btn-primary" disabled>
-          <span class="btn-text">Générer l'article SEO</span>
-          <span class="btn-loading">
-            <span class="spinner-small"></span>
-            Génération en cours...
-          </span>
-        </button>
+          <button id="btn-generate" class="btn-primary" disabled>
+            <span class="btn-text">Générer l'article (mode rapide)</span>
+            <span class="btn-loading">
+              <span class="spinner-small"></span>
+              Génération en cours...
+            </span>
+          </button>
+        </div>
+        </div><!-- /fallback-fields -->
+      </section>
+
+      <!-- Étape 2bis: Chat IA (nouveau flux conversationnel factuel) -->
+      <section id="step-chat" class="step">
+        <div class="chat-container">
+          <header class="chat-header">
+            <button type="button" id="btn-back-chat" class="btn-link">← Retour</button>
+            <div class="chat-header-title">
+              <h2>Conversation IA</h2>
+              <p id="chat-chantier-name" class="chat-subtitle"></p>
+            </div>
+          </header>
+
+          <div class="chat-photo-preview">
+            <img id="chat-photo-img" src="" alt="Photo du chantier" />
+          </div>
+
+          <div id="chat-messages" class="chat-messages">
+            <!-- Bulles de conversation injectées par JS -->
+          </div>
+
+          <div class="chat-input-area">
+            <div id="chat-error" class="modal-error" hidden></div>
+            <textarea
+              id="chat-input"
+              class="chat-textarea"
+              rows="3"
+              placeholder="Tape ta réponse ou demande un brouillon…"
+            ></textarea>
+            <div class="chat-actions">
+              <button type="button" id="chat-request-draft" class="btn-secondary">Demande un brouillon</button>
+              <button type="button" id="chat-send" class="btn-primary" disabled>
+                <span class="btn-text">Envoyer</span>
+                <span class="btn-loading"><span class="spinner-small"></span></span>
+              </button>
+              <button type="button" id="chat-validate" class="btn-primary" disabled>Valider et passer à l'éditeur</button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- Étape 2: Loading -->
@@ -295,5 +323,6 @@
   </div>
 
   <script type="module" src="/src/articles/main.ts"></script>
+  <script type="module" src="/src/widgets/user-menu.ts"></script>
 </body>
 </html>

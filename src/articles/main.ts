@@ -5,20 +5,47 @@ import { generateArticle, fileToBase64, publishArticle, compressImage, convertHe
 import { createDraft, updateDraft, getDrafts, getDraftsByChantier, deleteDraft, markAsPublished, ArticleDraft } from './database';
 import { getChantiers, getChantier, Chantier } from '../chantiers/database';
 import { MAX_IMAGE_SIZE, WP_SITE_URL } from './config';
-import { isAdmin, adminLogin, adminLogout, verifyAdminToken } from './admin';
+import { requirePermission, logout, AppProfile } from '../auth/session';
 import { populateDepartmentSelect } from '../departments';
+import { sendChat, ChatMessage, ChatDraft } from './chat-api';
+
+// Permissions de l'utilisateur courant (rempli au démarrage)
+let userPerms = {
+  canCreate: false,
+  canEdit: false,
+  canPublish: false,
+  canDelete: false,
+};
+
+function computePerms(profile: AppProfile) {
+  const a = profile.permissions?.articles || [];
+  const isAdmin = profile.is_admin;
+  return {
+    canCreate:  isAdmin || a.includes('create'),
+    canEdit:    isAdmin || a.includes('edit'),
+    canPublish: isAdmin || a.includes('publish'),
+    canDelete:  isAdmin || a.includes('delete'),
+  };
+}
 
 // Déclaration Quill (chargé via CDN)
 declare const Quill: any;
 
 // État de l'application
 interface AppState {
-  currentStep: 'upload' | 'loading' | 'editor' | 'success';
+  currentStep: 'upload' | 'loading' | 'chat' | 'editor' | 'success';
   selectedFile: File | null;
   currentDraft: ArticleDraft | null;
   drafts: ArticleDraft[];
   quillEditor: any | null;
   selectedChantier: Chantier | null;
+  // ── Chat IA ──
+  chatMessages: ChatMessage[];
+  chatDraft: ChatDraft | null;
+  chatPhotoBase64: string | null;
+  chatPhotoMime: string | null;
+  chatPhotoUrl: string | null;     // pour l'affichage local (data url)
+  chatBusy: boolean;
 }
 
 const state: AppState = {
@@ -27,7 +54,13 @@ const state: AppState = {
   currentDraft: null,
   drafts: [],
   quillEditor: null,
-  selectedChantier: null
+  selectedChantier: null,
+  chatMessages: [],
+  chatDraft: null,
+  chatPhotoBase64: null,
+  chatPhotoMime: null,
+  chatPhotoUrl: null,
+  chatBusy: false,
 };
 
 // Éléments DOM
@@ -35,6 +68,7 @@ const elements = {
   // Steps
   stepUpload: document.getElementById('step-upload')!,
   stepLoading: document.getElementById('step-loading')!,
+  stepChat: document.getElementById('step-chat')!,
   stepEditor: document.getElementById('step-editor')!,
   stepSuccess: document.getElementById('step-success')!,
 
@@ -46,6 +80,20 @@ const elements = {
   removePhoto: document.getElementById('remove-photo')!,
   description: document.getElementById('description') as HTMLTextAreaElement,
   btnGenerate: document.getElementById('btn-generate') as HTMLButtonElement,
+  btnStartChat: document.getElementById('btn-start-chat') as HTMLButtonElement,
+  btnToggleFallback: document.getElementById('btn-toggle-fallback') as HTMLButtonElement,
+  fallbackFields: document.getElementById('fallback-fields')!,
+
+  // Chat
+  chatChantierName: document.getElementById('chat-chantier-name')!,
+  chatPhotoImg: document.getElementById('chat-photo-img') as HTMLImageElement,
+  chatMessages: document.getElementById('chat-messages')!,
+  chatInput: document.getElementById('chat-input') as HTMLTextAreaElement,
+  chatSend: document.getElementById('chat-send') as HTMLButtonElement,
+  chatRequestDraft: document.getElementById('chat-request-draft') as HTMLButtonElement,
+  chatValidate: document.getElementById('chat-validate') as HTMLButtonElement,
+  chatError: document.getElementById('chat-error')!,
+  btnBackChat: document.getElementById('btn-back-chat') as HTMLButtonElement,
 
   // Loading
   loadingSteps: document.querySelectorAll('.loading-step'),
@@ -76,13 +124,8 @@ const elements = {
   draftsCount: document.getElementById('drafts-count')!,
   draftsList: document.getElementById('drafts-list')!,
 
-  // Admin
-  adminToggle: document.getElementById('admin-toggle')!,
-  adminModal: document.getElementById('admin-modal')!,
-  adminPassword: document.getElementById('admin-password') as HTMLInputElement,
-  adminLoginBtn: document.getElementById('admin-login-btn')!,
-  adminError: document.getElementById('admin-error')!,
-  modalClose: document.getElementById('modal-close')!,
+  // Logout
+  btnLogout: document.getElementById('btn-logout') as HTMLButtonElement | null,
 
   // Confirm modal
   confirmModal: document.getElementById('confirm-modal')!,
@@ -147,56 +190,26 @@ function showConfirm(title: string, message: string): Promise<boolean> {
   });
 }
 
-// --- ADMIN ---
+// --- PERMISSIONS UI GATING ---
 
-function updateAdminUI() {
-  const admin = isAdmin();
-  elements.adminToggle.classList.toggle('admin-active', admin);
-
-  // Boutons éditeur
-  if (elements.btnPublish && elements.btnSubmitReview) {
-    elements.btnPublish.hidden = !admin;
-    elements.btnSubmitReview.hidden = admin;
+function applyPermissionGating() {
+  // Bouton "Publier" : visible uniquement si canPublish
+  if (elements.btnPublish) {
+    elements.btnPublish.hidden = !userPerms.canPublish;
   }
-}
-
-async function handleAdminToggle() {
-  if (isAdmin()) {
-    const confirmed = await showConfirm('Déconnexion', 'Se déconnecter du mode admin ?');
-    if (confirmed) {
-      adminLogout();
-      updateAdminUI();
-      showToast('Déconnecté du mode admin', 'info');
-    }
-    return;
+  // Bouton "Soumettre pour validation" : visible uniquement si l'utilisateur peut
+  // créer/éditer mais PAS publier (les publishers vont directement à publish)
+  if (elements.btnSubmitReview) {
+    elements.btnSubmitReview.hidden = userPerms.canPublish || !userPerms.canCreate;
   }
-
-  // Ouvrir la modal de login
-  elements.adminModal.hidden = false;
-  elements.adminPassword.value = '';
-  elements.adminError.hidden = true;
-  elements.adminPassword.focus();
-}
-
-async function handleAdminLogin() {
-  const password = elements.adminPassword.value.trim();
-  if (!password) return;
-
-  elements.adminLoginBtn.classList.add('loading');
-  elements.adminError.hidden = true;
-
-  const result = await adminLogin(password);
-
-  elements.adminLoginBtn.classList.remove('loading');
-
-  if (result.success) {
-    elements.adminModal.hidden = true;
-    updateAdminUI();
-    showToast('Mode admin activé', 'success');
-    loadDrafts(); // Refresh pour voir les pending_review
-  } else {
-    elements.adminError.textContent = result.error || 'Mot de passe incorrect';
-    elements.adminError.hidden = false;
+  // Bouton "Sauvegarder brouillon" : visible si peut éditer
+  if (elements.btnSaveDraft) {
+    elements.btnSaveDraft.hidden = !userPerms.canEdit && !userPerms.canCreate;
+  }
+  // Bouton "Générer" (création nouvel article) : désactivé si canCreate = false
+  if (!userPerms.canCreate && elements.btnGenerate) {
+    elements.btnGenerate.disabled = true;
+    elements.btnGenerate.title = "Vous n'avez pas la permission de créer un article";
   }
 }
 
@@ -262,6 +275,7 @@ function showStep(step: AppState['currentStep']) {
   // Masquer toutes les étapes
   elements.stepUpload.classList.remove('active');
   elements.stepLoading.classList.remove('active');
+  elements.stepChat.classList.remove('active');
   elements.stepEditor.classList.remove('active');
   elements.stepSuccess.classList.remove('active');
 
@@ -272,6 +286,9 @@ function showStep(step: AppState['currentStep']) {
       break;
     case 'loading':
       elements.stepLoading.classList.add('active');
+      break;
+    case 'chat':
+      elements.stepChat.classList.add('active');
       break;
     case 'editor':
       elements.stepEditor.classList.add('active');
@@ -398,7 +415,192 @@ function removeSelectedFile() {
 function updateGenerateButton() {
   const hasPhoto = state.selectedFile !== null;
   const hasDescription = elements.description.value.trim().length > 0;
+  const hasChantier = !!elements.chantierSelect.value;
+  // Bouton "mode rapide" (n8n) : photo + description requis
   elements.btnGenerate.disabled = !hasPhoto || !hasDescription;
+  // Bouton "chat IA" : photo + chantier requis
+  elements.btnStartChat.disabled = !hasPhoto || !hasChantier;
+}
+
+// --- CHAT IA ---
+
+async function handleStartChat() {
+  if (!state.selectedFile || !state.selectedChantier) {
+    showToast('Photo et chantier requis', 'error');
+    return;
+  }
+
+  // Compresse la photo et la convertit en base64
+  // Note: fileToBase64() retourne juste le base64 brut (sans le préfixe data:),
+  // et compressImage() force toujours le type 'image/jpeg'.
+  try {
+    elements.btnStartChat.classList.add('loading');
+    const compressed = await compressImage(state.selectedFile);
+    const base64 = await fileToBase64(compressed);
+    state.chatPhotoMime = compressed.type || 'image/jpeg';
+    state.chatPhotoBase64 = base64;
+    state.chatPhotoUrl = `data:${state.chatPhotoMime};base64,${base64}`;
+    state.chatMessages = [];
+    state.chatDraft = null;
+
+    // Prépare l'UI chat
+    elements.chatChantierName.textContent = `${state.selectedChantier.name} — ${state.selectedChantier.city}`;
+    elements.chatPhotoImg.src = state.chatPhotoUrl;
+    elements.chatMessages.innerHTML = '';
+    elements.chatInput.value = '';
+    elements.chatError.hidden = true;
+    elements.chatValidate.setAttribute('disabled', 'true');
+
+    showStep('chat');
+
+    // Premier appel : on demande à l'IA d'amorcer la conversation
+    await runChatTurn({ initialKickoff: true, mode: 'chat' });
+  } catch (err) {
+    showToast(`Erreur démarrage chat : ${(err as Error).message}`, 'error');
+  } finally {
+    elements.btnStartChat.classList.remove('loading');
+  }
+}
+
+async function runChatTurn(opts: { initialKickoff?: boolean; mode?: 'chat' | 'draft' } = {}) {
+  if (!state.selectedChantier) return;
+  if (state.chatBusy) return;
+  state.chatBusy = true;
+  setChatBusyUI(true);
+
+  try {
+    const result = await sendChat({
+      chantier_id: state.selectedChantier.id,
+      photo_base64: state.chatPhotoBase64 || undefined,
+      mime_type: state.chatPhotoMime || undefined,
+      messages: state.chatMessages,
+      mode: opts.mode || 'chat',
+    });
+
+    // Ajoute la réponse de l'IA à l'historique + UI
+    state.chatMessages.push({ role: 'assistant', content: result.message });
+    appendChatBubble('assistant', result.message);
+
+    if (result.draft) {
+      state.chatDraft = result.draft;
+      appendChatBubble('draft', formatDraftPreview(result.draft));
+      elements.chatValidate.removeAttribute('disabled');
+    }
+  } catch (err) {
+    elements.chatError.textContent = `Erreur : ${(err as Error).message}`;
+    elements.chatError.hidden = false;
+    if (opts.initialKickoff) {
+      // Le démarrage a échoué : on revient à upload pour permettre de retenter
+      setTimeout(() => showStep('upload'), 100);
+    }
+  } finally {
+    state.chatBusy = false;
+    setChatBusyUI(false);
+  }
+}
+
+async function handleChatSend() {
+  const text = elements.chatInput.value.trim();
+  if (!text || state.chatBusy) return;
+
+  state.chatMessages.push({ role: 'user', content: text });
+  appendChatBubble('user', text);
+  elements.chatInput.value = '';
+  elements.chatError.hidden = true;
+  // Mode 'chat' (flash) par défaut. Le serveur peut quand même bascule en draft
+  // si l'utilisateur tape "donne-moi un brouillon" via la détection de mots-clés.
+  await runChatTurn({ mode: 'chat' });
+}
+
+async function handleChatRequestDraft() {
+  if (state.chatBusy) return;
+  // Envoie un message implicite de l'utilisateur + force le mode draft (modèle pro)
+  const text = "Produis maintenant le brouillon complet d'article avec ce qu'on a.";
+  state.chatMessages.push({ role: 'user', content: text });
+  appendChatBubble('user', text);
+  elements.chatError.hidden = true;
+  await runChatTurn({ mode: 'draft' });
+}
+
+async function handleValidateChatDraft() {
+  if (!state.chatDraft || !state.selectedChantier) return;
+
+  // Crée un brouillon supabase à partir du chat draft
+  try {
+    elements.chatValidate.setAttribute('disabled', 'true');
+    elements.chatValidate.textContent = 'Création…';
+
+    // Sauvegarde compression de la photo en datauri pour l'image_url
+    const draft = await createDraft({
+      title: state.chatDraft.title,
+      content: state.chatDraft.content_html,
+      description: null,
+      image_url: state.chatPhotoUrl,
+      wp_media_id: null,
+      wp_post_id: null,         // pas de wp_post_id : la publication WP n'est pas dispo via le chat
+      chantier_id: state.selectedChantier.id,
+    });
+
+    state.currentDraft = draft;
+
+    // Bascule vers l'éditeur
+    if (state.chatPhotoUrl) elements.editorImage.src = state.chatPhotoUrl;
+    elements.articleTitle.value = draft.title;
+    showStep('editor');
+    setQuillContent(draft.content);
+    applyPermissionGating();
+    loadDrafts();
+    showToast('Brouillon créé depuis le chat', 'success');
+  } catch (err) {
+    showToast(`Erreur : ${(err as Error).message}`, 'error');
+    elements.chatValidate.removeAttribute('disabled');
+  } finally {
+    elements.chatValidate.textContent = 'Valider et passer à l\'éditeur';
+  }
+}
+
+function setChatBusyUI(busy: boolean) {
+  if (busy) {
+    elements.chatSend.classList.add('loading');
+    elements.chatSend.setAttribute('disabled', 'true');
+    elements.chatRequestDraft.setAttribute('disabled', 'true');
+    elements.chatInput.setAttribute('disabled', 'true');
+    appendChatBubble('typing', '');
+  } else {
+    elements.chatSend.classList.remove('loading');
+    elements.chatRequestDraft.removeAttribute('disabled');
+    elements.chatInput.removeAttribute('disabled');
+    elements.chatInput.focus();
+    // Met à jour le bouton send selon l'input
+    elements.chatSend.disabled = elements.chatInput.value.trim().length === 0;
+    // Retire le bubble "typing"
+    document.querySelectorAll('.chat-bubble.typing').forEach(el => el.remove());
+  }
+}
+
+function appendChatBubble(kind: 'user' | 'assistant' | 'draft' | 'typing', content: string) {
+  const bubble = document.createElement('div');
+  bubble.className = `chat-bubble ${kind}`;
+  if (kind === 'typing') {
+    bubble.innerHTML = '<span class="typing-dots"><span></span><span></span><span></span></span>';
+  } else if (kind === 'draft') {
+    bubble.innerHTML = content;
+  } else {
+    bubble.textContent = content;
+  }
+  elements.chatMessages.appendChild(bubble);
+  // Scroll au bas
+  elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+}
+
+function formatDraftPreview(draft: ChatDraft): string {
+  return `
+    <div class="draft-preview">
+      <div class="draft-preview-label">Brouillon proposé</div>
+      <div class="draft-preview-title">${escapeHtml(draft.title)}</div>
+      <div class="draft-preview-content">${draft.content_html}</div>
+    </div>
+  `;
 }
 
 // --- CHANTIER SELECTOR ---
@@ -406,8 +608,8 @@ function updateGenerateButton() {
 async function loadChantierSelector() {
   try {
     const chantiers = await getChantiers('active');
-    // Keep the first option (sans chantier)
-    elements.chantierSelect.innerHTML = '<option value="">Sans chantier (article libre)</option>';
+    // Première option = placeholder vide (chantier requis pour le chat)
+    elements.chantierSelect.innerHTML = '<option value="">Sélectionner un chantier…</option>';
     chantiers.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.id;
@@ -434,6 +636,7 @@ async function handleChantierChange() {
     state.selectedChantier = null;
     setSeoFieldsLocked(false);
     elements.chantierBadge.hidden = true;
+    updateGenerateButton();
     return;
   }
 
@@ -459,6 +662,7 @@ async function handleChantierChange() {
     elements.chantierBadge.textContent = `Article n°${articleNum} pour ce chantier`;
     elements.chantierBadge.hidden = false;
 
+    updateGenerateButton();
   } catch (error) {
     console.error('Erreur sélection chantier:', error);
   }
@@ -580,7 +784,8 @@ function showEditor(draft: ArticleDraft) {
 
   showStep('editor');
   setQuillContent(draft.content);
-  updateAdminUI();
+  // Re-applique le gating au cas où le DOM des boutons aurait été refait
+  applyPermissionGating();
   loadDrafts();
 }
 
@@ -646,8 +851,8 @@ async function handleSubmitReview() {
 async function handlePublish() {
   if (!state.currentDraft) return;
 
-  if (!isAdmin()) {
-    showToast('Vous devez être admin pour publier', 'error');
+  if (!userPerms.canPublish) {
+    showToast("Vous n'avez pas la permission de publier", 'error');
     return;
   }
 
@@ -788,9 +993,9 @@ function sanitizeUrl(url: string): string {
 
 // Afficher les brouillons
 function renderDrafts() {
-  const admin = isAdmin();
-  // Admin voit aussi les pending_review, les autres voient que les drafts
-  const visibleDrafts = admin
+  // Les utilisateurs avec la permission `articles:publish` (publishers) voient aussi
+  // les `pending_review` (à valider). Les autres ne voient que les `draft`.
+  const visibleDrafts = userPerms.canPublish
     ? state.drafts
     : state.drafts.filter(d => d.status === 'draft');
 
@@ -895,12 +1100,12 @@ function formatDate(dateStr: string): string {
 async function init() {
   console.log('📝 Articles Chantier - Initialisation...');
 
-  // Vérifier le token admin existant
-  if (isAdmin()) {
-    const valid = await verifyAdminToken();
-    if (!valid) adminLogout();
-  }
-  updateAdminUI();
+  // Page guard : redirige si non authentifié ou sans permission de lecture
+  const profile = await requirePermission('articles', 'read', '/');
+  if (!profile) return;
+  document.body.classList.add('gate-passed');
+  userPerms = computePerms(profile);
+  applyPermissionGating();
 
   // Peupler le select des départements
   populateDepartmentSelect(elements.seoDepartment, { placeholder: '--', defaultValue: '25' });
@@ -919,6 +1124,29 @@ async function init() {
   elements.btnPublish.addEventListener('click', handlePublish);
   elements.btnNewArticle.addEventListener('click', handleNewArticle);
 
+  // Chat IA
+  elements.btnStartChat.addEventListener('click', handleStartChat);
+  elements.btnToggleFallback.addEventListener('click', () => {
+    elements.fallbackFields.hidden = !elements.fallbackFields.hidden;
+    elements.btnToggleFallback.textContent = elements.fallbackFields.hidden
+      ? 'Mode rapide (génération directe) — pour publier directement sur WordPress'
+      : 'Masquer le mode rapide';
+  });
+  elements.chatInput.addEventListener('input', () => {
+    elements.chatSend.disabled = elements.chatInput.value.trim().length === 0 || state.chatBusy;
+  });
+  elements.chatInput.addEventListener('keydown', (e) => {
+    // Cmd/Ctrl + Enter pour envoyer
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      handleChatSend();
+    }
+  });
+  elements.chatSend.addEventListener('click', handleChatSend);
+  elements.chatRequestDraft.addEventListener('click', handleChatRequestDraft);
+  elements.chatValidate.addEventListener('click', handleValidateChatDraft);
+  elements.btnBackChat.addEventListener('click', () => showStep('upload'));
+
   // LinkedIn copy button
   elements.btnCopyLinkedin.addEventListener('click', async () => {
     try {
@@ -932,20 +1160,13 @@ async function init() {
     }
   });
 
-  // Admin
-  elements.adminToggle.addEventListener('click', handleAdminToggle);
-  elements.modalClose.addEventListener('click', () => {
-    elements.adminModal.hidden = true;
-  });
-  elements.adminLoginBtn.addEventListener('click', handleAdminLogin);
-  elements.adminPassword.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') handleAdminLogin();
+  // Logout (remplace l'ancien admin-toggle)
+  elements.btnLogout?.addEventListener('click', async () => {
+    await logout();
+    window.location.href = '/login.html';
   });
 
   // Fermer les modals en cliquant en dehors
-  elements.adminModal.addEventListener('click', (e) => {
-    if (e.target === elements.adminModal) elements.adminModal.hidden = true;
-  });
   elements.confirmModal.addEventListener('click', (e) => {
     if (e.target === elements.confirmModal) elements.confirmModal.hidden = true;
   });

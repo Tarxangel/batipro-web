@@ -3,6 +3,30 @@
 import './styles.css';
 import { createChantier, updateChantier, getChantiers, getChantier, deleteChantier, countArticlesByChantier, Chantier, NewChantier } from './database';
 import { populateDepartmentSelect } from '../departments';
+import { requirePermission, AppProfile } from '../auth/session';
+import { initEventsUI, loadEventsFor } from './events-ui';
+
+// Permissions de l'utilisateur courant (rempli au démarrage)
+let userPerms = { canCreate: false, canEdit: false, canDelete: false };
+
+function computePerms(profile: AppProfile) {
+  const ch = profile.permissions?.chantiers || [];
+  const isAdmin = profile.is_admin;
+  return {
+    canCreate: isAdmin || ch.includes('create'),
+    canEdit:   isAdmin || ch.includes('edit'),
+    canDelete: isAdmin || ch.includes('delete'),
+  };
+}
+
+function applyPermissionGating() {
+  if (!userPerms.canCreate) (elements.btnNewChantier as HTMLElement).hidden = true;
+  if (!userPerms.canEdit) {
+    (elements.btnEditChantier as HTMLElement).hidden = true;
+    (elements.btnChangeStatus as HTMLElement).hidden = true;
+  }
+  if (!userPerms.canDelete) (elements.btnDeleteChantier as HTMLElement).hidden = true;
+}
 
 // État de l'application
 interface AppState {
@@ -258,6 +282,9 @@ async function showChantierDetail(id: string) {
     // Load articles for this chantier
     await loadChantierArticles(id);
 
+    // Load events history for this chantier
+    await loadEventsFor(id);
+
     showView('detail');
   } catch (error) {
     console.error('Erreur affichage détail:', error);
@@ -416,8 +443,17 @@ async function handleChangeStatus() {
 }
 
 // --- INIT ---
-function init() {
+async function init() {
   console.log('🏗️ Gestion Chantiers - Initialisation...');
+
+  // Page guard : redirige si non authentifié ou sans permission de lecture
+  const profile = await requirePermission('chantiers', 'read', '/');
+  if (!profile) return;
+  userPerms = computePerms(profile);
+  applyPermissionGating();
+
+  // Initialisation de l'historique chantier (timeline + modale)
+  initEventsUI(userPerms.canEdit);
 
   // Peupler le select des départements
   populateDepartmentSelect(elements.formDepartment, { defaultValue: '25' });

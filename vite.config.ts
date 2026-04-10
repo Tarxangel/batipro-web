@@ -12,9 +12,10 @@ export default defineConfig({
         map: resolve(__dirname, 'map.html'),
         articles: resolve(__dirname, 'articles.html'),
         chantiers: resolve(__dirname, 'chantiers.html'),
+        login: resolve(__dirname, 'login.html'),
+        admin: resolve(__dirname, 'admin.html'),
         icpeCarte: resolve(__dirname, 'icpe/index.html'),
-        icpeSimulateur: resolve(__dirname, 'icpe/simulateur.html'),
-        icpeAnalyse: resolve(__dirname, 'icpe/analyse.html')
+        icpeSimulateur: resolve(__dirname, 'icpe/simulateur.html')
       }
     }
   },

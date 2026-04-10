@@ -403,33 +403,21 @@ serve(async (req: Request) => {
 
     let finalResult: Record<string, unknown>
 
-    if (mode === 'analyse') {
-      const rub = rubriques[0]
+    // Simulateur: one Gemini call PER rubrique, then merge
+    const geminiPromises = rubriques.map(async (rub: { code: string, regime: string, intitule: string }) => {
       if (needsGrounding.has(rub.code)) {
-        // No arrêté found even after grounding search — return fallback message
-        finalResult = buildFallbackResponse(rub, mode)
-      } else {
-        const prompt = buildAnalysePrompt(rub, arretesTexts[rub.code] || '')
-        const result = await callGemini(prompt)
-        finalResult = JSON.parse(result)
+        // No arrêté found — return fallback
+        return { code: rub.code, data: buildFallbackResponse(rub) }
       }
-    } else {
-      // Simulateur: one Gemini call PER rubrique, then merge
-      const geminiPromises = rubriques.map(async (rub: { code: string, regime: string, intitule: string }) => {
-        if (needsGrounding.has(rub.code)) {
-          // No arrêté found — return fallback
-          return { code: rub.code, data: buildFallbackResponse(rub, 'simulateur') }
-        }
-        const prompt = buildSimulateurSinglePrompt(rub, arretesTexts[rub.code] || '')
-        const result = await callGemini(prompt)
-        return { code: rub.code, data: JSON.parse(result) }
-      })
+      const prompt = buildSimulateurSinglePrompt(rub, arretesTexts[rub.code] || '')
+      const result = await callGemini(prompt)
+      return { code: rub.code, data: JSON.parse(result) }
+    })
 
-      const results = await Promise.all(geminiPromises)
-      finalResult = {}
-      for (const r of results) {
-        finalResult[r.code] = r.data[r.code] || r.data
-      }
+    const results = await Promise.all(geminiPromises)
+    finalResult = {}
+    for (const r of results) {
+      finalResult[r.code] = r.data[r.code] || r.data
     }
 
     return new Response(JSON.stringify(finalResult), {
@@ -470,6 +458,12 @@ Reponds avec un objet JSON :
 {
   "${rubrique.code}": {
     "${rubrique.regime}": {
+      "reseaux": {
+        "Eaux pluviales": "..."
+      },
+      "dechets": {
+        "Gestion des dechets": "..."
+      },
       "implantation": {
         "Distances limites": "...",
         "Distances inter-batiments": "..."
@@ -478,7 +472,8 @@ Reponds avec un objet JSON :
         "Acces au site": "...",
         "Voie engin": "...",
         "Echelles": "...",
-        "Issues et quais": "..."
+        "Issues et quais": "...",
+        "Locaux a risques": "..."
       },
       "construction": {
         "Structure": "...",
@@ -511,6 +506,9 @@ Reponds avec un objet JSON :
         "Besoins en eau": "...",
         "Retention eaux extinction": "..."
       },
+      "ventilation": {
+        "Dispositifs de ventilation": "..."
+      },
       "elec": {
         "Conformite": "...",
         "Coupure d'urgence": "..."
@@ -518,85 +516,39 @@ Reponds avec un objet JSON :
       "chauffage": {
         "Type autorise": "...",
         "Implantation": "..."
+      },
+      "exploitation": {
+        "Consignes d'exploitation": "...",
+        "Verifications periodiques": "..."
       }
     }
   }
 }`
 }
 
-function buildAnalysePrompt(rubrique: { code: string, regime: string, intitule: string, arrete?: string }, arreteText: string): string {
-  return `Tu es un expert en reglementation ICPE.
-
-MISSION : A partir du TEXTE REGLEMENTAIRE FOURNI CI-DESSOUS, generer l'analyse detaillee des prescriptions pour :
-
-Rubrique : ${rubrique.code} ${rubrique.intitule ? '(' + rubrique.intitule + ')' : ''}
-Regime : ${rubrique.regime}
-${rubrique.arrete ? 'Arrete de reference : ' + rubrique.arrete : ''}
-
-TEXTE REGLEMENTAIRE SOURCE :
-${arreteText}
-
-REGLES :
-- Extrais les informations presentes dans le texte ci-dessus
-- IMPORTANT : Les prescriptions de l'arrete s'appliquent au regime demande meme si le texte ne mentionne pas explicitement le nom du regime. Un arrete type couvre generalement TOUS les regimes de la rubrique. Extrais les prescriptions du texte et attribue-les au regime demande.
-- Inclus les valeurs numeriques exactes (distances en m, surfaces en m2, debits, classes de resistance au feu REI/EI/R)
-- Cite les normes (NF EN, NF C, etc.) mentionnees dans l'arrete
-- Si une categorie de prescription n'est veritablement pas abordee du tout dans le texte, indique "Non precise dans l'arrete type"
-- NE JAMAIS INVENTER de valeur
-- Sois PRECIS mais CONCIS : donne les exigences cles avec valeurs, pas de recopie de paragraphes entiers. Ex: "Voie engin: largeur 6m min, hauteur libre 4,5m, force portante 16t, rayon interieur 11m"
-
-Reponds avec un objet JSON :
-{
-  "reseaux_eau": "Prescriptions exactes extraites du texte...",
-  "reseaux_eaux_pluviales": "...",
-  "dechets": "...",
-  "implantation": "...",
-  "accessibilite_site": "...",
-  "accessibilite_voie_engin": "...",
-  "accessibilite_echelles": "...",
-  "accessibilite_issues": "...",
-  "locaux_risques": "...",
-  "desenfumage": "...",
-  "eau_incendie_retention": "...",
-  "eau_incendie_isolement": "...",
-  "eau_incendie_moyens": "...",
-  "ventilation": "...",
-  "installations_electriques": "...",
-  "chauffage": "...",
-  "exploitation_entretien": "..."
-}`
-}
-
 // Fallback quand aucun arrêté n'a pu être trouvé/récupéré
-function buildFallbackResponse(rubrique: { code: string, regime: string, intitule: string }, mode: string): Record<string, unknown> {
+function buildFallbackResponse(rubrique: { code: string, regime: string, intitule: string }): Record<string, unknown> {
   const msg = rubrique.regime?.toLowerCase().includes('autor')
     ? 'Selon arrete prefectoral'
     : 'Arrete type non trouve - consulter aida.ineris.fr'
 
-  if (mode === 'analyse') {
-    return {
-      reseaux_eau: msg, reseaux_eaux_pluviales: msg, dechets: msg,
-      implantation: msg, accessibilite_site: msg, accessibilite_voie_engin: msg,
-      accessibilite_echelles: msg, accessibilite_issues: msg, locaux_risques: msg,
-      desenfumage: msg, eau_incendie_retention: msg, eau_incendie_isolement: msg,
-      eau_incendie_moyens: msg, ventilation: msg, installations_electriques: msg,
-      chauffage: msg, exploitation_entretien: msg
-    }
-  }
-
   return {
     [rubrique.code]: {
       [rubrique.regime]: {
+        reseaux: { 'Eaux pluviales': msg },
+        dechets: { 'Gestion des dechets': msg },
         implantation: { 'Distances limites': msg, 'Distances inter-batiments': msg },
-        accessibilite: { 'Acces au site': msg, 'Voie engin': msg, 'Echelles': msg, 'Issues et quais': msg },
+        accessibilite: { 'Acces au site': msg, 'Voie engin': msg, 'Echelles': msg, 'Issues et quais': msg, 'Locaux a risques': msg },
         construction: { 'Structure': msg, 'Toiture': msg, 'Facades': msg, 'Portes et fermetures': msg },
         cantonnement: { 'Surface cellules': msg, 'Murs separatifs': msg, 'Ecrans de cantonnement': msg },
         desenfumage: { 'Surface utile': msg, 'Commandes': msg, 'Exutoires': msg },
         stockage: { 'Hauteur stockage': msg, 'Allees de circulation': msg, 'Distance aux parois': msg },
         lutte_incendie: { 'Extincteurs': msg, 'RIA': msg, 'Sprinkler': msg, 'Colonnes seches': msg },
         eau_incendie: { 'Besoins en eau': msg, 'Retention eaux extinction': msg },
+        ventilation: { 'Dispositifs de ventilation': msg },
         elec: { 'Conformite': msg, "Coupure d'urgence": msg },
-        chauffage: { 'Type autorise': msg, 'Implantation': msg }
+        chauffage: { 'Type autorise': msg, 'Implantation': msg },
+        exploitation: { "Consignes d'exploitation": msg, 'Verifications periodiques': msg }
       }
     }
   }

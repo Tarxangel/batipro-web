@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administration — Batipro Concept</title>
+  <link rel="stylesheet" href="/src/styles/home.css">
+  <link rel="stylesheet" href="/src/admin/admin.css">
+</head>
+<body class="admin-body">
+  <nav class="nav">
+    <div class="nav-content">
+      <div class="nav-logo">Batipro Concept — Admin</div>
+      <div class="nav-actions">
+        <a href="/" class="nav-link">← Accueil</a>
+        <button id="btn-logout" class="nav-link nav-logout">Déconnexion</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="admin-main">
+    <!-- Onglets -->
+    <div class="admin-tabs">
+      <button type="button" class="admin-tab active" data-tab="users">Comptes utilisateurs</button>
+      <button type="button" class="admin-tab" data-tab="feedback">Tickets SAV <span id="tab-feedback-count" class="tab-badge" hidden></span></button>
+    </div>
+
+    <!-- Onglet : Comptes -->
+    <section id="tab-content-users" class="admin-tab-content active">
+      <header class="admin-header">
+        <h1>Gestion des comptes utilisateurs</h1>
+        <button id="btn-new-user" class="btn-primary">+ Nouveau compte</button>
+      </header>
+
+      <div id="users-list" class="users-list">
+        <div class="empty-state">Chargement…</div>
+      </div>
+    </section>
+
+    <!-- Onglet : Tickets SAV -->
+    <section id="tab-content-feedback" class="admin-tab-content">
+      <header class="admin-header">
+        <h1>Tickets SAV</h1>
+        <div class="feedback-filters">
+          <button type="button" class="filter-btn active" data-filter="all">Tous</button>
+          <button type="button" class="filter-btn" data-filter="new">Nouveaux</button>
+          <button type="button" class="filter-btn" data-filter="in_progress">En cours</button>
+          <button type="button" class="filter-btn" data-filter="resolved">Résolus</button>
+        </div>
+      </header>
+
+      <div id="feedback-list" class="feedback-list">
+        <div class="empty-state">Chargement…</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal détail ticket SAV -->
+  <div id="feedback-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <header class="modal-header">
+        <h2>Détail du ticket</h2>
+        <button id="feedback-close" class="modal-close">×</button>
+      </header>
+      <div class="user-form">
+        <div class="feedback-detail">
+          <div class="feedback-detail-row">
+            <span class="label">De</span>
+            <span id="fd-user"></span>
+          </div>
+          <div class="feedback-detail-row">
+            <span class="label">Email</span>
+            <span id="fd-email"></span>
+          </div>
+          <div class="feedback-detail-row">
+            <span class="label">Page</span>
+            <code id="fd-page"></code>
+          </div>
+          <div class="feedback-detail-row">
+            <span class="label">Date</span>
+            <span id="fd-date"></span>
+          </div>
+          <div class="feedback-detail-row">
+            <span class="label">User-Agent</span>
+            <span id="fd-ua" class="ua"></span>
+          </div>
+        </div>
+
+        <label class="form-field">
+          <span>Message</span>
+          <div id="fd-message" class="feedback-message"></div>
+        </label>
+
+        <label class="form-field">
+          <span>Statut</span>
+          <select id="fd-status">
+            <option value="new">Nouveau</option>
+            <option value="in_progress">En cours</option>
+            <option value="resolved">Résolu</option>
+          </select>
+        </label>
+
+        <label class="form-field">
+          <span>Notes internes</span>
+          <textarea id="fd-notes" rows="3" placeholder="Notes pour le suivi…"></textarea>
+        </label>
+
+        <div id="fd-error" class="form-error" hidden></div>
+
+        <footer class="form-footer">
+          <button type="button" id="fd-cancel" class="btn-ghost">Fermer</button>
+          <button type="button" id="fd-save" class="btn-primary">Enregistrer</button>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal création / édition -->
+  <div id="user-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <header class="modal-header">
+        <h2 id="modal-title">Nouveau compte</h2>
+        <button id="modal-close" class="modal-close">×</button>
+      </header>
+
+      <form id="user-form" class="user-form">
+        <input type="hidden" id="form-user-id">
+
+        <div class="form-row">
+          <label class="form-field">
+            <span>Nom complet</span>
+            <input type="text" id="form-name" required>
+          </label>
+          <label class="form-field">
+            <span>Email</span>
+            <input type="email" id="form-email" required>
+          </label>
+        </div>
+
+        <div class="form-row" id="password-row">
+          <label class="form-field">
+            <span>Mot de passe (min. 8 caractères)</span>
+            <input type="password" id="form-password" minlength="8">
+          </label>
+        </div>
+
+        <label class="form-checkbox-row">
+          <input type="checkbox" id="form-is-admin">
+          <span><strong>Administrateur</strong> — accès complet à tous les modules et à la gestion des comptes</span>
+        </label>
+
+        <fieldset class="permissions-grid" id="permissions-grid">
+          <legend>Permissions par module</legend>
+          <!-- Rempli par JS -->
+        </fieldset>
+
+        <div id="form-error" class="form-error" hidden></div>
+
+        <footer class="form-footer">
+          <button type="button" id="form-cancel" class="btn-ghost">Annuler</button>
+          <button type="submit" id="form-submit" class="btn-primary">Enregistrer</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal reset password -->
+  <div id="reset-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-content modal-small">
+      <header class="modal-header">
+        <h2>Réinitialiser le mot de passe</h2>
+        <button id="reset-close" class="modal-close">×</button>
+      </header>
+      <form id="reset-form" class="user-form">
+        <input type="hidden" id="reset-user-id">
+        <p id="reset-user-label" class="reset-user-label"></p>
+        <label class="form-field">
+          <span>Nouveau mot de passe (min. 8 caractères)</span>
+          <input type="password" id="reset-password" minlength="8" required>
+        </label>
+        <div id="reset-error" class="form-error" hidden></div>
+        <footer class="form-footer">
+          <button type="button" id="reset-cancel" class="btn-ghost">Annuler</button>
+          <button type="submit" class="btn-primary">Réinitialiser</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="/src/admin/main.ts"></script>
+</body>
+</html>

@@ -182,6 +182,17 @@
           <button id="btn-delete-chantier" class="btn-action-danger">Supprimer</button>
         </div>
 
+        <div class="events-section">
+          <div class="events-header">
+            <h3>Historique du chantier <span id="events-count" class="badge">0</span></h3>
+            <button id="btn-add-event" class="btn-action-secondary">+ Ajouter un événement</button>
+          </div>
+          <p class="events-hint">Saisissez factuellement ce qui se passe sur le chantier (livraison, démolition, contrôle, avancement…). Cet historique servira de base au générateur d'articles IA pour rester strictement factuel.</p>
+          <div id="events-timeline" class="events-timeline">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
         <div class="articles-section">
           <h3>Articles <span id="detail-article-count" class="badge">0</span></h3>
           <div id="detail-articles-list">
@@ -193,6 +204,35 @@
     </main>
   </div>
 
+  <!-- Modal: ajout/édition événement chantier -->
+  <div id="event-modal" class="modal-overlay" hidden>
+    <div class="modal-card">
+      <button id="event-modal-close" class="modal-close">&times;</button>
+      <h2 id="event-modal-title">Nouvel événement</h2>
+      <form id="event-form">
+        <input type="hidden" id="event-form-id">
+        <div class="form-group">
+          <label for="event-form-date">Date *</label>
+          <input type="date" id="event-form-date" required>
+        </div>
+        <div class="form-group">
+          <label for="event-form-type">Type / catégorie (optionnel)</label>
+          <input type="text" id="event-form-type" placeholder="Ex: démolition, livraison, contrôle, désamiantage…">
+        </div>
+        <div class="form-group">
+          <label for="event-form-description">Description factuelle *</label>
+          <textarea id="event-form-description" rows="4" required placeholder="Décrivez précisément ce qui s'est passé ce jour-là sur le chantier…"></textarea>
+        </div>
+        <div id="event-form-error" class="modal-error" hidden></div>
+        <div class="modal-actions">
+          <button type="button" id="event-form-cancel" class="btn-secondary">Annuler</button>
+          <button type="submit" id="event-form-submit" class="btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script type="module" src="/src/chantiers/main.ts"></script>
+  <script type="module" src="/src/widgets/user-menu.ts"></script>
 </body>
 </html>

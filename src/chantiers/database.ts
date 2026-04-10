@@ -1,7 +1,7 @@
 // Module base de données pour les chantiers
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { getAuthClient } from '../auth/client';
 
 // Types
 export interface Chantier {
@@ -25,17 +25,9 @@ export interface Chantier {
 
 export type NewChantier = Omit<Chantier, 'id' | 'created_at' | 'updated_at' | 'status'>;
 
-// Client Supabase singleton
-let supabaseClient: SupabaseClient | null = null;
-
+// Client Supabase partagé (auth-aware: envoie le JWT utilisateur quand connecté)
 function getSupabaseClient(): SupabaseClient {
-  if (!supabaseClient) {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      throw new Error('Configuration Supabase manquante');
-    }
-    supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  }
-  return supabaseClient;
+  return getAuthClient();
 }
 
 // Créer un chantier

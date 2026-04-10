@@ -1439,16 +1439,20 @@ const ICPE_DATA = {
 };
 
 const PRESCRIPTION_CATEGORIES = [
+  { id: 'reseaux', label: 'Reseaux', items: ['Eaux pluviales'] },
+  { id: 'dechets', label: 'Dechets', items: ['Gestion des dechets'] },
   { id: 'implantation', label: 'Implantation', items: ['Distances limites', 'Distances inter-batiments'] },
-  { id: 'accessibilite', label: 'Accessibilite', items: ['Acces au site', 'Voie engin', 'Echelles', 'Issues et quais'] },
+  { id: 'accessibilite', label: 'Accessibilite', items: ['Acces au site', 'Voie engin', 'Echelles', 'Issues et quais', 'Locaux a risques'] },
   { id: 'construction', label: 'Construction', items: ['Structure', 'Toiture', 'Facades', 'Portes et fermetures'] },
   { id: 'cantonnement', label: 'Cantonnement', items: ['Surface cellules', 'Murs separatifs', 'Ecrans de cantonnement'] },
   { id: 'desenfumage', label: 'Desenfumage', items: ['Surface utile', 'Commandes', 'Exutoires'] },
   { id: 'stockage', label: 'Stockage', items: ['Hauteur stockage', 'Allees de circulation', 'Distance aux parois'] },
   { id: 'lutte_incendie', label: 'Lutte incendie', items: ['Extincteurs', 'RIA', 'Sprinkler', 'Colonnes seches'] },
-  { id: 'eau_incendie', label: 'Eau incendie', items: ['Besoins en eau', 'Retention eaux extinction'] },
+  { id: 'eau_incendie', label: "Gestion de l'eau d'incendie", items: ['Besoins en eau', 'Retention eaux extinction'] },
+  { id: 'ventilation', label: 'Ventilation', items: ['Dispositifs de ventilation'] },
   { id: 'elec', label: 'Installations electriques', items: ['Conformite', 'Coupure d\'urgence'] },
-  { id: 'chauffage', label: 'Chauffage', items: ['Type autorise', 'Implantation'] }
+  { id: 'chauffage', label: 'Chauffage', items: ['Type autorise', 'Implantation'] },
+  { id: 'exploitation', label: 'Exploitation - Entretien', items: ['Consignes d\'exploitation', 'Verifications periodiques'] }
 ];
 
 const AIDA_URLS = {
@@ -2631,5 +2635,6 @@ function formatNumber(n) {
 }
 
 </script>
+  <script type="module" src="/src/widgets/user-menu.ts"></script>
 </body>
 </html>
