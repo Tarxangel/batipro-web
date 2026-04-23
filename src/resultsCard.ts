@@ -1,5 +1,6 @@
 import type { AnalysePLUResponse } from './api';
-import { deleteAnalysis } from './database';
+import { deleteAnalysis, SavedAnalysis } from './database';
+import { showDetailedTableModal } from './detailedTable';
 
 let currentCard: HTMLElement | null = null;
 
@@ -82,6 +83,11 @@ export function showResultsCard(data: AnalysePLUResponse): void {
         <h4>📋 Analyse Urbanistique</h4>
         <div class="analyse-text">${formatAnalyseText(analyse.texte)}</div>
       </div>
+      ${data.id ? `
+        <button class="btn-detailed-table" title="Générer le tableau réglementaire détaillé (14 rubriques)">
+          📋 Générer tableau détaillé
+        </button>
+      ` : ''}
       ${deleteButtonHtml}
       <div class="card-actions">
         <a href="${parcelle.url_geoportail}" target="_blank" class="btn-link">
@@ -133,6 +139,14 @@ export function showResultsCard(data: AnalysePLUResponse): void {
   shareBtn?.addEventListener('click', () => {
     handleShare(data);
   });
+
+  // Ajouter handler du tableau détaillé (seulement si l'analyse est sauvegardée)
+  if (data.id) {
+    const detailedBtn = card.querySelector('.btn-detailed-table') as HTMLButtonElement;
+    detailedBtn?.addEventListener('click', () => {
+      showDetailedTableModal(data as SavedAnalysis);
+    });
+  }
 
   // Animation d'entrée
   setTimeout(() => {

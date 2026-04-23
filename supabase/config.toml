@@ -23,3 +23,21 @@ verify_jwt = false
 
 [functions.chat-article]
 verify_jwt = false
+
+[functions.analyze-plu]
+verify_jwt = false
+
+[functions.analyze-plu-detailed]
+verify_jwt = false
+
+[functions.generate-linkedin-post]
+verify_jwt = false
+
+[functions.summarize-history]
+verify_jwt = false
+
+[functions.icpe-prescriptions]
+verify_jwt = false
+
+[functions.notify-review]
+verify_jwt = false

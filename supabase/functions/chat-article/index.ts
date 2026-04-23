@@ -31,10 +31,11 @@ const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!
 // - DRAFT (rédaction de l'article final) : modèle pro, plus lent mais qualité
 //   journalistique nettement supérieure
 //
-// Aucun Gemini 3 n'est en GA (avril 2026), tous sont en preview. Le défunt
-// gemini-3-pro-preview a été shutdown le 9 mars 2026 → à surveiller.
-const GEMINI_MODEL_CHAT = 'gemini-3-flash-preview'
-const GEMINI_MODEL_DRAFT = 'gemini-3.1-pro-preview'
+// Les Gemini 3.x sont en preview et peuvent être shutdown sans préavis
+// (gemini-3-pro-preview a été retiré le 9 mars 2026). On reste donc sur les
+// versions 2.5 stables (GA) pour la prod.
+const GEMINI_MODEL_CHAT = 'gemini-2.5-flash'
+const GEMINI_MODEL_DRAFT = 'gemini-2.5-pro'
 
 function geminiUrl(model: string): string {
   return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`

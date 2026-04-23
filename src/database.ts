@@ -1,7 +1,7 @@
 // Module de base de données Supabase pour stocker les analyses PLU
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { AnalysePLUResponse } from './api';
+import type { AnalysePLUResponse, DetailedTable } from './api';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 
 // Interface étendue pour les analyses sauvegardées
@@ -10,6 +10,7 @@ export interface SavedAnalysis extends AnalysePLUResponse {
   data: AnalysePLUResponse['data'] & {
     latitude: number;
     longitude: number;
+    detailed_table?: DetailedTable | null;
   };
 }
 
@@ -30,6 +31,7 @@ interface AnalysesPLURow {
   analyse_source: string;
   timestamp: string;
   created_at: string;
+  detailed_table: DetailedTable | null;
 }
 
 // Client Supabase singleton
@@ -71,7 +73,7 @@ export async function saveAnalysis(
     const supabase = getSupabaseClient();
 
     // Convertir le format API vers le format DB
-    const dbRow: Omit<AnalysesPLURow, 'id' | 'created_at'> = {
+    const dbRow: Omit<AnalysesPLURow, 'id' | 'created_at' | 'detailed_table'> = {
       latitude: analysis.data.latitude!,
       longitude: analysis.data.longitude!,
       parcelle_commune: analysis.data.parcelle.commune,
@@ -181,7 +183,8 @@ function convertDbRowToAnalysis(row: AnalysesPLURow): SavedAnalysis {
         texte: row.analyse_texte,
         source: row.analyse_source
       },
-      timestamp: row.timestamp
+      timestamp: row.timestamp,
+      detailed_table: row.detailed_table
     }
   };
 }
