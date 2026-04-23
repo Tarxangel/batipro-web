@@ -27,15 +27,14 @@ const corsHeaders = {
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!
 
 // Hybride deux-modèles :
-// - CHAT (conversation, questions, allers-retours) : modèle flash, rapide et léger
-// - DRAFT (rédaction de l'article final) : modèle pro, plus lent mais qualité
+// - CHAT (conversation, questions, allers-retours) : flash preview, rapide et léger
+// - DRAFT (rédaction de l'article final) : pro preview, plus lent mais qualité
 //   journalistique nettement supérieure
 //
-// Les Gemini 3.x sont en preview et peuvent être shutdown sans préavis
-// (gemini-3-pro-preview a été retiré le 9 mars 2026). On reste donc sur les
-// versions 2.5 stables (GA) pour la prod.
-const GEMINI_MODEL_CHAT = 'gemini-2.5-flash'
-const GEMINI_MODEL_DRAFT = 'gemini-2.5-pro'
+// Attention : ces Gemini 3.x sont en preview. gemini-3-pro-preview a été
+// retiré le 9 mars 2026 → à surveiller. En cas de shutdown, fallback 2.5.
+const GEMINI_MODEL_CHAT = 'gemini-3-flash-preview'
+const GEMINI_MODEL_DRAFT = 'gemini-3.1-pro-preview'
 
 function geminiUrl(model: string): string {
   return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`

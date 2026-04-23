@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!
-const GEMINI_MODEL = 'gemini-2.5-flash'
+const GEMINI_MODEL = 'gemini-3-flash-preview'
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const INLINE_MAX_BYTES = 15_000_000 // 15 MB - au dela on utilise Files API
 const PDF_EXTRACTOR_URL = Deno.env.get('PDF_EXTRACTOR_URL') || '' // URL du micro-service d'extraction PDF
@@ -453,7 +453,7 @@ serve(async (req) => {
       console.log('📜 Analyse RNU via Gemini...')
       const prompt = buildRNUPrompt(parcelInfo)
       analyseTexte = await callGeminiText(prompt)
-      sourceAnalyse = 'Google Gemini 2.5 Flash'
+      sourceAnalyse = 'Google Gemini 3 Flash'
     } else {
       // ─── PLU : telecharger et analyser le reglement PDF ───
       const props = zoneUrba.features[0].properties
@@ -480,24 +480,24 @@ serve(async (req) => {
           const zoneText = await extractZoneFromPDF(pdfUrl, parcelInfo.zone_code, props.nomfic)
           const textPrompt = buildPLUTextPrompt(parcelInfo.commune, parcelInfo.zonage, parcelInfo.zone_code, zoneText)
           analyseTexte = await callGeminiText(textPrompt)
-          sourceAnalyse = 'Google Gemini 2.5 Flash (extraction zone)'
+          sourceAnalyse = 'Google Gemini 3 Flash (extraction zone)'
         } else {
           analyseTexte = await callGeminiWithInlinePDF(pdfBuffer, prompt)
-          sourceAnalyse = 'Google Gemini 2.5 Flash'
+          sourceAnalyse = 'Google Gemini 3 Flash'
         }
       } else if (pdfSize > 0 && pdfSize < 50_000_000) {
         // PDF moyen (15-50 MB) : stream vers Files API
         console.log('☁️ Stream via Gemini Files API...')
         const fileUri = await uploadToGeminiFiles(pdfUrl, pdfSize)
         analyseTexte = await callGeminiWithFileURI(fileUri, prompt)
-        sourceAnalyse = 'Google Gemini 2.5 Flash'
+        sourceAnalyse = 'Google Gemini 3 Flash'
       } else {
         // Tres gros PDF (> 50 MB) ou taille inconnue : extraction texte de la zone via micro-service
         console.log(`📑 PDF volumineux ou taille inconnue, extraction zone ${parcelInfo.zone_code}...`)
         const zoneText = await extractZoneFromPDF(pdfUrl, parcelInfo.zone_code, props.nomfic)
         const textPrompt = buildPLUTextPrompt(parcelInfo.commune, parcelInfo.zonage, parcelInfo.zone_code, zoneText)
         analyseTexte = await callGeminiText(textPrompt)
-        sourceAnalyse = 'Google Gemini 2.5 Flash (extraction zone)'
+        sourceAnalyse = 'Google Gemini 3 Flash (extraction zone)'
       }
     }
 

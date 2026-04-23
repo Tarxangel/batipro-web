@@ -14,7 +14,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.90.1"
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!
-const GEMINI_MODEL = 'gemini-2.5-flash'
+const GEMINI_MODEL = 'gemini-3.1-pro-preview'
 const PDF_EXTRACTOR_URL = Deno.env.get('PDF_EXTRACTOR_URL') || ''
 const INLINE_MAX_BYTES = 15_000_000 // 15 MB - au dela on passe par l'extracteur texte
 
@@ -144,7 +144,7 @@ async function callGeminiWithText(prompt: string): Promise<string> {
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 16000,
+        maxOutputTokens: 32000,
         responseMimeType: 'application/json',
       },
     }),
@@ -171,7 +171,7 @@ async function callGeminiWithPDF(pdfBuffer: Uint8Array, prompt: string): Promise
       }],
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 16000,
+        maxOutputTokens: 32000,
         responseMimeType: 'application/json',
       },
     }),
