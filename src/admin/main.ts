@@ -13,6 +13,7 @@ import {
 } from './users-api';
 import { MODULES, summarizePermissions } from './permissions-config';
 import { initFeedbackTab } from './feedback';
+import { initPromptsTab } from './prompts';
 
 // État
 let users: ManagedUser[] = [];
@@ -62,6 +63,7 @@ const resetCancel = $<HTMLButtonElement>('reset-cancel');
   buildPermissionsGrid();
   await loadUsers();
   await initFeedbackTab();
+  await initPromptsTab();
   setupTabs();
 
   btnNewUser.addEventListener('click', openCreateModal);

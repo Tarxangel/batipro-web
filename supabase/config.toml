@@ -41,3 +41,9 @@ verify_jwt = false
 
 [functions.notify-review]
 verify_jwt = false
+
+[functions.download-cadastre]
+verify_jwt = false
+
+[functions.create-wp-draft]
+verify_jwt = false

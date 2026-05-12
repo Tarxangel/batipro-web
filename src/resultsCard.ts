@@ -1,6 +1,21 @@
 import type { AnalysePLUResponse } from './api';
 import { deleteAnalysis, SavedAnalysis } from './database';
 import { showDetailedTableModal } from './detailedTable';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
+
+// Extrait { insee, prefix, section } depuis l'URL Géoportail Urbanisme.
+// Format URL : https://www.geoportail-urbanisme.gouv.fr/map/parcel-info/{dep}_{com}_{com_abs}_{code_arr}_{section}_{numero}/
+// L'INSEE est dep+com (concat). com_abs sert de "prefix" pour cadastre.data.gouv.fr.
+function parseCadastreCodes(urlGeoportail: string): { insee: string; prefix: string; section: string } | null {
+  const m = urlGeoportail.match(/\/parcel-info\/([^/]+)/);
+  if (!m) return null;
+  const parts = m[1].split('_');
+  if (parts.length < 6) return null;
+  const [dep, com, com_abs, _code_arr, section] = parts;
+  const insee = dep + com;
+  const prefix = com_abs && com_abs.length === 3 ? com_abs : '000';
+  return { insee, prefix, section };
+}
 
 let currentCard: HTMLElement | null = null;
 
@@ -88,6 +103,9 @@ export function showResultsCard(data: AnalysePLUResponse): void {
           📋 Générer tableau détaillé
         </button>
       ` : ''}
+      <button class="btn-download-cadastre" title="Télécharge toutes les feuilles DXF de la section pour import dans Allplan">
+        📥 Télécharger cadastre DXF
+      </button>
       ${deleteButtonHtml}
       <div class="card-actions">
         <a href="${parcelle.url_geoportail}" target="_blank" class="btn-link">
@@ -147,6 +165,10 @@ export function showResultsCard(data: AnalysePLUResponse): void {
       showDetailedTableModal(data as SavedAnalysis);
     });
   }
+
+  // Ajouter handler du téléchargement cadastre DXF
+  const cadastreBtn = card.querySelector('.btn-download-cadastre') as HTMLButtonElement;
+  cadastreBtn?.addEventListener('click', () => handleDownloadCadastre(data, cadastreBtn));
 
   // Animation d'entrée
   setTimeout(() => {
@@ -271,6 +293,53 @@ ${analyse.texte}
       setTimeout(() => shareDialog.remove(), 300);
     }
   });
+}
+
+async function handleDownloadCadastre(data: AnalysePLUResponse, btn: HTMLButtonElement): Promise<void> {
+  const codes = parseCadastreCodes(data.data.parcelle.url_geoportail);
+  if (!codes) {
+    alert('Impossible d\'identifier le code parcelle depuis l\'analyse. Téléchargement impossible.');
+    return;
+  }
+
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Téléchargement…';
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/download-cadastre`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify(codes),
+    });
+
+    if (!response.ok) {
+      const errJson = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+      throw new Error(errJson.error || `Erreur ${response.status}`);
+    }
+
+    const feuillesCount = response.headers.get('X-Feuilles-Count') || '?';
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cadastre-${codes.insee}-${codes.section}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    btn.textContent = `✅ ${feuillesCount} feuille(s)`;
+    setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 2000);
+  } catch (err) {
+    console.error('Erreur téléchargement cadastre:', err);
+    alert(`Erreur : ${(err as Error).message}`);
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
 }
 
 export function showErrorCard(error: string): void {

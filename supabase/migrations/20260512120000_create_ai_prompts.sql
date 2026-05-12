@@ -1,293 +1,59 @@
-// Chat IA pour générer un article de chantier de manière factuelle.
-//
-// Charge automatiquement les métadonnées du chantier + l'historique
-// d'événements (chantier_events) depuis la base, et les injecte comme
-// SOURCE DE VÉRITÉ dans le system prompt envoyé à Gemini.
-//
-// Le modèle est strictement contraint à ne s'appuyer QUE sur :
-//   a) ce qui est visible sur la photo fournie
-//   b) les événements de l'historique
-//   c) ce que l'utilisateur dit explicitement dans la conversation
-//
-// L'IA pose 1-2 questions par tour, et propose un brouillon (draft)
-// quand elle estime avoir assez d'éléments factuels.
-//
-// Format de réponse de l'IA (forcé via responseMimeType JSON) :
-//   { "message": "...", "draft": null | { "title": "...", "content_html": "..." } }
+-- ========================================================
+-- Table ai_prompts : prompts IA éditables depuis l'admin
+-- ========================================================
+-- Stocke les system prompts utilisés par les Edge Functions
+-- (chat-article, generate-linkedin-post pour l'instant).
+-- Les placeholders {{NOM}} sont remplacés au runtime par la
+-- fonction Edge avec les valeurs dynamiques.
+-- ========================================================
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.90.1"
+CREATE TABLE ai_prompts (
+  key         TEXT PRIMARY KEY,
+  label       TEXT NOT NULL,
+  description TEXT,
+  content     TEXT NOT NULL,
+  placeholders TEXT[] NOT NULL DEFAULT '{}',
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by  UUID REFERENCES auth.users(id) ON DELETE SET NULL
+);
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+CREATE TRIGGER ai_prompts_set_updated_at
+BEFORE UPDATE ON ai_prompts
+FOR EACH ROW
+EXECUTE FUNCTION trigger_set_updated_at();
 
-const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!
+-- ── Row Level Security ────────────────────────────────────
 
-// Hybride deux-modèles :
-// - CHAT (conversation, questions, allers-retours) : flash preview, rapide et léger
-// - DRAFT (rédaction de l'article final) : pro preview, plus lent mais qualité
-//   journalistique nettement supérieure
-//
-// Attention : ces Gemini 3.x sont en preview. gemini-3-pro-preview a été
-// retiré le 9 mars 2026 → à surveiller. En cas de shutdown, fallback 2.5.
-const GEMINI_MODEL_CHAT = 'gemini-3-flash-preview'
-const GEMINI_MODEL_DRAFT = 'gemini-3.1-pro-preview'
+ALTER TABLE ai_prompts ENABLE ROW LEVEL SECURITY;
 
-function geminiUrl(model: string): string {
-  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`
-}
+-- Lecture : tout authentifié (les Edge Functions utilisent le service role
+-- key qui bypass RLS de toute façon ; cette policy permet aussi à l'admin UI
+-- de lire les prompts pour les afficher).
+CREATE POLICY "Authenticated read prompts" ON ai_prompts
+  FOR SELECT TO authenticated
+  USING (true);
 
-// Détecte si le dernier message utilisateur ressemble à une demande de brouillon
-// (filet de sécurité au cas où l'utilisateur tape au lieu de cliquer le bouton).
-const DRAFT_KEYWORDS = /brouillon|r[ée]dige|produis.{0,15}article|fais.{0,15}article|propose.{0,15}article|[ée]cris.{0,15}article|donne[- ]moi.{0,20}article/i
+-- Écriture : admins uniquement.
+CREATE POLICY "Admins update prompts" ON ai_prompts
+  FOR UPDATE TO authenticated
+  USING (is_current_user_admin())
+  WITH CHECK (is_current_user_admin());
 
-function shouldUseDraftModel(mode: string | undefined, messages: ChatMessage[]): boolean {
-  if (mode === 'draft') return true
-  const lastUser = [...messages].reverse().find(m => m.role === 'user')?.content || ''
-  return DRAFT_KEYWORDS.test(lastUser)
-}
+CREATE POLICY "Admins insert prompts" ON ai_prompts
+  FOR INSERT TO authenticated
+  WITH CHECK (is_current_user_admin());
 
-interface ChatMessage {
-  role: 'user' | 'assistant'
-  content: string
-}
+-- Pas de DELETE policy : on ne supprime pas les prompts depuis l'app
+-- (gestion via migrations uniquement).
 
-interface RequestBody {
-  chantier_id: string
-  photo_base64?: string  // sans le prefix data:image/...;base64,
-  mime_type?: string     // ex: 'image/jpeg'
-  messages: ChatMessage[]
-  mode?: 'chat' | 'draft' // 'draft' force le modèle pro pour la rédaction
-}
+-- ── Seed : prompts actuels ────────────────────────────────
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-  })
-}
-
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
-
-  if (!GEMINI_API_KEY) {
-    return jsonResponse({ error: 'GEMINI_API_KEY non configuré' }, 500)
-  }
-
-  // ── Authentification de l'appelant ──────────────────────
-  const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-  const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
-  const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-
-  const authHeader = req.headers.get('Authorization')
-  if (!authHeader) return jsonResponse({ error: 'Token manquant' }, 401)
-  const token = authHeader.replace(/^Bearer\s+/i, '')
-
-  const userClient = createClient(SUPABASE_URL, ANON_KEY, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false, autoRefreshToken: false }
-  })
-  const { data: userData, error: userErr } = await userClient.auth.getUser()
-  if (userErr || !userData?.user) {
-    return jsonResponse({ error: 'Session invalide' }, 401)
-  }
-
-  // ── Parse de la requête ─────────────────────────────────
-  let body: RequestBody
-  try {
-    body = await req.json()
-  } catch {
-    return jsonResponse({ error: 'Corps JSON invalide' }, 400)
-  }
-
-  if (!body.chantier_id) {
-    return jsonResponse({ error: 'chantier_id requis' }, 400)
-  }
-  if (!Array.isArray(body.messages)) {
-    return jsonResponse({ error: 'messages doit être un tableau' }, 400)
-  }
-
-  // ── Charge le contexte chantier (service role pour bypass RLS) ──
-  const adminClient = createClient(SUPABASE_URL, SERVICE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false }
-  })
-
-  const { data: chantier, error: chantierErr } = await adminClient
-    .from('chantiers')
-    .select('*')
-    .eq('id', body.chantier_id)
-    .single()
-
-  if (chantierErr || !chantier) {
-    return jsonResponse({ error: 'Chantier introuvable' }, 404)
-  }
-
-  const { data: events } = await adminClient
-    .from('chantier_events')
-    .select('event_date, event_type, description')
-    .eq('chantier_id', body.chantier_id)
-    .order('event_date', { ascending: true })
-
-  // ── Construction du system prompt ───────────────────────
-  const chantierBlock = formatChantierBlock(chantier)
-  const eventsBlock = formatEventsBlock(events || [])
-
-  // Charge le template depuis ai_prompts (éditable depuis l'admin),
-  // fallback sur le prompt en dur si la DB ne répond pas.
-  const { data: promptRow } = await adminClient
-    .from('ai_prompts')
-    .select('content')
-    .eq('key', 'chat-article')
-    .single()
-
-  const template = promptRow?.content || FALLBACK_PROMPT_TEMPLATE
-  const systemInstruction = template
-    .replaceAll('{{CHANTIER}}', chantierBlock)
-    .replaceAll('{{EVENTS}}', eventsBlock)
-
-  // ── Construction de l'historique pour Gemini ────────────
-  // Gemini utilise role: "user" | "model" et "parts": [{text}, {inlineData}]
-  // La photo est attachée au PREMIER tour utilisateur uniquement.
-  const contents: Array<Record<string, unknown>> = []
-
-  if (body.messages.length === 0) {
-    // Premier appel : on demande à l'IA d'amorcer la conversation
-    // en regardant la photo et l'historique.
-    const firstUserParts: Array<Record<string, unknown>> = [
-      { text: "Voici la photo du chantier. Démarre la conversation : décris factuellement ce que tu vois et pose 1 ou 2 questions ciblées pour comprendre ce qui s'est passé." }
-    ]
-    if (body.photo_base64) {
-      firstUserParts.push({
-        inlineData: {
-          mimeType: body.mime_type || 'image/jpeg',
-          data: body.photo_base64
-        }
-      })
-    }
-    contents.push({ role: 'user', parts: firstUserParts })
-  } else {
-    // Conversation en cours : on rebuild l'historique en attachant la photo
-    // au tout premier tour utilisateur (pour que Gemini garde le contexte visuel)
-    let photoAttached = false
-    for (const msg of body.messages) {
-      const parts: Array<Record<string, unknown>> = [{ text: msg.content }]
-      if (msg.role === 'user' && !photoAttached && body.photo_base64) {
-        parts.push({
-          inlineData: {
-            mimeType: body.mime_type || 'image/jpeg',
-            data: body.photo_base64
-          }
-        })
-        photoAttached = true
-      }
-      contents.push({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts
-      })
-    }
-  }
-
-  // ── Sélection du modèle (hybride flash/pro) ─────────────
-  const useDraft = shouldUseDraftModel(body.mode, body.messages)
-  const model = useDraft ? GEMINI_MODEL_DRAFT : GEMINI_MODEL_CHAT
-  console.log(`chat-article: using model ${model} (mode=${body.mode || 'auto'}, draft=${useDraft})`)
-
-  // En mode draft, on ajoute un dernier message système-utilisateur pour
-  // forcer le modèle à produire un brouillon complet immédiatement, sans
-  // re-poser de questions préalables.
-  if (useDraft) {
-    contents.push({
-      role: 'user',
-      parts: [{
-        text: '[INSTRUCTION INTERNE — NE PAS RÉPÉTER] Produis MAINTENANT le brouillon complet d\'article (300+ mots, 3-5 paragraphes, ton journalistique BTP, RÈGLES #1 à #5 strictes). Aucune balise [à confirmer] dans le corps. Si des infos manquent, écris l\'article sans les évoquer et liste les questions de complément dans le champ "message" du JSON.'
-      }]
-    })
-  }
-
-  // ── Appel Gemini ────────────────────────────────────────
-  const geminiResponse = await fetch(geminiUrl(model), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemInstruction }] },
-      contents,
-      generationConfig: {
-        temperature: useDraft ? 0.55 : 0.4, // chat un peu plus stable, draft plus stylistique
-        topP: 0.9,
-        maxOutputTokens: 8000,
-        responseMimeType: 'application/json',
-      }
-    })
-  })
-
-  if (!geminiResponse.ok) {
-    const errText = await geminiResponse.text().catch(() => '')
-    console.error('Gemini error:', geminiResponse.status, errText)
-    return jsonResponse({ error: `Erreur Gemini ${geminiResponse.status}` }, 502)
-  }
-
-  const result = await geminiResponse.json()
-  if (result.error) {
-    return jsonResponse({ error: result.error.message }, 502)
-  }
-
-  const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text
-  if (!rawText) {
-    return jsonResponse({ error: 'Réponse Gemini vide' }, 502)
-  }
-
-  // Parse le JSON renvoyé par Gemini (forcé via responseMimeType)
-  let parsed: { message?: string; draft?: { title: string; content_html: string } | null }
-  try {
-    parsed = JSON.parse(rawText)
-  } catch {
-    // Fallback : si le parse échoue, on retourne le texte brut comme message
-    return jsonResponse({ message: rawText, draft: null })
-  }
-
-  return jsonResponse({
-    message: parsed.message || '',
-    draft: parsed.draft || null,
-  })
-})
-
-// ─── HELPERS ────────────────────────────────────────────
-
-function formatChantierBlock(c: Record<string, unknown>): string {
-  const lines = [
-    `- Nom : ${c.name}`,
-    `- Client : ${c.client_name || '(non précisé)'}`,
-    `- Secteur : ${c.client_sector || '(non précisé)'}`,
-    `- Type de projet : ${c.project_type || '(non précisé)'}`,
-    `- Localisation : ${c.city}${c.department ? ` (${c.department})` : ''}${c.address ? ' — ' + c.address : ''}`,
-  ]
-  if (c.surface) lines.push(`- Surface : ${c.surface} m²`)
-  if (c.description) lines.push(`- Description du chantier : ${c.description}`)
-  return lines.join('\n')
-}
-
-function formatEventsBlock(events: Array<{ event_date: string; event_type: string | null; description: string }>): string {
-  if (events.length === 0) {
-    return '(Aucun événement enregistré dans l\'historique de ce chantier — appuie-toi uniquement sur la photo et les déclarations explicites de l\'utilisateur.)'
-  }
-  return events.map(e => {
-    const date = new Date(e.event_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
-    const type = e.event_type ? ` [${e.event_type}]` : ''
-    return `- ${date}${type} : ${e.description}`
-  }).join('\n')
-}
-
-// Fallback utilisé uniquement si la table ai_prompts ne répond pas
-// (par sécurité — en pratique le prompt est édité depuis l'admin et stocké en DB).
-// Le contenu est strictement le même que le seed initial de la migration
-// 20260512120000_create_ai_prompts.sql. Si tu modifies ici, modifie aussi le seed
-// (ou laisse-toi le luxe d'oublier ce fallback : la DB est la source de vérité).
-const FALLBACK_PROMPT_TEMPLATE = `Tu es un journaliste BTP chevronné qui rédige pour la presse spécialisée bâtiment / industrie. Ton job : produire un article PUBLIABLE EN L'ÉTAT sur l'OPÉRATION en cours sur un chantier, à partir de ce que te raconte l'utilisateur dans la conversation, complété par l'HISTORIQUE FACTUEL du chantier ci-dessous. La photo sert de support visuel et de contexte, PAS de sujet d'article.
+INSERT INTO ai_prompts (key, label, description, placeholders, content) VALUES
+('chat-article',
+ 'Chat IA — Génération d''article chantier',
+ 'System prompt envoyé à Gemini pour la conversation de rédaction d''article BTP. Les placeholders sont remplacés au runtime par la fiche chantier et l''historique d''événements.',
+ ARRAY['CHANTIER', 'EVENTS'],
+ $prompt$Tu es un journaliste BTP chevronné qui rédige pour la presse spécialisée bâtiment / industrie. Ton job : produire un article PUBLIABLE EN L'ÉTAT sur l'OPÉRATION en cours sur un chantier, à partir de ce que te raconte l'utilisateur dans la conversation, complété par l'HISTORIQUE FACTUEL du chantier ci-dessous. La photo sert de support visuel et de contexte, PAS de sujet d'article.
 
 ═══════════════════════════════════════════════════════════
 RÈGLE #1 — ZÉRO INVENTION
@@ -446,4 +212,34 @@ RAPPELS FINAUX :
 - Pas de description de la photo dans le corps.
 - Aucune formule creuse de la liste noire.
 - Aucune balise "[à confirmer]" dans le corps.
-- Le sujet est l'OPÉRATION en cours, pas le projet en général.`
+- Le sujet est l'OPÉRATION en cours, pas le projet en général.$prompt$),
+
+('linkedin-post',
+ 'Post LinkedIn — depuis article publié',
+ 'Prompt qui transforme un article BTP publié en post LinkedIn court et impactant. Placeholders remplacés au runtime.',
+ ARRAY['TITLE', 'CONTENT', 'ARTICLE_URL'],
+ $prompt$Tu rédiges un post LinkedIn pour Batipro Concept (bâtiments industriels & logistiques, Bourgogne-Franche-Comté / Grand Est).
+
+Article publié :
+Titre : {{TITLE}}
+Contenu : {{CONTENT}}
+URL : {{ARTICLE_URL}}
+
+Rédige un post LinkedIn moderne et percutant. Règles strictes :
+
+STYLE :
+- Ton direct, énergique, phrases courtes. Pas de langage corporate creux.
+- INTERDIT : "Chez Batipro Concept, nous sommes fiers/heureux de...", "nous avons le plaisir", "nous sommes ravis". Ces formulations sont ringardes.
+- Privilégie les faits concrets : chiffres, m², tonnes, défis techniques résolus.
+- Utilise des sauts de ligne pour aérer (style LinkedIn moderne).
+- Le nom Batipro Concept peut apparaître mais de façon naturelle, jamais en ouverture de phrase.
+
+STRUCTURE :
+1. Accroche forte en 1 ligne (fait marquant, question provocante ou stat impactante)
+2. 3-5 phrases courtes qui racontent le projet (contexte, défi, solution)
+3. 1 phrase d'appel à l'action vers l'article
+4. Le lien {{ARTICLE_URL}}
+5. 3-5 hashtags pertinents
+
+Longueur : 120-200 mots.
+Écris uniquement le post, rien d'autre.$prompt$);

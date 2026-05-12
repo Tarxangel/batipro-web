@@ -23,6 +23,7 @@
     <div class="admin-tabs">
       <button type="button" class="admin-tab active" data-tab="users">Comptes utilisateurs</button>
       <button type="button" class="admin-tab" data-tab="feedback">Tickets SAV <span id="tab-feedback-count" class="tab-badge" hidden></span></button>
+      <button type="button" class="admin-tab" data-tab="prompts">Prompts IA</button>
     </div>
 
     <!-- Onglet : Comptes -->
@@ -33,6 +34,18 @@
       </header>
 
       <div id="users-list" class="users-list">
+        <div class="empty-state">Chargement…</div>
+      </div>
+    </section>
+
+    <!-- Onglet : Prompts IA -->
+    <section id="tab-content-prompts" class="admin-tab-content">
+      <header class="admin-header">
+        <h1>Prompts IA</h1>
+        <p class="admin-sub">Édite les prompts envoyés à Gemini. Les placeholders <code>{{NOM}}</code> sont remplacés au runtime par les données dynamiques (chantier, événements, etc.). Les modifications sont actives immédiatement.</p>
+      </header>
+
+      <div id="prompts-list" class="prompts-list">
         <div class="empty-state">Chargement…</div>
       </div>
     </section>

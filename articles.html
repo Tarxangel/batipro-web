@@ -75,11 +75,8 @@
           </span>
         </button>
 
-        <button type="button" id="btn-toggle-fallback" class="btn-link">
-          Mode rapide (génération directe) — pour publier directement sur WordPress
-        </button>
-
-        <!-- Contexte SEO (caché par défaut, révélé via le bouton fallback) -->
+        <!-- Bloc legacy "mode rapide" + champs SEO : conservé caché en cas de rollback,
+             pas atteignable côté UI (le toggle a été retiré). -->
         <div id="fallback-fields" hidden>
         <div class="seo-fields">
           <h3 class="seo-fields-title">Contexte de l'article</h3>

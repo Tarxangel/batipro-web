@@ -7,7 +7,7 @@ import { getChantiers, getChantier, Chantier } from '../chantiers/database';
 import { MAX_IMAGE_SIZE, WP_SITE_URL } from './config';
 import { requirePermission, logout, AppProfile } from '../auth/session';
 import { populateDepartmentSelect } from '../departments';
-import { sendChat, ChatMessage, ChatDraft } from './chat-api';
+import { sendChat, createWpDraft, ChatMessage, ChatDraft } from './chat-api';
 
 // Permissions de l'utilisateur courant (rempli au démarrage)
 let userPerms = {
@@ -81,8 +81,6 @@ const elements = {
   description: document.getElementById('description') as HTMLTextAreaElement,
   btnGenerate: document.getElementById('btn-generate') as HTMLButtonElement,
   btnStartChat: document.getElementById('btn-start-chat') as HTMLButtonElement,
-  btnToggleFallback: document.getElementById('btn-toggle-fallback') as HTMLButtonElement,
-  fallbackFields: document.getElementById('fallback-fields')!,
 
   // Chat
   chatChantierName: document.getElementById('chat-chantier-name')!,
@@ -525,32 +523,55 @@ async function handleChatRequestDraft() {
 async function handleValidateChatDraft() {
   if (!state.chatDraft || !state.selectedChantier) return;
 
-  // Crée un brouillon supabase à partir du chat draft
   try {
     elements.chatValidate.setAttribute('disabled', 'true');
-    elements.chatValidate.textContent = 'Création…';
+    elements.chatValidate.textContent = 'Upload photo + WP…';
 
-    // Sauvegarde compression de la photo en datauri pour l'image_url
+    // 1) Crée le brouillon WordPress (upload photo + post status=draft).
+    //    Si l'étape WP échoue, on bascule en mode dégradé : on stocke quand
+    //    même le brouillon Supabase mais sans wp_post_id (la publication WP
+    //    sera indisponible pour ce draft, l'utilisateur peut régénérer).
+    let wpPostId: number | null = null;
+    let wpMediaId: number | null = null;
+    let imageUrl: string = state.chatPhotoUrl || '';
+    if (state.chatPhotoBase64) {
+      try {
+        const wp = await createWpDraft({
+          photo_base64: state.chatPhotoBase64,
+          mime_type: state.chatPhotoMime || 'image/jpeg',
+          title: state.chatDraft.title,
+          content_html: state.chatDraft.content_html,
+        });
+        wpPostId = wp.wp_post_id;
+        wpMediaId = wp.wp_media_id;
+        imageUrl = wp.image_url;
+      } catch (wpErr) {
+        console.error('createWpDraft a échoué, fallback sans WP:', wpErr);
+        showToast(`Brouillon WP indisponible : ${(wpErr as Error).message}`, 'error');
+      }
+    }
+
+    elements.chatValidate.textContent = 'Création brouillon Supabase…';
+
     const draft = await createDraft({
       title: state.chatDraft.title,
       content: state.chatDraft.content_html,
       description: null,
-      image_url: state.chatPhotoUrl,
-      wp_media_id: null,
-      wp_post_id: null,         // pas de wp_post_id : la publication WP n'est pas dispo via le chat
+      image_url: imageUrl,
+      wp_media_id: wpMediaId,
+      wp_post_id: wpPostId,
       chantier_id: state.selectedChantier.id,
     });
 
     state.currentDraft = draft;
 
-    // Bascule vers l'éditeur
-    if (state.chatPhotoUrl) elements.editorImage.src = state.chatPhotoUrl;
+    if (imageUrl) elements.editorImage.src = imageUrl;
     elements.articleTitle.value = draft.title;
     showStep('editor');
     setQuillContent(draft.content);
     applyPermissionGating();
     loadDrafts();
-    showToast('Brouillon créé depuis le chat', 'success');
+    showToast(wpPostId ? 'Brouillon créé (Supabase + WP)' : 'Brouillon Supabase créé', 'success');
   } catch (err) {
     showToast(`Erreur : ${(err as Error).message}`, 'error');
     elements.chatValidate.removeAttribute('disabled');
@@ -1126,12 +1147,6 @@ async function init() {
 
   // Chat IA
   elements.btnStartChat.addEventListener('click', handleStartChat);
-  elements.btnToggleFallback.addEventListener('click', () => {
-    elements.fallbackFields.hidden = !elements.fallbackFields.hidden;
-    elements.btnToggleFallback.textContent = elements.fallbackFields.hidden
-      ? 'Mode rapide (génération directe) — pour publier directement sur WordPress'
-      : 'Masquer le mode rapide';
-  });
   elements.chatInput.addEventListener('input', () => {
     elements.chatSend.disabled = elements.chatInput.value.trim().length === 0 || state.chatBusy;
   });
