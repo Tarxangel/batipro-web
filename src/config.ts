@@ -1,5 +1,24 @@
 // Configuration de l'application
 
+// ── POC ngrok-free ────────────────────────────────────
+// Bypasse l'interstitiel ngrok en ajoutant le header seulement aux
+// requêtes vers notre propre origin — sinon on casse les CORS d'APIs
+// externes (api-adresse.data.gouv.fr, apicarto.ign.fr, etc.).
+if (typeof window !== 'undefined' && /\.ngrok-free\.app$/.test(window.location.hostname)) {
+  const origFetch = window.fetch.bind(window);
+  const sameOrigin = window.location.origin;
+  window.fetch = (input: RequestInfo | URL, init: RequestInit = {}) => {
+    const url = typeof input === 'string'
+      ? input
+      : input instanceof URL ? input.toString() : input.url;
+    const isSameOrigin = url.startsWith('/') || url.startsWith(sameOrigin);
+    if (!isSameOrigin) return origFetch(input, init);
+    const headers = new Headers(init.headers || {});
+    headers.set('ngrok-skip-browser-warning', 'any');
+    return origFetch(input, { ...init, headers });
+  };
+}
+
 // Mode maintenance: mettre à true pour afficher la page "En construction"
 export const MAINTENANCE_MODE = false;
 

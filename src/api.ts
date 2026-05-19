@@ -1,7 +1,9 @@
 // API pour communiquer avec le backend Supabase Edge Function
 
-const ANALYZE_PLU_URL = 'https://awhbjbuxbcxszlxcbpjb.supabase.co/functions/v1/analyze-plu';
-const ANALYZE_PLU_DETAILED_URL = 'https://awhbjbuxbcxszlxcbpjb.supabase.co/functions/v1/analyze-plu-detailed';
+import { SUPABASE_URL } from './config';
+
+const ANALYZE_PLU_URL = `${SUPABASE_URL}/functions/v1/analyze-plu`;
+const ANALYZE_PLU_DETAILED_URL = `${SUPABASE_URL}/functions/v1/analyze-plu-detailed`;
 
 export interface AnalysePLURequest {
   latitude: number;

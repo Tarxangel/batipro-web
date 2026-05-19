@@ -319,14 +319,37 @@ serve(async (req) => {
       return jsonResponse({ success: true, data: row.detailed_table, cached: true })
     }
 
-    // 2. RNU : pas de règlement PDF → fallback vide avec message explicite
-    if (row.zonage_type === 'RNU' || !row.zonage_url_document) {
+    // 2a. RNU : pas de règlement PDF → fallback RNU
+    if (row.zonage_type === 'RNU') {
       const rnuTable = buildRNUFallback()
       await admin
         .from('analyses_plu')
         .update({ detailed_table: rnuTable })
         .eq('id', analysis_id)
       return jsonResponse({ success: true, data: rnuTable, cached: false })
+    }
+
+    // 2b. PLU sans PDF disponible (IGN n'a pas référencé le règlement) → Gemini text-only sur le code de zone
+    if (!row.zonage_url_document) {
+      console.log(`⚠️ PLU sans PDF pour ${row.parcelle_commune} (${row.zonage_libelle}) — Gemini text-only`)
+      const zoneCode = row.zonage_libelle.split(' ')[0].trim().toUpperCase()
+      const prompt = buildDetailedPromptText(
+        row.parcelle_commune,
+        row.zonage_libelle,
+        zoneCode,
+        `Aucun règlement PDF n'a pu être récupéré pour la zone ${zoneCode}. Produire un tableau détaillé basé sur les règles standard de ce type de zone (${zoneCode}) en France. Marquer explicitement chaque case avec '⚠️ Generique - règlement local non consulté'.`,
+        ''
+      )
+      const rawJSON = await callGeminiWithText(prompt)
+      let detailedTable: DetailedTable
+      try {
+        detailedTable = JSON.parse(extractJSON(rawJSON))
+      } catch (parseErr) {
+        console.error('❌ Parse JSON Gemini (PLU sans PDF):', parseErr)
+        return jsonResponse({ success: false, error: 'La reponse Gemini n\'est pas un JSON valide' }, 502)
+      }
+      await admin.from('analyses_plu').update({ detailed_table: detailedTable }).eq('id', analysis_id)
+      return jsonResponse({ success: true, data: detailedTable, cached: false })
     }
 
     // 3. PLU : récupérer le PDF et extraire le tableau

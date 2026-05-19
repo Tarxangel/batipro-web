@@ -447,6 +447,7 @@ serve(async (req) => {
 
     let analyseTexte: string
     let sourceAnalyse: string
+    let resolvedNomfic = '' // nom du PDF règlement, après éventuel fallback API geoportail-urbanisme
 
     if (isRNU) {
       // ─── RNU : analyse textuelle sans PDF ───
@@ -457,7 +458,45 @@ serve(async (req) => {
     } else {
       // ─── PLU : telecharger et analyser le reglement PDF ───
       const props = zoneUrba.features[0].properties
-      const nomficClean = props.nomfic.split('#')[0] // Enlever #page=XX
+      let nomficClean = (props.nomfic || '').split('#')[0] // Enlever #page=XX
+      resolvedNomfic = nomficClean
+
+      // Fallback : l'IGN ne référence pas toujours nomfic dans zone-urba.
+      // On va le chercher dans l'API geoportail-urbanisme.gouv.fr qui liste tous les fichiers.
+      if (!nomficClean && props.gpu_doc_id) {
+        console.log(`🔎 nomfic vide — recherche reglement via geoportail-urbanisme...`)
+        try {
+          const detailsResp = await fetch(
+            `https://www.geoportail-urbanisme.gouv.fr/api/document/${props.gpu_doc_id}/details`
+          )
+          if (detailsResp.ok) {
+            const details = await detailsResp.json()
+            const files: string[] = Array.isArray(details.files) ? details.files : []
+            // On préfère le règlement écrit (pas le graphique) — pattern : *_reglement_*.pdf sans "graphique"
+            const reglement = files.find((f) => /_reglement_/.test(f) && !/graphique/.test(f) && f.endsWith('.pdf'))
+            if (reglement) {
+              nomficClean = reglement
+              resolvedNomfic = reglement
+              console.log(`✅ Reglement trouvé via fallback : ${nomficClean}`)
+            }
+          }
+        } catch (e) {
+          console.log(`⚠️ Fallback geoportail-urbanisme a échoué : ${e}`)
+        }
+      }
+
+      if (!nomficClean) {
+        // Aucun PDF trouvé même après fallback → analyse textuelle générique.
+        console.log(`⚠️ Aucun PDF disponible pour ${parcelInfo.commune} (${parcelInfo.zone_code}) — analyse sans PDF`)
+        const textPrompt = buildPLUTextPrompt(
+          parcelInfo.commune,
+          parcelInfo.zonage,
+          parcelInfo.zone_code,
+          `Aucun document d'urbanisme référencé par l'IGN pour la zone ${parcelInfo.zone_code} de ${parcelInfo.commune}. Produire une analyse générique basée sur le code de zonage standard.`
+        )
+        analyseTexte = await callGeminiText(textPrompt)
+        sourceAnalyse = 'Google Gemini 3 Flash (PDF indisponible)'
+      } else {
       const pdfUrl = `https://data.geopf.fr/annexes/gpu/documents/${props.partition}/${props.gpu_doc_id}/${nomficClean}`
       const prompt = buildPLUPrompt(parcelInfo.commune, parcelInfo.zonage, parcelInfo.zone_code)
 
@@ -499,12 +538,13 @@ serve(async (req) => {
         analyseTexte = await callGeminiText(textPrompt)
         sourceAnalyse = 'Google Gemini 3 Flash (extraction zone)'
       }
+      } // fin du else (nomfic non vide)
     }
 
     // 3. Reponse formatee (meme format que le n8n)
-    const urlDocument = isRNU
+    const urlDocument = (isRNU || !resolvedNomfic)
       ? null
-      : `https://data.geopf.fr/annexes/gpu/documents/${zoneUrba.features[0].properties.partition}/${zoneUrba.features[0].properties.gpu_doc_id}/${zoneUrba.features[0].properties.nomfic.split('#')[0]}`
+      : `https://data.geopf.fr/annexes/gpu/documents/${zoneUrba.features[0].properties.partition}/${zoneUrba.features[0].properties.gpu_doc_id}/${resolvedNomfic}`
 
     const response = {
       success: true,
