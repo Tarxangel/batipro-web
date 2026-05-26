@@ -6,6 +6,7 @@ import { SUPABASE_URL } from '../config';
 
 const ENDPOINT = `${SUPABASE_URL}/functions/v1/chat-article`;
 const CREATE_WP_DRAFT_ENDPOINT = `${SUPABASE_URL}/functions/v1/create-wp-draft`;
+const REWRITE_SELECTION_ENDPOINT = `${SUPABASE_URL}/functions/v1/rewrite-selection`;
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -99,4 +100,40 @@ export async function createWpDraft(payload: CreateWpDraftPayload): Promise<Crea
     image_url: json.image_url,
     edit_url: json.edit_url,
   };
+}
+
+// ── Réécriture d'une sélection (mode Canvas) ─────────────
+//
+// L'utilisateur sélectionne un passage dans l'éditeur Quill et demande
+// à l'IA de le modifier (raccourcir, reformuler, instruction libre…).
+// L'Edge Function reçoit l'article complet pour le contexte mais ne
+// réécrit QUE la sélection, qui est renvoyée prête à être substituée.
+
+export interface RewriteSelectionPayload {
+  full_article: string;
+  selection: string;
+  instruction: string;
+  chantier_id?: string;
+}
+
+export async function rewriteSelection(payload: RewriteSelectionPayload): Promise<string> {
+  const supabase = getAuthClient();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) throw new Error('Session expirée — veuillez vous reconnecter');
+
+  const response = await fetch(REWRITE_SELECTION_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const json = await response.json().catch(() => ({ success: false, error: `HTTP ${response.status}` }));
+  if (!response.ok || !json.success) {
+    throw new Error(json.error || `Erreur HTTP ${response.status}`);
+  }
+  return json.rewritten as string;
 }

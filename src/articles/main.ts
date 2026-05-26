@@ -7,7 +7,7 @@ import { getChantiers, getChantier, Chantier } from '../chantiers/database';
 import { MAX_IMAGE_SIZE, WP_SITE_URL } from './config';
 import { requirePermission, logout, AppProfile } from '../auth/session';
 import { populateDepartmentSelect } from '../departments';
-import { sendChat, createWpDraft, ChatMessage, ChatDraft } from './chat-api';
+import { sendChat, createWpDraft, rewriteSelection, ChatMessage, ChatDraft } from './chat-api';
 
 // Permissions de l'utilisateur courant (rempli au démarrage)
 let userPerms = {
@@ -247,6 +247,239 @@ function initQuillEditor() {
   state.quillEditor.on('text-change', () => {
     elements.articleContent.value = state.quillEditor.root.innerHTML;
   });
+
+  initCanvasMode();
+}
+
+// ─── MODE CANVAS (réécriture de sélection par l'IA) ─────────
+//
+// Quand l'utilisateur sélectionne du texte dans l'éditeur Quill, on affiche
+// un floating bubble près de la sélection avec des raccourcis ("Raccourcir",
+// "Reformuler"…) + un bouton "Personnalisé" qui ouvre un modal d'instruction
+// libre. À chaque clic, on envoie à l'Edge Function rewrite-selection :
+//   - l'article complet (contexte)
+//   - le texte sélectionné
+//   - l'instruction
+// et on remplace le passage par la réponse de l'IA.
+
+interface CanvasRange { index: number; length: number }
+let canvasState: {
+  bubble: HTMLElement | null;
+  modal: HTMLElement | null;
+  lastRange: CanvasRange | null;
+  busy: boolean;
+} = { bubble: null, modal: null, lastRange: null, busy: false };
+
+const CANVAS_QUICK_ACTIONS: Array<{ label: string; instruction: string }> = [
+  { label: '✂️ Raccourcir', instruction: 'Raccourcir significativement ce passage tout en gardant l\'idée principale et tous les faits importants.' },
+  { label: '📝 Reformuler', instruction: 'Reformuler ce passage différemment, en gardant exactement le même sens et les mêmes faits, mais avec d\'autres tournures et un meilleur rythme.' },
+  { label: '🔧 Plus technique', instruction: 'Rendre ce passage plus technique et précis dans le vocabulaire BTP, sans inventer de fait nouveau.' },
+  { label: '💬 Plus accessible', instruction: 'Rendre ce passage plus accessible à un lecteur non spécialiste, en gardant la précision factuelle.' },
+];
+
+function initCanvasMode() {
+  if (canvasState.bubble) return; // déjà initialisé
+
+  // ── Bubble flottant ──
+  const bubble = document.createElement('div');
+  bubble.id = 'canvas-bubble';
+  bubble.className = 'canvas-bubble';
+  bubble.innerHTML = `
+    <div class="canvas-bubble-actions">
+      ${CANVAS_QUICK_ACTIONS.map((a, i) => `
+        <button type="button" class="canvas-bubble-btn" data-canvas-idx="${i}">${escapeHtml(a.label)}</button>
+      `).join('')}
+      <button type="button" class="canvas-bubble-btn canvas-bubble-custom" data-canvas-custom="1">✨ Personnalisé…</button>
+    </div>
+  `;
+  document.body.appendChild(bubble);
+  canvasState.bubble = bubble;
+
+  // ── Modal "instruction libre" ──
+  const modal = document.createElement('div');
+  modal.id = 'canvas-modal';
+  modal.className = 'canvas-modal';
+  modal.hidden = true;
+  modal.innerHTML = `
+    <div class="canvas-modal-backdrop"></div>
+    <div class="canvas-modal-card">
+      <h3>Modifier ce passage avec l'IA</h3>
+      <p class="canvas-modal-selection-label">Passage sélectionné :</p>
+      <blockquote class="canvas-modal-selection"></blockquote>
+      <label for="canvas-modal-instruction">Que dois-je faire ?</label>
+      <textarea
+        id="canvas-modal-instruction"
+        rows="3"
+        placeholder="Ex: ajoute un détail sur la méthode de pose, ou rends le ton plus journalistique…"
+      ></textarea>
+      <div class="canvas-modal-actions">
+        <button type="button" class="btn-ghost" data-canvas-modal-action="cancel">Annuler</button>
+        <button type="button" class="btn-primary" data-canvas-modal-action="apply">Appliquer</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  canvasState.modal = modal;
+
+  // ── Listener sélection Quill ──
+  state.quillEditor.on('selection-change', (range: CanvasRange | null, _old: any, _source: string) => {
+    if (!range || range.length === 0) {
+      // Ne pas masquer si le focus est passé sur le bubble lui-même
+      const active = document.activeElement;
+      if (active && bubble.contains(active)) return;
+      hideCanvasBubble();
+      return;
+    }
+    // On garde lastRange même en cas de blur ultérieur (utile pour le modal)
+    canvasState.lastRange = { index: range.index, length: range.length };
+    showCanvasBubbleAt(range);
+  });
+
+  // Repositionner le bubble si l'utilisateur scrolle pendant la sélection
+  window.addEventListener('scroll', () => {
+    if (canvasState.lastRange && bubble.classList.contains('visible')) {
+      showCanvasBubbleAt(canvasState.lastRange);
+    }
+  }, { passive: true });
+
+  // ── Clicks sur le bubble ──
+  bubble.addEventListener('mousedown', (e) => {
+    // Empêche le blur de la sélection Quill quand on clique sur un bouton
+    e.preventDefault();
+  });
+  bubble.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('button') as HTMLButtonElement | null;
+    if (!btn) return;
+    if (!canvasState.lastRange) return;
+    if (btn.dataset.canvasCustom) {
+      openCanvasModal(canvasState.lastRange);
+      return;
+    }
+    const idx = Number(btn.dataset.canvasIdx);
+    const action = CANVAS_QUICK_ACTIONS[idx];
+    if (!action) return;
+    void applyCanvasRewrite(canvasState.lastRange, action.instruction);
+  });
+
+  // ── Modal handlers ──
+  modal.querySelector('.canvas-modal-backdrop')?.addEventListener('click', closeCanvasModal);
+  modal.querySelectorAll<HTMLButtonElement>('button[data-canvas-modal-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.canvasModalAction;
+      if (action === 'cancel') {
+        closeCanvasModal();
+      } else if (action === 'apply') {
+        const instructionInput = document.getElementById('canvas-modal-instruction') as HTMLTextAreaElement;
+        const instruction = instructionInput.value.trim();
+        if (!instruction || !canvasState.lastRange) return;
+        const range = canvasState.lastRange;
+        closeCanvasModal();
+        void applyCanvasRewrite(range, instruction);
+      }
+    });
+  });
+}
+
+function showCanvasBubbleAt(range: CanvasRange) {
+  const bubble = canvasState.bubble;
+  if (!bubble || !state.quillEditor) return;
+  const bounds = state.quillEditor.getBounds(range.index, range.length);
+  const editorRect = state.quillEditor.container.getBoundingClientRect();
+
+  // On rend visible AVANT de mesurer la largeur (sinon offsetWidth = 0)
+  bubble.classList.add('visible');
+
+  const bubbleWidth = bubble.offsetWidth || 320;
+  const margin = 8;
+  let left = editorRect.left + bounds.left + bounds.width / 2 - bubbleWidth / 2;
+  // Clamp horizontal aux bords de viewport
+  const maxLeft = window.innerWidth - bubbleWidth - margin;
+  if (left < margin) left = margin;
+  if (left > maxLeft) left = maxLeft;
+  // Au-dessus de la sélection si possible, sinon en-dessous
+  let top = editorRect.top + bounds.top + window.scrollY - bubble.offsetHeight - 10;
+  if (top < window.scrollY + margin) {
+    top = editorRect.top + bounds.top + bounds.height + window.scrollY + 10;
+  }
+  bubble.style.top = top + 'px';
+  bubble.style.left = left + 'px';
+}
+
+function hideCanvasBubble() {
+  canvasState.bubble?.classList.remove('visible');
+}
+
+function openCanvasModal(range: CanvasRange) {
+  const modal = canvasState.modal;
+  if (!modal || !state.quillEditor) return;
+  const selectedText = state.quillEditor.getText(range.index, range.length).trim();
+  const selectionEl = modal.querySelector('.canvas-modal-selection');
+  if (selectionEl) selectionEl.textContent = selectedText;
+  const instructionInput = document.getElementById('canvas-modal-instruction') as HTMLTextAreaElement;
+  instructionInput.value = '';
+  modal.hidden = false;
+  hideCanvasBubble();
+  setTimeout(() => instructionInput.focus(), 50);
+}
+
+function closeCanvasModal() {
+  if (canvasState.modal) canvasState.modal.hidden = true;
+}
+
+async function applyCanvasRewrite(range: CanvasRange, instruction: string) {
+  if (canvasState.busy) return;
+  if (!state.quillEditor) return;
+  const quill = state.quillEditor;
+
+  canvasState.busy = true;
+  hideCanvasBubble();
+
+  // On marque la sélection visuellement (background) pendant l'appel
+  const originalFormats = quill.getFormat(range.index, range.length);
+  quill.formatText(range.index, range.length, { background: '#fff3cd' }, 'silent');
+
+  showToast('Réécriture en cours…', 'info');
+
+  try {
+    const fullArticleHtml = quill.root.innerHTML;
+    const selectedText = quill.getText(range.index, range.length).trim();
+    if (!selectedText) {
+      throw new Error('Sélection vide');
+    }
+
+    const rewritten = await rewriteSelection({
+      full_article: fullArticleHtml,
+      selection: selectedText,
+      instruction,
+      chantier_id: state.selectedChantier?.id,
+    });
+
+    // Retire le surlignage temporaire AVANT remplacement
+    quill.formatText(range.index, range.length, { background: false }, 'silent');
+
+    // Heuristique : si la réponse contient des balises HTML (<p>, <h2>…),
+    // on utilise clipboard.dangerouslyPasteHTML pour préserver le formatage.
+    // Sinon, simple insertText.
+    const hasHtml = /<\/?(p|h2|h3|ul|li|strong|em|br)\b/i.test(rewritten);
+    quill.deleteText(range.index, range.length, 'user');
+    if (hasHtml) {
+      quill.clipboard.dangerouslyPasteHTML(range.index, rewritten, 'user');
+    } else {
+      quill.insertText(range.index, rewritten, 'user');
+    }
+    showToast('Passage réécrit', 'success');
+  } catch (err) {
+    // Restore the original formatting (without temp background)
+    if ('background' in originalFormats) {
+      quill.formatText(range.index, range.length, { background: originalFormats.background }, 'silent');
+    } else {
+      quill.formatText(range.index, range.length, { background: false }, 'silent');
+    }
+    showToast(`Erreur réécriture : ${(err as Error).message}`, 'error');
+  } finally {
+    canvasState.busy = false;
+    canvasState.lastRange = null;
+  }
 }
 
 // Récupérer le contenu HTML de Quill
@@ -481,8 +714,22 @@ async function runChatTurn(opts: { initialKickoff?: boolean; mode?: 'chat' | 'dr
 
     if (result.draft) {
       state.chatDraft = result.draft;
-      appendChatBubble('draft', formatDraftPreview(result.draft));
-      elements.chatValidate.removeAttribute('disabled');
+      // Nouveau flow : on enchaîne automatiquement vers l'éditeur sans
+      // afficher de bulle "draft" intermédiaire ni attendre un clic sur
+      // "Valider". L'utilisateur reverra le contenu directement dans Quill,
+      // qu'il pourra retoucher (notamment via le mode Canvas).
+      try {
+        await transitionToEditor();
+      } catch (transErr) {
+        // Fallback dégradé : si la transition échoue (ex: createDraft KO),
+        // on remonte une bulle classique + on ré-affiche le bouton Valider
+        // pour permettre une retentative manuelle.
+        console.error('Transition auto vers éditeur a échoué:', transErr);
+        appendChatBubble('draft', formatDraftPreview(result.draft));
+        elements.chatValidate.removeAttribute('disabled');
+        elements.chatValidate.hidden = false;
+        showToast(`Ouverture éditeur impossible : ${(transErr as Error).message}`, 'error');
+      }
     }
   } catch (err) {
     elements.chatError.textContent = `Erreur : ${(err as Error).message}`;
@@ -520,58 +767,94 @@ async function handleChatRequestDraft() {
   await runChatTurn({ mode: 'draft' });
 }
 
+// transitionToEditor — appelée automatiquement par runChatTurn dès qu'un
+// draft est reçu de l'IA. Crée le brouillon Supabase, ouvre l'éditeur
+// immédiatement, et lance la création WP en arrière-plan.
+//
+// Stratégie "snappy" : l'utilisateur arrive en moins d'une seconde dans
+// l'éditeur (juste le temps de l'INSERT Supabase). Le brouillon WordPress
+// se crée pendant qu'il commence à éditer, et l'image_url est mise à jour
+// quand WP répond (silencieusement si OK, toast si KO).
+async function transitionToEditor(): Promise<void> {
+  if (!state.chatDraft || !state.selectedChantier) {
+    throw new Error('Draft ou chantier manquant');
+  }
+
+  const chatDraft = state.chatDraft;
+  const imageUrlLocal = state.chatPhotoUrl || '';
+
+  // 1) Crée le brouillon Supabase (rapide, < 1s).
+  const draft = await createDraft({
+    title: chatDraft.title,
+    content: chatDraft.content_html,
+    description: null,
+    image_url: imageUrlLocal, // data: URL local, sera remplacée par l'URL WP plus tard
+    wp_media_id: null,
+    wp_post_id: null,
+    chantier_id: state.selectedChantier.id,
+  });
+
+  state.currentDraft = draft;
+
+  if (imageUrlLocal) elements.editorImage.src = imageUrlLocal;
+  elements.articleTitle.value = draft.title;
+  showStep('editor');
+  setQuillContent(draft.content);
+  applyPermissionGating();
+  loadDrafts();
+  showToast('Brouillon Supabase créé — l\'éditeur s\'ouvre. Création WordPress en cours…', 'success');
+
+  // 2) Crée le brouillon WP en arrière-plan (fire-and-forget).
+  if (state.chatPhotoBase64) {
+    createWpDraftInBackground(
+      draft.id,
+      state.chatPhotoBase64,
+      state.chatPhotoMime,
+      chatDraft,
+    );
+  }
+}
+
+async function createWpDraftInBackground(
+  draftId: string,
+  base64: string,
+  mime: string | null,
+  chatDraft: ChatDraft,
+): Promise<void> {
+  try {
+    const wp = await createWpDraft({
+      photo_base64: base64,
+      mime_type: mime || 'image/jpeg',
+      title: chatDraft.title,
+      content_html: chatDraft.content_html,
+    });
+    const updated = await updateDraft(draftId, {
+      wp_post_id: wp.wp_post_id,
+      wp_media_id: wp.wp_media_id,
+      image_url: wp.image_url,
+    });
+    // Si l'utilisateur est toujours sur le même brouillon, on rafraîchit l'image
+    // et l'état local. S'il a déjà navigué ailleurs, on met juste à jour la DB.
+    if (state.currentDraft?.id === draftId) {
+      state.currentDraft = updated;
+      elements.editorImage.src = wp.image_url;
+    }
+    showToast('Brouillon WordPress créé', 'success');
+    loadDrafts();
+  } catch (wpErr) {
+    console.error('createWpDraft background a échoué:', wpErr);
+    showToast(`Brouillon WP non créé : ${(wpErr as Error).message} (le brouillon Supabase reste disponible)`, 'error');
+  }
+}
+
+// Conservé pour compat avec le bouton "chat-validate" du flow de fallback
+// (auto-transition KO) — appelle simplement transitionToEditor.
 async function handleValidateChatDraft() {
   if (!state.chatDraft || !state.selectedChantier) return;
-
   try {
     elements.chatValidate.setAttribute('disabled', 'true');
-    elements.chatValidate.textContent = 'Upload photo + WP…';
-
-    // 1) Crée le brouillon WordPress (upload photo + post status=draft).
-    //    Si l'étape WP échoue, on bascule en mode dégradé : on stocke quand
-    //    même le brouillon Supabase mais sans wp_post_id (la publication WP
-    //    sera indisponible pour ce draft, l'utilisateur peut régénérer).
-    let wpPostId: number | null = null;
-    let wpMediaId: number | null = null;
-    let imageUrl: string = state.chatPhotoUrl || '';
-    if (state.chatPhotoBase64) {
-      try {
-        const wp = await createWpDraft({
-          photo_base64: state.chatPhotoBase64,
-          mime_type: state.chatPhotoMime || 'image/jpeg',
-          title: state.chatDraft.title,
-          content_html: state.chatDraft.content_html,
-        });
-        wpPostId = wp.wp_post_id;
-        wpMediaId = wp.wp_media_id;
-        imageUrl = wp.image_url;
-      } catch (wpErr) {
-        console.error('createWpDraft a échoué, fallback sans WP:', wpErr);
-        showToast(`Brouillon WP indisponible : ${(wpErr as Error).message}`, 'error');
-      }
-    }
-
-    elements.chatValidate.textContent = 'Création brouillon Supabase…';
-
-    const draft = await createDraft({
-      title: state.chatDraft.title,
-      content: state.chatDraft.content_html,
-      description: null,
-      image_url: imageUrl,
-      wp_media_id: wpMediaId,
-      wp_post_id: wpPostId,
-      chantier_id: state.selectedChantier.id,
-    });
-
-    state.currentDraft = draft;
-
-    if (imageUrl) elements.editorImage.src = imageUrl;
-    elements.articleTitle.value = draft.title;
-    showStep('editor');
-    setQuillContent(draft.content);
-    applyPermissionGating();
-    loadDrafts();
-    showToast(wpPostId ? 'Brouillon créé (Supabase + WP)' : 'Brouillon Supabase créé', 'success');
+    elements.chatValidate.textContent = 'Ouverture éditeur…';
+    await transitionToEditor();
   } catch (err) {
     showToast(`Erreur : ${(err as Error).message}`, 'error');
     elements.chatValidate.removeAttribute('disabled');
