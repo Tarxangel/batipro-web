@@ -29,6 +29,17 @@ export interface AnalyseDonnees {
   source: string;
 }
 
+export interface MonumentHistorique {
+  reference: string;         // ex: "PA25000077"
+  name: string;              // titre éditorial ou dénomination
+  type: string | null;       // ex: "hôtel", "église"
+  protection: string | null; // ex: "classé MH", "inscrit MH"
+  century: string | null;    // ex: "16e siècle"
+  distance_m: number;        // distance Haversine à la parcelle
+  lat: number;
+  lon: number;
+}
+
 export interface AnalysePLUResponse {
   id?: string; // ID de l'analyse sauvegardée (si provient de la DB)
   success: boolean;
@@ -36,6 +47,8 @@ export interface AnalysePLUResponse {
     parcelle: ParcelleDonnees;
     zonage: ZonageDonnees;
     analyse: AnalyseDonnees;
+    /** Liste des MH dans 500m (périmètre ABF). null = pas fetché, [] = fetché vide. */
+    monuments_historiques?: MonumentHistorique[] | null;
     timestamp: string;
     latitude?: number;  // Coordonnées pour analyses sauvegardées
     longitude?: number; // Coordonnées pour analyses sauvegardées

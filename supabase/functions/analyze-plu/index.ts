@@ -58,6 +58,88 @@ async function fetchIGNZoneUrba(lat: number, lon: number): Promise<IGNZoneUrbaRe
   return resp.json()
 }
 
+// ─── Mérimée API (monuments historiques) ─────────────────────
+
+export interface MonumentHistorique {
+  reference: string       // ex: "PA25000077"
+  name: string            // titre éditorial ou dénomination
+  type: string | null     // ex: "hôtel", "église"
+  protection: string | null  // ex: "classé MH", "inscrit MH"
+  century: string | null  // ex: "16e siècle"
+  distance_m: number      // calculé par Haversine
+  lat: number
+  lon: number
+}
+
+// Distance entre deux points lat/lon en mètres (Haversine).
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLon = toRad(lon2 - lon1)
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
+  return Math.round(2 * R * Math.asin(Math.sqrt(a)))
+}
+
+// Fetch Mérimée (data.culture.gouv.fr) — immeubles MH dans un rayon.
+// Tolère les erreurs : renvoie [] si l'API tombe, n'interrompt pas l'analyse.
+async function fetchMerimeeMonuments(
+  lat: number,
+  lon: number,
+  radiusMeters = 500,
+  limit = 30,
+): Promise<MonumentHistorique[]> {
+  try {
+    const select = [
+      'reference',
+      'titre_editorial_de_la_notice',
+      'denomination_de_l_edifice',
+      'typologie_de_la_protection',
+      'siecle_de_la_campagne_principale_de_construction',
+      'coordonnees_au_format_wgs84',
+    ].join(',')
+    const where = `within_distance(coordonnees_au_format_wgs84,GEOM'POINT(${lon} ${lat})',${radiusMeters}m)`
+    const url = `https://data.culture.gouv.fr/api/explore/v2.1/catalog/datasets/liste-des-immeubles-proteges-au-titre-des-monuments-historiques/records?where=${encodeURIComponent(where)}&select=${encodeURIComponent(select)}&limit=${limit}`
+
+    const resp = await fetch(url)
+    if (!resp.ok) {
+      console.warn(`⚠️ Mérimée API ${resp.status} — on continue sans MH`)
+      return []
+    }
+    const data = await resp.json()
+    const records = Array.isArray(data.results) ? data.results : []
+
+    const items: MonumentHistorique[] = records
+      .map((r: any) => {
+        const coords = r.coordonnees_au_format_wgs84
+        if (!coords || typeof coords.lat !== 'number' || typeof coords.lon !== 'number') return null
+        return {
+          reference: String(r.reference || ''),
+          name: String(
+            r.titre_editorial_de_la_notice
+              || r.denomination_de_l_edifice
+              || 'Monument sans titre'
+          ),
+          type: r.denomination_de_l_edifice || null,
+          protection: r.typologie_de_la_protection || null,
+          century: r.siecle_de_la_campagne_principale_de_construction || null,
+          distance_m: haversineMeters(lat, lon, coords.lat, coords.lon),
+          lat: coords.lat,
+          lon: coords.lon,
+        }
+      })
+      .filter((x: MonumentHistorique | null): x is MonumentHistorique => x !== null)
+      .sort((a: MonumentHistorique, b: MonumentHistorique) => a.distance_m - b.distance_m)
+
+    console.log(`🏛️ Mérimée: ${items.length} MH dans ${radiusMeters}m`)
+    return items
+  } catch (err) {
+    console.warn(`⚠️ Mérimée fetch erreur — on continue sans MH:`, err)
+    return []
+  }
+}
+
 // ─── Parcel Info ─────────────────────────────────────────────
 
 interface ParcelInfo {
@@ -427,10 +509,11 @@ serve(async (req) => {
 
     console.log(`📍 Analyse PLU: lat=${latitude}, lon=${longitude}`)
 
-    // 1. Appels IGN en parallele
-    const [parcelle, zoneUrba] = await Promise.all([
+    // 1. Appels IGN + Mérimée en parallèle (MH tolérant aux erreurs)
+    const [parcelle, zoneUrba, monumentsHistoriques] = await Promise.all([
       fetchIGNParcelle(latitude, longitude),
       fetchIGNZoneUrba(latitude, longitude),
+      fetchMerimeeMonuments(latitude, longitude, 500),
     ])
 
     if (!parcelle.features || parcelle.features.length === 0) {
@@ -567,6 +650,7 @@ serve(async (req) => {
           texte: analyseTexte,
           source: sourceAnalyse,
         },
+        monuments_historiques: monumentsHistoriques,
         timestamp: new Date().toISOString(),
       },
     }

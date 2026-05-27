@@ -502,6 +502,98 @@ body {
   transform: scale(1.2);
 }
 
+/* Marker Monuments Historiques (Mérimée) */
+.mh-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.mh-marker-inner {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  background: #8b4513;
+  color: #fff;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.mh-marker-inner:hover {
+  transform: scale(1.15);
+}
+
+.mh-popup {
+  font-size: 13px;
+  line-height: 1.4;
+  min-width: 180px;
+}
+
+.mh-popup-row {
+  margin-top: 4px;
+  color: #444;
+}
+
+.mh-popup a {
+  color: #1976d2;
+  text-decoration: none;
+}
+
+.mh-popup a:hover {
+  text-decoration: underline;
+}
+
+/* Section MH dans la results card */
+.mh-section {
+  margin-top: 16px;
+  padding: 12px;
+  background: #fff8e1;
+  border-left: 3px solid #8b4513;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.mh-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #5d3a0e;
+}
+
+.mh-section .mh-badge-abf {
+  display: inline-block;
+  background: #d84315;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.mh-section ul {
+  margin: 8px 0 0 0;
+  padding-left: 18px;
+}
+
+.mh-section li {
+  margin-bottom: 4px;
+}
+
+.mh-section .mh-distance {
+  color: #888;
+  font-size: 12px;
+}
+
+.mh-section .mh-empty {
+  color: #666;
+  font-style: italic;
+}
+
 /* Bouton supprimer dans results card */
 .btn-delete {
   width: 100%;

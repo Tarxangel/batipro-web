@@ -12,6 +12,7 @@ import { PinsListPanel } from './ui/pinsList';
 import { showResultsCard } from './resultsCard';
 import { createLayersUI, registerLayer } from './layers';
 import { createGeolocationButton } from './geolocation';
+import { initMonumentsHistoriquesLayer } from './monumentsHistoriques';
 
 // Initialisation au chargement DOM
 document.addEventListener('DOMContentLoaded', async () => {
@@ -27,6 +28,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialiser la carte
   const map = initializeMap();
   console.log('Carte initialisée');
+
+  // Initialiser la couche Monuments Historiques (vide au départ, remplie à chaque analyse)
+  initMonumentsHistoriquesLayer(map);
 
   // Initialiser saved pins manager
   const savedPinsManager = new SavedPinsManager(map);

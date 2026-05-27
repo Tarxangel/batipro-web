@@ -1,6 +1,7 @@
-import type { AnalysePLUResponse } from './api';
+import type { AnalysePLUResponse, MonumentHistorique } from './api';
 import { deleteAnalysis, SavedAnalysis } from './database';
 import { showDetailedTableModal } from './detailedTable';
+import { showMonumentsHistoriques, clearMonumentsHistoriques } from './monumentsHistoriques';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 
 // Extrait { insee, prefix, section } depuis l'URL Géoportail Urbanisme.
@@ -63,6 +64,7 @@ export function showResultsCard(data: AnalysePLUResponse): void {
   }
 
   const { parcelle, zonage, analyse } = data.data;
+  const monumentsHistoriques = data.data.monuments_historiques;
 
   // Déterminer couleur selon type de zonage
   const zoneColor = zonage.type === 'RNU' ? 'orange' : 'blue';
@@ -98,6 +100,7 @@ export function showResultsCard(data: AnalysePLUResponse): void {
         <h4>📋 Analyse Urbanistique</h4>
         <div class="analyse-text">${formatAnalyseText(analyse.texte)}</div>
       </div>
+      ${renderMonumentsSection(monumentsHistoriques)}
       ${data.id ? `
         <button class="btn-detailed-table" title="Générer le tableau réglementaire détaillé (14 rubriques)">
           📋 Générer tableau détaillé
@@ -126,6 +129,9 @@ export function showResultsCard(data: AnalysePLUResponse): void {
   document.body.appendChild(card);
   currentCard = card;
 
+  // Afficher les MH sur la carte (vide la couche puis ajoute les markers)
+  showMonumentsHistoriques(monumentsHistoriques);
+
   // Ajouter handler de suppression
   if (data.id) {
     const deleteBtn = card.querySelector('.btn-delete') as HTMLButtonElement;
@@ -141,6 +147,7 @@ export function showResultsCard(data: AnalysePLUResponse): void {
         if (savedPinsManager) {
           savedPinsManager.removeSavedMarker(data.id!);
         }
+        clearMonumentsHistoriques();
         card.remove();
         console.log('✅ Analyse supprimée:', data.id);
       } catch (error) {
@@ -190,6 +197,47 @@ function formatAnalyseText(text: string): string {
       return line ? `<p>${line}</p>` : '';
     })
     .join('');
+}
+
+function escapeMhHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function renderMonumentsSection(monuments: MonumentHistorique[] | null | undefined): string {
+  // null = analyse legacy (avant la feature), on ne montre rien
+  if (monuments == null) return '';
+
+  if (monuments.length === 0) {
+    return `
+      <div class="mh-section">
+        <h4>🏛️ Monuments Historiques</h4>
+        <div class="mh-empty">Aucun MH dans un rayon de 500m. Pas de contrainte ABF à ce titre.</div>
+      </div>
+    `;
+  }
+
+  const top = monuments.slice(0, 5);
+  const remaining = monuments.length - top.length;
+  const items = top.map(m => {
+    const proRef = m.reference
+      ? ` <a href="https://pop.culture.gouv.fr/notice/merimee/${encodeURIComponent(m.reference)}" target="_blank" rel="noopener">↗</a>`
+      : '';
+    const protec = m.protection ? ` — ${escapeMhHtml(m.protection)}` : '';
+    return `<li><strong>${escapeMhHtml(m.name)}</strong>${protec} <span class="mh-distance">(${m.distance_m} m)</span>${proRef}</li>`;
+  }).join('');
+
+  return `
+    <div class="mh-section">
+      <h4>🏛️ Monuments Historiques proches</h4>
+      <div class="mh-badge-abf">⚠️ Périmètre ABF : ${monuments.length} MH dans 500m</div>
+      <ul>${items}</ul>
+      ${remaining > 0 ? `<div class="mh-distance" style="margin-top:6px;">+ ${remaining} autres (épingles sur la carte)</div>` : ''}
+    </div>
+  `;
 }
 
 // Fonction de partage
