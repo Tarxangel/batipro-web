@@ -3,6 +3,7 @@
 
 import { fetchDetailedTable, DetailedTable } from './api';
 import type { SavedAnalysis } from './database';
+import { renderPluChatSection, attachPluChatHandlers } from './pluChat';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -141,10 +142,10 @@ export async function showDetailedTableModal(analysis: SavedAnalysis): Promise<v
     return;
   }
 
-  // Render tableau
+  // Render tableau + section chat IA
   const cartouche = buildCartouche(analysis);
   const body = modal.querySelector('.detailed-modal-body') as HTMLDivElement;
-  body.innerHTML = renderTableHTML(cartouche, table);
+  body.innerHTML = renderTableHTML(cartouche, table) + renderPluChatSection();
   modal.classList.remove('loading');
 
   // Wire-up boutons export
@@ -154,6 +155,9 @@ export async function showDetailedTableModal(analysis: SavedAnalysis): Promise<v
   body.querySelector('.btn-export-excel')?.addEventListener('click', () => {
     exportExcel(cartouche, table);
   });
+
+  // Wire-up chat IA (l'historique vit dans data-attributes du panneau, vidé à chaque ouverture)
+  attachPluChatHandlers(body, analysis.id);
 }
 
 function renderTableHTML(cartouche: Cartouche, table: DetailedTable): string {
