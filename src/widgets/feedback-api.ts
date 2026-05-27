@@ -2,6 +2,9 @@
 
 import { getAuthClient } from '../auth/client';
 import { getCurrentProfile } from '../auth/session';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config';
+
+const NOTIFY_FEEDBACK_URL = `${SUPABASE_URL}/functions/v1/notify-feedback`;
 
 export interface FeedbackTicket {
   id: string;
@@ -34,12 +37,14 @@ export async function submitFeedback(message: string): Promise<void> {
     throw new Error('Message trop long (5000 caractères max)');
   }
 
+  const page = window.location.pathname + window.location.search;
+
   const supabase = getAuthClient();
   const { error } = await supabase.from('feedback').insert({
     user_id: profile.id,
     user_email: profile.email,
     user_name: profile.full_name,
-    page: window.location.pathname + window.location.search,
+    page,
     user_agent: navigator.userAgent,
     message: trimmed,
     // status par défaut = 'new'
@@ -48,6 +53,21 @@ export async function submitFeedback(message: string): Promise<void> {
   if (error) {
     throw new Error(error.message);
   }
+
+  // Fire-and-forget: notif email à l'admin. Ne doit jamais casser l'insert.
+  fetch(NOTIFY_FEEDBACK_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify({
+      userEmail: profile.email,
+      userName: profile.full_name,
+      page,
+      message: trimmed,
+    }),
+  }).catch(err => console.error('Erreur notify-feedback:', err));
 }
 
 // Liste les tickets visibles par l'utilisateur courant.

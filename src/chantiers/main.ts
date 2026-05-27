@@ -444,7 +444,7 @@ async function handleChangeStatus() {
 
 // --- INIT ---
 async function init() {
-  console.log('🏗️ Gestion Chantiers - Initialisation...');
+  console.log('🏗️ Informations Chantier - Initialisation...');
 
   // Page guard : redirige si non authentifié ou sans permission de lecture
   const profile = await requirePermission('chantiers', 'read', '/');
@@ -502,7 +502,7 @@ async function init() {
   // Load initial data
   loadChantiers();
 
-  console.log('🏗️ Gestion Chantiers - Prêt');
+  console.log('🏗️ Informations Chantier - Prêt');
 }
 
 document.addEventListener('DOMContentLoaded', init);
