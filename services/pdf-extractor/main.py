@@ -28,6 +28,18 @@ class ExtractResponse(BaseModel):
     general_text_length: int
 
 
+def zone_parent(code: str) -> str:
+    """Zone mère réglementaire d'un code de zone, en préservant la casse pour
+    distinguer le suffixe de secteur (minuscule) de la zone mère (majuscules).
+
+    Les secteurs PLU sont notés par un suffixe minuscule (UXa, Nh, 1AUb) et
+    vivent dans le chapitre de leur zone mère. On strip donc ce suffixe.
+    Ex: "UXa" -> "UX", "UY" -> "UY", "1AUb" -> "1AU", "N" -> "N".
+    """
+    m = re.match(r'^\d*[A-Z]+', code.strip())
+    return (m.group(0) if m else code.strip()).upper()
+
+
 def is_toc_line(line: str) -> bool:
     """Detecte si une ligne est une entree de sommaire (contient des pointilles ou dots + numero)."""
     # "ZONE UY ............................................ 69"
@@ -41,17 +53,37 @@ def is_toc_line(line: str) -> bool:
 
 
 def is_toc_page(text: str) -> bool:
-    """Detecte si une page est un sommaire (beaucoup de lignes avec pointilles)."""
+    """Detecte si une page est un sommaire / table des matieres.
+
+    Plusieurs formats existent :
+    - pointilles + numero ("ZONE UX ........ 29")
+    - titre "SOMMAIRE" / "TABLE DES MATIERES" en tete de page
+    - liste de chapitres dont le numero de page est sur une ligne separee
+      ("CHAPITRE 5 : DISPOSITIONS APPLICABLES A LA ZONE UX" \n "29") :
+      dans ce cas il n'y a ni pointilles ni numero en fin de ligne, mais la
+      page enumere plusieurs zones/chapitres -> on s'appuie sur ce comptage.
+    """
+    upper = text.upper()
+    # Sommaire explicite
+    if re.search(r'\bSOMMAIRE\b|\bTABLE\s+DES\s+MATI[EÈ]RES\b', upper):
+        return True
     lines = text.strip().split('\n')
     if not lines:
         return False
     toc_lines = sum(1 for l in lines if is_toc_line(l))
-    return toc_lines > len(lines) * 0.3  # Plus de 30% de lignes TOC
+    if toc_lines > len(lines) * 0.3:  # Plus de 30% de lignes TOC
+        return True
+    # Page qui enumere plusieurs chapitres/zones = sommaire meme sans pointilles
+    chapter_refs = len(re.findall(r'(?:CHAPITRE|TITRE)\b[^\n]*?\bZONE[S]?\s+[A-Z0-9]', upper))
+    if chapter_refs >= 3:
+        return True
+    return False
 
 
 def find_zone_section(pages_text: list[str], zone_code: str, page_hint: int = 0) -> tuple[str, list[int]]:
     """Trouve et extrait la section du reglement correspondant a la zone cible."""
     zone_upper = zone_code.upper().strip()
+    target_parent = zone_parent(zone_code)  # zone mère de la cible (UXa -> UX)
 
     # Patterns pour detecter le debut d'une section de zone (titre, pas sommaire)
     zone_start_patterns = [
@@ -72,14 +104,20 @@ def find_zone_section(pages_text: list[str], zone_code: str, page_hint: int = 0)
     # page_hint est 1-indexed dans le PDF, on convertit en 0-indexed
     search_start = max(0, page_hint - 3) if page_hint > 0 else 0
 
-    # Trouver la page de debut
+    # Trouver la page de debut.
+    # IMPORTANT : on itere PAR PATTERN (du plus fort au plus faible), pas par
+    # page. Les patterns 1-2 sont de vrais titres de chapitre
+    # ("DISPOSITIONS APPLICABLES A LA ZONE UX", "CHAPITRE ... ZONE UX") ; les
+    # patterns 3-4 attrapent de simples mentions en prose. Sans cette priorite,
+    # une mention "les zones UA, UB, UX..." dans les dispositions generales
+    # (debut du document) l'emporterait sur le vrai chapitre UX situe plus loin.
     start_page = -1
-    for page_idx in range(search_start, len(pages_text)):
-        text = pages_text[page_idx]
-        # Ignorer les pages de sommaire
-        if is_toc_page(text):
-            continue
-        for pattern in zone_start_patterns:
+    for pattern in zone_start_patterns:
+        for page_idx in range(search_start, len(pages_text)):
+            text = pages_text[page_idx]
+            # Ignorer les pages de sommaire
+            if is_toc_page(text):
+                continue
             match = pattern.search(text)
             if match:
                 # Verifier que ce n'est pas une ligne de sommaire
@@ -132,12 +170,17 @@ def find_zone_section(pages_text: list[str], zone_code: str, page_hint: int = 0)
             continue
         for pattern in new_zone_title_patterns:
             for match in pattern.finditer(text):
-                found_zone = (match.group(1) if match.lastindex and match.group(1) else "").upper().strip()
+                found_raw = (match.group(1) if match.lastindex and match.group(1) else "")
+                found_zone = found_raw.upper().strip()
                 # Ignorer les mots-cles parasites et les codes trop courts (1 lettre = reference)
                 if found_zone in ('ZONE', 'SOUS', 'LA', 'DE', 'DU', 'ET', 'A', 'N', 'U', ''):
                     # Sauf pour le pattern "Zones a urbaniser" qui n'a pas de groupe
                     if not (found_zone == '' and 'urbaniser' in match.group(0).lower()):
                         continue
+                # Un titre de SECTEUR de notre zone mère (ex: "ZONE UXa" quand on
+                # cible "UX") ne termine PAS la section : il en fait partie.
+                if found_raw and zone_parent(found_raw) == target_parent:
+                    continue
                 # Si c'est une zone DIFFERENTE de la notre, c'est la fin
                 if found_zone != zone_upper:
                     # Verifier que ce n'est pas une ligne de sommaire

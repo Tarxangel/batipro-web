@@ -149,12 +149,29 @@ interface ParcelInfo {
   surface: number
   url_parcelle: string
   zonage: string
-  zone_code: string
+  zone_code: string    // code complet affiché (ex: "UXA") — pour la réponse/affichage
+  zone_parent: string  // zone mère réglementaire (ex: "UX") — pour l'extraction + le prompt
+  zone_secteur: string // code complet si c'est un secteur (ex: "UXA"), sinon ''
+}
+
+// Dérive le code réglementaire à partir du libellé IGN.
+// Les règlements PLU sont organisés par ZONE MÈRE (UX, UA, 1AU, N...). Les
+// secteurs sont notés par un suffixe en minuscules (UXa, Nh...) et héritent des
+// règles de leur zone mère. On analyse donc le chapitre de la zone mère, en
+// signalant le secteur pour ses éventuelles spécificités.
+// Ex: "UXa - Zone d'activités" → { full: "UXA", parent: "UX", isSecteur: true }
+function deriveZone(libelle: string): { full: string; parent: string; isSecteur: boolean } {
+  const raw = (libelle || '').trim().split(/\s+/)[0] || ''
+  const full = raw.toUpperCase()
+  // Zone mère = chiffres optionnels + lettres MAJUSCULES, sans le suffixe secteur en minuscules
+  const parent = (raw.match(/^\d*[A-Z]+\d*/)?.[0] || raw).toUpperCase()
+  return { full, parent, isSecteur: parent.length > 0 && parent !== full }
 }
 
 function buildParcelInfo(parcelle: IGNParcelleResponse, zoneUrba: IGNZoneUrbaResponse): ParcelInfo {
   const p = parcelle.features[0].properties
   const isRNU = zoneUrba.totalFeatures === 0
+  const z = isRNU ? null : deriveZone(zoneUrba.features[0].properties.libelle)
 
   const url_parcelle = `https://www.geoportail-urbanisme.gouv.fr/map/parcel-info/${[
     p.code_dep, p.code_com, p.com_abs, p.code_arr, p.section, p.numero
@@ -167,21 +184,35 @@ function buildParcelInfo(parcelle: IGNParcelleResponse, zoneUrba: IGNZoneUrbaRes
     surface: p.contenance,
     url_parcelle,
     zonage: isRNU ? 'RNU' : zoneUrba.features[0].properties.libelle,
-    zone_code: isRNU ? 'RNU' : zoneUrba.features[0].properties.libelle.split(' ')[0].trim().toUpperCase(),
+    zone_code: isRNU ? 'RNU' : z!.full,
+    zone_parent: isRNU ? 'RNU' : z!.parent,
+    zone_secteur: isRNU ? '' : (z!.isSecteur ? z!.full : ''),
   }
 }
 
 // ─── Prompts ─────────────────────────────────────────────────
 
-function buildPLUPrompt(commune: string, zonage: string, zone_code: string): string {
+// Note expliquant à Gemini la relation secteur → zone mère (évite le
+// "Non précisé pour la zone UXA" quand le règlement parle de la zone UX).
+function buildSecteurNote(zoneParent: string, zoneSecteur: string): string {
+  if (!zoneSecteur) return ''
+  return `
+IMPORTANT - SECTEUR : La parcelle est dans le SECTEUR ${zoneSecteur}, qui fait partie de la ZONE ${zoneParent}.
+Le reglement de la zone ${zoneParent} S'APPLIQUE au secteur ${zoneSecteur}, sauf dispositions particulieres propres au secteur.
+=> Analyse le chapitre de la ZONE ${zoneParent} et integre les eventuelles specificites du secteur ${zoneSecteur}.
+=> Ne traite PAS les regles de la zone ${zoneParent} comme "une autre zone" : c'est bien la zone de la parcelle.
+`
+}
+
+function buildPLUPrompt(commune: string, zonage: string, zoneParent: string, zoneSecteur: string): string {
   return `ROLE: Expert urbanisme.
 
 CONTEXTE:
 - Commune : ${commune}
 - Zonage PLU : ${zonage}
-- Code Zone : ${zone_code}
-
-REGLEMENT de la zone ${zone_code}
+- Zone reglementaire (chapitre a analyser) : ${zoneParent}${zoneSecteur ? `\n- Secteur de la parcelle : ${zoneSecteur}` : ''}
+${buildSecteurNote(zoneParent, zoneSecteur)}
+REGLEMENT de la zone ${zoneParent}
 
 OBJECTIF: Analyser le reglement PLU (document PDF joint) pour extraire les contraintes constructives. Reponse visuelle, aeree et synthetique pour un architecte ou promoteur.
 
@@ -432,15 +463,15 @@ async function extractZoneFromPDF(pdfUrl: string, zoneCode: string, nomfic: stri
   return data.zone_text
 }
 
-function buildPLUTextPrompt(commune: string, zonage: string, zone_code: string, zoneText: string): string {
+function buildPLUTextPrompt(commune: string, zonage: string, zoneParent: string, zoneSecteur: string, zoneText: string): string {
   return `ROLE: Expert urbanisme.
 
 CONTEXTE:
 - Commune : ${commune}
 - Zonage PLU : ${zonage}
-- Code Zone : ${zone_code}
-
-Voici le texte extrait du reglement PLU pour la zone ${zone_code} :
+- Zone reglementaire (chapitre a analyser) : ${zoneParent}${zoneSecteur ? `\n- Secteur de la parcelle : ${zoneSecteur}` : ''}
+${buildSecteurNote(zoneParent, zoneSecteur)}
+Voici le texte extrait du reglement PLU pour la zone ${zoneParent} :
 
 ---
 ${zoneText}
@@ -574,14 +605,15 @@ serve(async (req) => {
         const textPrompt = buildPLUTextPrompt(
           parcelInfo.commune,
           parcelInfo.zonage,
-          parcelInfo.zone_code,
-          `Aucun document d'urbanisme référencé par l'IGN pour la zone ${parcelInfo.zone_code} de ${parcelInfo.commune}. Produire une analyse générique basée sur le code de zonage standard.`
+          parcelInfo.zone_parent,
+          parcelInfo.zone_secteur,
+          `Aucun document d'urbanisme référencé par l'IGN pour la zone ${parcelInfo.zone_parent} de ${parcelInfo.commune}. Produire une analyse générique basée sur le code de zonage standard.`
         )
         analyseTexte = await callGeminiText(textPrompt)
         sourceAnalyse = 'Google Gemini 3 Flash (PDF indisponible)'
       } else {
       const pdfUrl = `https://data.geopf.fr/annexes/gpu/documents/${props.partition}/${props.gpu_doc_id}/${nomficClean}`
-      const prompt = buildPLUPrompt(parcelInfo.commune, parcelInfo.zonage, parcelInfo.zone_code)
+      const prompt = buildPLUPrompt(parcelInfo.commune, parcelInfo.zonage, parcelInfo.zone_parent, parcelInfo.zone_secteur)
 
       // Verifier la taille du PDF
       console.log(`📄 PDF URL: ${pdfUrl}`)
@@ -599,8 +631,8 @@ serve(async (req) => {
         // Verifier la taille reelle apres telechargement
         if (pdfBuffer.byteLength > INLINE_MAX_BYTES) {
           console.log(`📎 PDF plus gros que prevu (${(pdfBuffer.byteLength / 1_000_000).toFixed(1)} MB), extraction zone...`)
-          const zoneText = await extractZoneFromPDF(pdfUrl, parcelInfo.zone_code, props.nomfic)
-          const textPrompt = buildPLUTextPrompt(parcelInfo.commune, parcelInfo.zonage, parcelInfo.zone_code, zoneText)
+          const zoneText = await extractZoneFromPDF(pdfUrl, parcelInfo.zone_parent, props.nomfic)
+          const textPrompt = buildPLUTextPrompt(parcelInfo.commune, parcelInfo.zonage, parcelInfo.zone_parent, parcelInfo.zone_secteur, zoneText)
           analyseTexte = await callGeminiText(textPrompt)
           sourceAnalyse = 'Google Gemini 3 Flash (extraction zone)'
         } else {
@@ -615,9 +647,9 @@ serve(async (req) => {
         sourceAnalyse = 'Google Gemini 3 Flash'
       } else {
         // Tres gros PDF (> 50 MB) ou taille inconnue : extraction texte de la zone via micro-service
-        console.log(`📑 PDF volumineux ou taille inconnue, extraction zone ${parcelInfo.zone_code}...`)
-        const zoneText = await extractZoneFromPDF(pdfUrl, parcelInfo.zone_code, props.nomfic)
-        const textPrompt = buildPLUTextPrompt(parcelInfo.commune, parcelInfo.zonage, parcelInfo.zone_code, zoneText)
+        console.log(`📑 PDF volumineux ou taille inconnue, extraction zone ${parcelInfo.zone_parent}...`)
+        const zoneText = await extractZoneFromPDF(pdfUrl, parcelInfo.zone_parent, props.nomfic)
+        const textPrompt = buildPLUTextPrompt(parcelInfo.commune, parcelInfo.zonage, parcelInfo.zone_parent, parcelInfo.zone_secteur, zoneText)
         analyseTexte = await callGeminiText(textPrompt)
         sourceAnalyse = 'Google Gemini 3 Flash (extraction zone)'
       }
