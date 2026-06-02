@@ -103,6 +103,31 @@ function extractJSON(text: string): string {
   return trimmed
 }
 
+// Dérive le code réglementaire à partir du libellé IGN.
+// Les règlements PLU sont organisés par ZONE MÈRE (UX, UA, 1AU, N...). Les
+// secteurs sont notés par un suffixe en minuscules (UXa, Nh...) et héritent des
+// règles de leur zone mère. On analyse donc le chapitre de la zone mère, en
+// signalant le secteur pour ses éventuelles spécificités.
+// Ex: "UXa - Zone d'activités" → { full: "UXA", parent: "UX", isSecteur: true }
+function deriveZone(libelle: string): { full: string; parent: string; isSecteur: boolean } {
+  const raw = (libelle || '').trim().split(/\s+/)[0] || ''
+  const full = raw.toUpperCase()
+  const parent = (raw.match(/^\d*[A-Z]+\d*/)?.[0] || raw).toUpperCase()
+  return { full, parent, isSecteur: parent.length > 0 && parent !== full }
+}
+
+// Note expliquant à Gemini la relation secteur → zone mère (évite le
+// "Non précisé pour la zone UXA" quand le règlement parle de la zone UX).
+function buildSecteurNote(zoneParent: string, zoneSecteur: string): string {
+  if (!zoneSecteur) return ''
+  return `
+IMPORTANT - SECTEUR : La parcelle est dans le SECTEUR ${zoneSecteur}, qui fait partie de la ZONE ${zoneParent}.
+Le reglement de la zone ${zoneParent} S'APPLIQUE au secteur ${zoneSecteur}, sauf dispositions particulieres propres au secteur.
+=> Analyse le chapitre de la ZONE ${zoneParent} ET integre les eventuelles specificites du secteur ${zoneSecteur}.
+=> Ne traite PAS les regles de la zone ${zoneParent} comme "une autre zone" : c'est bien la zone de la parcelle.
+`
+}
+
 // ─── PDF extractor (texte via micro-service) ────────────────
 
 interface ExtractResult {
@@ -186,30 +211,30 @@ async function callGeminiWithPDF(pdfBuffer: Uint8Array, prompt: string): Promise
 
 // ─── Prompts ────────────────────────────────────────────────
 
-function buildDetailedPromptPDF(commune: string, zonage: string, zoneCode: string): string {
+function buildDetailedPromptPDF(commune: string, zonage: string, zoneParent: string, zoneSecteur: string): string {
   return `ROLE: Expert en droit de l'urbanisme.
 
 CONTEXTE:
 - Commune : ${commune}
 - Zonage PLU : ${zonage}
-- Code Zone : ${zoneCode}
-
+- Zone reglementaire (chapitre a analyser) : ${zoneParent}${zoneSecteur ? `\n- Secteur de la parcelle : ${zoneSecteur}` : ''}
+${buildSecteurNote(zoneParent, zoneSecteur)}
 Le document PDF joint est le reglement du PLU.
 
-MISSION : Extraire EXHAUSTIVEMENT les prescriptions reglementaires applicables a la zone ${zoneCode} pour les 14 rubriques suivantes. Tu dois citer VERBATIM ou reformuler TRES FIDELEMENT les passages du reglement, PAS en faire un resume laconique. Si le reglement de la zone renvoie aux dispositions generales, combine les deux pour avoir la regle complete.
+MISSION : Extraire EXHAUSTIVEMENT les prescriptions reglementaires applicables a la zone ${zoneParent} pour les 14 rubriques suivantes. Tu dois citer VERBATIM ou reformuler TRES FIDELEMENT les passages du reglement, PAS en faire un resume laconique. Si le reglement de la zone renvoie aux dispositions generales, combine les deux pour avoir la regle complete.
 
 REGLES CRITIQUES :
 - EXHAUSTIF : recopie ou paraphrase tres fidelement TOUS les articles pertinents pour chaque rubrique.
 - Conserve les valeurs chiffrees EXACTES (metres, pourcentages, hauteurs, coefficients).
-- Si une rubrique n'est pas reglementee dans le PLU pour cette zone, ecris litteralement : "Non reglemente" ou "Non precise dans le reglement de la zone ${zoneCode}".
+- Si une rubrique n'est pas reglementee dans le PLU pour cette zone, ecris litteralement : "Non reglemente" ou "Non precise dans le reglement de la zone ${zoneParent}".
 - NE PAS inventer.
-- NE PAS citer les autres zones.
+- NE PAS citer les regles des AUTRES zones (zones differentes de ${zoneParent}).
 - Repondre UNIQUEMENT en JSON valide, sans markdown, sans prose.
 
 ${buildJSONSchemaInstructions()}`
 }
 
-function buildDetailedPromptText(commune: string, zonage: string, zoneCode: string, zoneText: string, generalText: string): string {
+function buildDetailedPromptText(commune: string, zonage: string, zoneParent: string, zoneSecteur: string, zoneText: string, generalText: string): string {
   const generalSection = generalText
     ? `\n\nVoici les DISPOSITIONS GENERALES applicables a toutes les zones :\n\n---\n${generalText}\n---`
     : ''
@@ -219,22 +244,22 @@ function buildDetailedPromptText(commune: string, zonage: string, zoneCode: stri
 CONTEXTE:
 - Commune : ${commune}
 - Zonage PLU : ${zonage}
-- Code Zone : ${zoneCode}
-
-Voici le texte extrait du reglement PLU specifique a la zone ${zoneCode} :
+- Zone reglementaire (chapitre a analyser) : ${zoneParent}${zoneSecteur ? `\n- Secteur de la parcelle : ${zoneSecteur}` : ''}
+${buildSecteurNote(zoneParent, zoneSecteur)}
+Voici le texte extrait du reglement PLU pour la zone ${zoneParent} :
 
 ---
 ${zoneText}
 ---${generalSection}
 
-MISSION : Extraire EXHAUSTIVEMENT les prescriptions reglementaires applicables a la zone ${zoneCode} pour les 14 rubriques suivantes. Tu dois citer VERBATIM ou reformuler TRES FIDELEMENT les passages du reglement, PAS en faire un resume laconique. Si le reglement de la zone renvoie aux dispositions generales, combine les deux pour avoir la regle complete.
+MISSION : Extraire EXHAUSTIVEMENT les prescriptions reglementaires applicables a la zone ${zoneParent} pour les 14 rubriques suivantes. Tu dois citer VERBATIM ou reformuler TRES FIDELEMENT les passages du reglement, PAS en faire un resume laconique. Si le reglement de la zone renvoie aux dispositions generales, combine les deux pour avoir la regle complete.
 
 REGLES CRITIQUES :
 - EXHAUSTIF : recopie ou paraphrase tres fidelement TOUS les articles pertinents pour chaque rubrique.
 - Conserve les valeurs chiffrees EXACTES (metres, pourcentages, hauteurs, coefficients).
-- Si une rubrique n'est pas reglementee dans le PLU pour cette zone, ecris litteralement : "Non reglemente" ou "Non precise dans le reglement de la zone ${zoneCode}".
+- Si une rubrique n'est pas reglementee dans le PLU pour cette zone, ecris litteralement : "Non reglemente" ou "Non precise dans le reglement de la zone ${zoneParent}".
 - NE PAS inventer.
-- NE PAS citer les autres zones.
+- NE PAS citer les regles des AUTRES zones (zones differentes de ${zoneParent}).
 - Repondre UNIQUEMENT en JSON valide, sans markdown, sans prose.
 
 ${buildJSONSchemaInstructions()}`
@@ -332,12 +357,14 @@ serve(async (req) => {
     // 2b. PLU sans PDF disponible (IGN n'a pas référencé le règlement) → Gemini text-only sur le code de zone
     if (!row.zonage_url_document) {
       console.log(`⚠️ PLU sans PDF pour ${row.parcelle_commune} (${row.zonage_libelle}) — Gemini text-only`)
-      const zoneCode = row.zonage_libelle.split(' ')[0].trim().toUpperCase()
+      const { parent: zoneParent, isSecteur, full } = deriveZone(row.zonage_libelle)
+      const zoneSecteur = isSecteur ? full : ''
       const prompt = buildDetailedPromptText(
         row.parcelle_commune,
         row.zonage_libelle,
-        zoneCode,
-        `Aucun règlement PDF n'a pu être récupéré pour la zone ${zoneCode}. Produire un tableau détaillé basé sur les règles standard de ce type de zone (${zoneCode}) en France. Marquer explicitement chaque case avec '⚠️ Generique - règlement local non consulté'.`,
+        zoneParent,
+        zoneSecteur,
+        `Aucun règlement PDF n'a pu être récupéré pour la zone ${zoneParent}. Produire un tableau détaillé basé sur les règles standard de ce type de zone (${zoneParent}) en France. Marquer explicitement chaque case avec '⚠️ Generique - règlement local non consulté'.`,
         ''
       )
       const rawJSON = await callGeminiWithText(prompt)
@@ -354,7 +381,8 @@ serve(async (req) => {
 
     // 3. PLU : récupérer le PDF et extraire le tableau
     const pdfUrl = row.zonage_url_document
-    const zoneCode = row.zonage_libelle.split(' ')[0].trim().toUpperCase()
+    const { parent: zoneParent, isSecteur, full } = deriveZone(row.zonage_libelle)
+    const zoneSecteur = isSecteur ? full : ''
 
     console.log(`📄 PDF: ${pdfUrl}`)
     const headResp = await fetch(pdfUrl, { method: 'HEAD' })
@@ -371,19 +399,19 @@ serve(async (req) => {
 
       if (pdfBuffer.byteLength > INLINE_MAX_BYTES) {
         console.log('📑 PDF plus gros que prevu, extraction zone...')
-        const extracted = await extractZoneFromPDF(pdfUrl, zoneCode)
-        const prompt = buildDetailedPromptText(row.parcelle_commune, row.zonage_libelle, zoneCode, extracted.zone_text, extracted.general_text)
+        const extracted = await extractZoneFromPDF(pdfUrl, zoneParent)
+        const prompt = buildDetailedPromptText(row.parcelle_commune, row.zonage_libelle, zoneParent, zoneSecteur, extracted.zone_text, extracted.general_text)
         rawJSON = await callGeminiWithText(prompt)
       } else {
         console.log('📎 Envoi PDF inline a Gemini...')
-        const prompt = buildDetailedPromptPDF(row.parcelle_commune, row.zonage_libelle, zoneCode)
+        const prompt = buildDetailedPromptPDF(row.parcelle_commune, row.zonage_libelle, zoneParent, zoneSecteur)
         rawJSON = await callGeminiWithPDF(pdfBuffer, prompt)
       }
     } else {
       // Gros PDF ou taille inconnue : extraction zone via pdf-extractor
-      console.log(`📑 Extraction zone ${zoneCode}...`)
-      const extracted = await extractZoneFromPDF(pdfUrl, zoneCode)
-      const prompt = buildDetailedPromptText(row.parcelle_commune, row.zonage_libelle, zoneCode, extracted.zone_text, extracted.general_text)
+      console.log(`📑 Extraction zone ${zoneParent}...`)
+      const extracted = await extractZoneFromPDF(pdfUrl, zoneParent)
+      const prompt = buildDetailedPromptText(row.parcelle_commune, row.zonage_libelle, zoneParent, zoneSecteur, extracted.zone_text, extracted.general_text)
       rawJSON = await callGeminiWithText(prompt)
     }
 
