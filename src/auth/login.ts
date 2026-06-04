@@ -56,7 +56,7 @@ form.addEventListener('submit', async (e) => {
   if (!result.ok) {
     showError(result.error === 'Invalid login credentials'
       ? 'Email ou mot de passe incorrect'
-      : result.error);
+      : (result.error || 'Service momentanément indisponible. Réessayez dans un instant.'));
     submitBtn.disabled = false;
     submitBtn.textContent = 'Se connecter';
     return;

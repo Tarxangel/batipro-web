@@ -27,13 +27,29 @@ let cachedUserId: string | null = null;
 
 // ── Auth ──────────────────────────────────────────────────
 
+const SERVICE_UNAVAILABLE = 'Service momentanément indisponible. Réessayez dans un instant.';
+
 export async function login(email: string, password: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = getAuthClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { ok: false, error: error.message };
-  cachedProfile = null;
-  cachedUserId = null;
-  return { ok: true };
+  try {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      // Erreurs réseau / passerelle (504 Kong, timeout, gotrue down) : message
+      // brut illisible (parfois "{}"). On renvoie un message clair à l'utilisateur.
+      const status = (error as { status?: number }).status ?? 0;
+      const msg = (error.message || '').trim();
+      if (!msg || msg === '{}' || status === 0 || status >= 500 || /fetch|network|timeout|gateway|load failed/i.test(msg)) {
+        return { ok: false, error: SERVICE_UNAVAILABLE };
+      }
+      return { ok: false, error: msg };
+    }
+    cachedProfile = null;
+    cachedUserId = null;
+    return { ok: true };
+  } catch {
+    // signInWithPassword peut throw sur coupure réseau totale
+    return { ok: false, error: SERVICE_UNAVAILABLE };
+  }
 }
 
 export async function logout(): Promise<void> {
