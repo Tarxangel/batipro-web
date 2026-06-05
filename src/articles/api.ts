@@ -268,6 +268,25 @@ export async function generateLinkedInPost(title: string, content: string, artic
   return data.post || '';
 }
 
+// Retravailler un post LinkedIn existant via une consigne IA
+export async function reworkLinkedInPost(currentPost: string, instruction: string): Promise<string> {
+  const response = await fetchWithTimeout(
+    LINKEDIN_POST_URL,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ currentPost, instruction }),
+    },
+    30000
+  );
+  if (!response.ok) return '';
+  const data = await response.json();
+  return data.post || '';
+}
+
 // Notifier l'admin qu'un article est soumis pour validation
 export async function notifyReview(title: string, articleId: string): Promise<void> {
   try {

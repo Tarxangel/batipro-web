@@ -14,34 +14,47 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const FALLBACK_LINKEDIN_PROMPT = `Tu écris un post LinkedIn à la PREMIÈRE PERSONNE pour quelqu'un de Batipro Concept (bâtiments industriels & logistiques, Bourgogne-Franche-Comté / Grand Est). Objectif central : que ça sonne comme un VRAI pro du bâtiment qui raconte son chantier à un confrère — surtout PAS comme un post généré par IA. LinkedIn pénalise les posts qui sentent l'IA ; ton job est qu'on n'y voie que du feu.
+const FALLBACK_LINKEDIN_PROMPT = `Tu rédiges un post LinkedIn PROFESSIONNEL pour Batipro Concept, entreprise de construction de bâtiments industriels, logistiques et tertiaires (Bourgogne-Franche-Comté / Grand Est). Le post accompagne la publication d'un article de chantier. Objectif : valoriser le savoir-faire de l'entreprise de façon crédible et professionnelle, optimisée pour la visibilité LinkedIn, sans tomber dans le post « généré par IA ».
 
-Article publié (source d'infos, à NE PAS recopier ni résumer mécaniquement) :
+Article publié (source d'infos, à NE PAS recopier tel quel) :
 Titre : {{TITLE}}
 Contenu : {{CONTENT}}
 URL : {{ARTICLE_URL}}
 
-=== VOIX HUMAINE (à faire) ===
-- Première personne : "on", "j'ai", "notre équipe". Comme si tu racontais ta semaine de boulot.
-- Démarre par un détail CONCRET et vécu : un imprévu sur le chantier, une contrainte technique, un moment précis, un chiffre qui parle (m², tonnes, délai, météo, dénivelé...).
-- Rythme NATUREL et irrégulier : alterne phrases courtes et plus longues. Une tournure orale de temps en temps ("franchement", "au final", "pas évident", "honnêtement"). Ça doit respirer l'humain, pas le gabarit.
-- Reste spécifique à CE chantier : si une phrase pourrait coller à n'importe quel projet, supprime-la.
-- Une petite opinion, une fierté discrète ou une leçon tirée, c'est bienvenu.
+=== TON ===
+- Professionnel, posé, expert. Tu représentes une entreprise du bâtiment sérieuse et reconnue.
+- « Nous » / « nos équipes » / « notre bureau d'études ». Pas de registre familier, pas d'argot, jamais de « je préfère », « franchement », « galérer ».
+- Crédible et concret : tu démontres la maîtrise technique par des faits (matériaux, méthodes, contraintes, chiffres), sans jargon marketing.
+- Reste lisible et vivant : ce n'est pas un communiqué rigide, mais ça reste corporate-professionnel.
 
-=== CE QUI SENT L'IA / LE SPAM (interdit) ===
-- Pas d'accroche bateau : "🚀", "Fier de vous annoncer", "Heureux/Ravi de partager", "C'est avec plaisir que".
-- Pas de listes à puces, pas d'emojis décoratifs en pagaille (1 emoji grand max, idéalement zéro).
-- Pas de tirets cadratins (—), pas de structure trop léchée ou symétrique.
-- Pas de CTA robotique : "Et vous, qu'en pensez-vous ?", "N'hésitez pas à...", "Dites-moi en commentaire".
-- Pas de jargon marketing : "solution clé en main", "savoir-faire d'exception", "au cœur de nos préoccupations", "acteur incontournable".
-- 3 hashtags MAXIMUM, simples et pertinents. Jamais un mur de hashtags.
+=== SEO / VISIBILITÉ LINKEDIN ===
+- ACCROCHE (1re ligne, ~150 caractères max — c'est ce qui s'affiche avant « voir plus ») : informative et engageante, avec le TYPE D'OUVRAGE/l'opération + la LOCALISATION. Elle doit donner envie de déplier.
+- Intègre NATURELLEMENT les mots-clés du secteur tirés du contenu (type de bâtiment, technique/ouvrage, matériau, ville/région) : ils aident la recherche et la portée LinkedIn. Aucun bourrage de mots-clés.
+- Texte AÉRÉ : courts paragraphes séparés par des sauts de ligne (lecture mobile).
+- 3 à 5 HASHTAGS pertinents en fin : un mix portée large (#BTP #Construction) + métier (#CharpenteMétallique, #BâtimentIndustriel…) + local (#GrandEst ou la ville/dpt). Multi-mots en CamelCase.
+
+=== À ÉVITER (sent l'IA / nuit à la crédibilité) ===
+- Argot, ton familier, première personne du singulier intime, emojis en pagaille (0, à la rigueur 1).
+- Jargon creux : « fier de vous annoncer », « savoir-faire d'exception », « acteur incontournable », « au cœur de nos préoccupations », « solution clé en main », « alliant tradition et modernité ».
+- Accroche « 🚀 », listes à puces avec emojis, tirets cadratins (—), CTA robotique (« et vous, qu'en pensez-vous ? », « n'hésitez pas à »).
 
 === FORME ===
-- 80-150 mots. Plutôt court. Quelques sauts de ligne pour aérer.
-- Amène le lien {{ARTICLE_URL}} naturellement, sur sa propre ligne en fin de post.
-- 1 à 3 hashtags max tout à la fin.
+- 100 à 180 mots.
+- Termine par le lien {{ARTICLE_URL}} sur sa propre ligne, introduit sobrement (ex : « Plus de détails sur le projet : »).
+- Puis les 3 à 5 hashtags.
 
-Écris UNIQUEMENT le post, prêt à publier, rien d'autre.`
+Écris UNIQUEMENT le post final, prêt à publier, rien d'autre.`
+
+// Mode "retravailler" : applique une consigne sur un post existant.
+function buildReworkPrompt(currentPost: string, instruction: string): string {
+  return `Voici un post LinkedIn existant pour Batipro Concept (entreprise de construction de bâtiments industriels/logistiques, Grand Est / BFC) :
+---
+${currentPost}
+---
+Retravaille-le selon cette consigne : « ${instruction} ».
+Conserve un ton PROFESSIONNEL et les bonnes pratiques : accroche forte en 1re ligne, mots-clés sectoriels naturels, texte aéré, 3 à 5 hashtags pertinents, AUCUN emoji en pagaille, aucun jargon marketing creux, pas d'argot.
+Réponds UNIQUEMENT avec le post final retravaillé, rien d'autre.`
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -59,36 +72,46 @@ serve(async (req) => {
 
   try {
     const body = await req.json()
-    const { title, content, articleUrl } = body
+    const { title, content, articleUrl, currentPost, instruction } = body
 
-    if (!title || !content || !articleUrl) {
+    // Deux modes :
+    //   - rework  : { currentPost, instruction } → retravaille un post existant
+    //   - fresh   : { title, content, articleUrl } → génère depuis l'article
+    const isRework = !!(currentPost && instruction)
+
+    if (!isRework && (!title || !content || !articleUrl)) {
       return new Response(
         JSON.stringify({ success: false, error: 'title, content et articleUrl requis' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Nettoyer le HTML et limiter la taille (les premiers 3000 chars suffisent pour un post LinkedIn)
-    const cleanContent = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 3000)
+    let prompt: string
+    if (isRework) {
+      prompt = buildReworkPrompt(String(currentPost), String(instruction))
+    } else {
+      // Nettoyer le HTML et limiter la taille
+      const cleanContent = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 3000)
 
-    // Charge le template depuis ai_prompts (éditable depuis l'admin),
-    // fallback sur le prompt en dur si la DB ne répond pas.
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-    const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
-      auth: { persistSession: false, autoRefreshToken: false }
-    })
-    const { data: promptRow } = await supabase
-      .from('ai_prompts')
-      .select('content')
-      .eq('key', 'linkedin-post')
-      .single()
+      // Charge le template depuis ai_prompts (éditable depuis l'admin),
+      // fallback sur le prompt en dur si la DB ne répond pas.
+      const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+      const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false }
+      })
+      const { data: promptRow } = await supabase
+        .from('ai_prompts')
+        .select('content')
+        .eq('key', 'linkedin-post')
+        .single()
 
-    const template = promptRow?.content || FALLBACK_LINKEDIN_PROMPT
-    const prompt = template
-      .replaceAll('{{TITLE}}', title)
-      .replaceAll('{{CONTENT}}', cleanContent)
-      .replaceAll('{{ARTICLE_URL}}', articleUrl)
+      const template = promptRow?.content || FALLBACK_LINKEDIN_PROMPT
+      prompt = template
+        .replaceAll('{{TITLE}}', title)
+        .replaceAll('{{CONTENT}}', cleanContent)
+        .replaceAll('{{ARTICLE_URL}}', articleUrl)
+    }
 
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
@@ -98,7 +121,7 @@ serve(async (req) => {
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.9,
+            temperature: 0.7,
             maxOutputTokens: 2048,
             thinkingConfig: {
               thinkingBudget: 0
