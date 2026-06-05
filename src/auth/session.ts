@@ -19,7 +19,7 @@ export interface AppProfile {
   updated_at: string;
 }
 
-export type AppModule = 'articles' | 'chantiers' | 'icpe' | 'map' | 'feedback';
+export type AppModule = 'articles' | 'chantiers' | 'icpe' | 'map' | 'feedback' | 'renders';
 export type AppAction = 'read' | 'create' | 'edit' | 'publish' | 'delete' | 'resolve';
 
 let cachedProfile: AppProfile | null = null;

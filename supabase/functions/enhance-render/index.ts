@@ -255,17 +255,19 @@ serve(async (req) => {
     return jsonResponse({ success: false, error: 'Session invalide' }, 401)
   }
 
-  // ── Garde admin ─────────────────────────────────────────
+  // ── Garde : admin OU permission renders:read ────────────
   const adminClient = createClient(SUPABASE_URL, SERVICE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
   const { data: profile } = await adminClient
     .from('app_profiles')
-    .select('is_admin')
+    .select('is_admin, permissions')
     .eq('id', userData.user.id)
     .single()
-  if (!profile?.is_admin) {
-    return jsonResponse({ success: false, error: 'Accès réservé aux administrateurs' }, 403)
+  const canRender = profile?.is_admin === true ||
+    (Array.isArray(profile?.permissions?.renders) && profile.permissions.renders.includes('read'))
+  if (!canRender) {
+    return jsonResponse({ success: false, error: 'Accès non autorisé' }, 403)
   }
 
   // ── Parse ───────────────────────────────────────────────
@@ -282,8 +284,9 @@ serve(async (req) => {
   if (!['photoreal', 'sketch', 'refine', 'upscale'].includes(mode)) {
     return jsonResponse({ success: false, error: 'mode invalide' }, 400)
   }
-  // Itérations en 1K (rapide/pas cher) ; 4K réservé à l'upscale final.
-  const size = body.size || (mode === 'upscale' ? '4K' : '1K')
+  // Itérations en 1K (rapide/pas cher) ; 2K pour l'upscale final (rentre dans
+  // les limites mémoire/timeout de la VM — la 4K Gemini prend ~4 min → 504).
+  const size = body.size || (mode === 'upscale' ? '2K' : '1K')
   const mime = body.mime || 'image/png'
   const prompt = buildPrompt(mode, body.presets || {}, body.instructions)
 
