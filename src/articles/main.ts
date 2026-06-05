@@ -1,10 +1,12 @@
 // Module principal - Articles Chantier
 
 import './styles.css';
-import { generateArticle, fileToBase64, publishArticle, compressImage, convertHeicToJpeg, summarizeHistory, generateLinkedInPost, notifyReview, linkedinStatus, linkedinStart, linkedinPublish, linkedinDisconnect, SeoContext } from './api';
+import { generateArticle, fileToBase64, publishArticle, compressImage, convertHeicToJpeg, summarizeHistory, generateLinkedInPost, reworkLinkedInPost, notifyReview, linkedinStatus, linkedinStart, linkedinPublish, linkedinDisconnect, SeoContext } from './api';
 
-// URL de l'article courant (pour la publication directe LinkedIn)
+// Contexte de l'article courant (pour la publication / régénération LinkedIn)
 let currentLinkedInUrl = '';
+let currentLinkedInTitle = '';
+let currentLinkedInContent = '';
 import { createDraft, updateDraft, getDrafts, getDraftsByChantier, deleteDraft, markAsPublished, ArticleDraft } from './database';
 import { getChantiers, getChantier, Chantier } from '../chantiers/database';
 import { MAX_IMAGE_SIZE, WP_SITE_URL } from './config';
@@ -233,6 +235,60 @@ async function setupLinkedInTestPanel() {
     try { await linkedinDisconnect(); } catch { /* ignore */ }
     await refresh();
     showToast('Compte LinkedIn déconnecté', 'info');
+  });
+}
+
+// Applique une consigne IA sur le texte d'un textarea LinkedIn (retravail).
+async function applyLinkedInRework(textarea: HTMLTextAreaElement, instruction: string) {
+  const current = textarea.value.trim();
+  if (!current || !instruction) return;
+  const prev = textarea.value;
+  textarea.disabled = true;
+  textarea.value = '⏳ Retravail en cours…';
+  try {
+    const out = await reworkLinkedInPost(current, instruction);
+    textarea.value = out || prev;
+    if (!out) showToast('La modification IA n\'a rien renvoyé', 'error');
+  } catch {
+    textarea.value = prev;
+    showToast('La modification IA a échoué', 'error');
+  } finally {
+    textarea.disabled = false;
+  }
+}
+
+function setupLinkedInAiTools() {
+  // Régénérer un post complet (section article publié)
+  document.getElementById('btn-li-regenerate')?.addEventListener('click', async () => {
+    if (!currentLinkedInTitle) return;
+    const ta = elements.linkedinPost;
+    const prev = ta.value;
+    ta.disabled = true;
+    ta.value = '⏳ Nouvelle génération…';
+    try {
+      const post = await generateLinkedInPost(currentLinkedInTitle, currentLinkedInContent, currentLinkedInUrl);
+      ta.value = post || prev;
+    } catch {
+      ta.value = prev;
+    } finally {
+      ta.disabled = false;
+    }
+  });
+  // Boutons rapides + champ libre (section article publié)
+  document.querySelectorAll<HTMLButtonElement>('[data-li-rework]').forEach(b => {
+    b.addEventListener('click', () => applyLinkedInRework(elements.linkedinPost, b.dataset.liRework!));
+  });
+  document.getElementById('btn-li-rework-go')?.addEventListener('click', () => {
+    const inp = document.getElementById('li-rework-input') as HTMLInputElement;
+    if (inp.value.trim()) { applyLinkedInRework(elements.linkedinPost, inp.value.trim()); inp.value = ''; }
+  });
+  // Panneau de test
+  document.querySelectorAll<HTMLButtonElement>('[data-li-test-rework]').forEach(b => {
+    b.addEventListener('click', () => applyLinkedInRework(elements.liTestTextarea, b.dataset.liTestRework!));
+  });
+  document.getElementById('btn-li-test-rework-go')?.addEventListener('click', () => {
+    const inp = document.getElementById('li-test-rework-input') as HTMLInputElement;
+    if (inp.value.trim()) { applyLinkedInRework(elements.liTestTextarea, inp.value.trim()); inp.value = ''; }
   });
 }
 
@@ -1297,6 +1353,8 @@ async function handlePublish() {
           const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(result.link)}`;
           elements.btnShareLinkedin.href = shareUrl;
           currentLinkedInUrl = result.link;
+          currentLinkedInTitle = currentTitle;
+          currentLinkedInContent = currentContent;
           refreshLinkedInButtons();
         } else {
           elements.linkedinError.hidden = false;
@@ -1512,6 +1570,7 @@ async function init() {
 
   // Panneau de test LinkedIn (connexion + post de test sans publier d'article)
   setupLinkedInTestPanel();
+  setupLinkedInAiTools();
 
   // Peupler le select des départements
   populateDepartmentSelect(elements.seoDepartment, { placeholder: '--', defaultValue: '25' });

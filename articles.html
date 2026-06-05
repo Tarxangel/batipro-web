@@ -48,7 +48,13 @@
           <p id="li-test-status" class="linkedin-account-status">Vérification…</p>
           <button type="button" id="li-test-connect" class="btn-primary" hidden>Connecter LinkedIn</button>
           <div id="li-test-publish-box" hidden>
-            <textarea id="li-test-textarea" rows="3" class="linkedin-textarea">Petit test de publication depuis l'app Batipro. (post de test, je le supprimerai)</textarea>
+            <textarea id="li-test-textarea" rows="4" class="linkedin-textarea">Petit test de publication depuis l'app Batipro. (post de test, je le supprimerai)</textarea>
+            <div class="linkedin-ai-tools">
+              <button type="button" class="btn-ai-chip" data-li-test-rework="Raccourcis le texte en gardant un ton professionnel.">Raccourcir</button>
+              <button type="button" class="btn-ai-chip" data-li-test-rework="Rends-le plus professionnel et sobre.">Plus pro</button>
+              <input type="text" id="li-test-rework-input" class="li-rework-input" placeholder="Modif IA…">
+              <button type="button" id="btn-li-test-rework-go" class="btn-ai-chip btn-ai-go">Reformuler</button>
+            </div>
             <div class="linkedin-actions">
               <button type="button" id="li-test-publish" class="btn-primary">Publier ce test sur LinkedIn</button>
               <button type="button" id="li-test-disconnect" class="btn-secondary">Déconnecter</button>
@@ -301,7 +307,15 @@
               <span>Génération du post LinkedIn...</span>
             </div>
             <div id="linkedin-content" class="linkedin-content" hidden>
-              <textarea id="linkedin-post" class="linkedin-textarea" rows="8" placeholder="Post LinkedIn..."></textarea>
+              <textarea id="linkedin-post" class="linkedin-textarea" rows="9" placeholder="Post LinkedIn..."></textarea>
+              <div class="linkedin-ai-tools">
+                <button type="button" id="btn-li-regenerate" class="btn-ai-chip" title="Générer un nouveau post">🔄 Régénérer</button>
+                <button type="button" class="btn-ai-chip" data-li-rework="Raccourcis le post à environ 90 mots en gardant l'essentiel et le ton professionnel.">Raccourcir</button>
+                <button type="button" class="btn-ai-chip" data-li-rework="Rends-le plus sobre et institutionnel, encore plus professionnel.">Plus sobre</button>
+                <button type="button" class="btn-ai-chip" data-li-rework="Rends la première ligne (l'accroche) plus percutante et informative, avec le lieu et l'ouvrage.">Accroche +</button>
+                <input type="text" id="li-rework-input" class="li-rework-input" placeholder="Demander une modif à l'IA…">
+                <button type="button" id="btn-li-rework-go" class="btn-ai-chip btn-ai-go">Reformuler</button>
+              </div>
               <div class="linkedin-actions">
                 <button id="btn-copy-linkedin" class="btn-secondary btn-linkedin-action">
                   Copier le texte
