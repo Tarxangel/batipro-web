@@ -8,6 +8,7 @@ export const N8N_PUBLISH_WEBHOOK = `${SUPABASE_URL}/functions/v1/smart-endpoint`
 export const SUMMARIZE_HISTORY_URL = `${SUPABASE_URL}/functions/v1/summarize-history`;
 export const NOTIFY_REVIEW_URL = `${SUPABASE_URL}/functions/v1/notify-review`;
 export const LINKEDIN_POST_URL = `${SUPABASE_URL}/functions/v1/generate-linkedin-post`;
+export const LINKEDIN_URL = `${SUPABASE_URL}/functions/v1/linkedin`;
 
 // Configuration WordPress (pour référence uniquement)
 export const WP_SITE_URL = 'https://www.thibautlab.fr';

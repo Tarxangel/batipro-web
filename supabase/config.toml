@@ -50,3 +50,9 @@ verify_jwt = false
 
 [functions.enhance-render]
 verify_jwt = false
+
+[functions.linkedin]
+verify_jwt = false
+
+[functions.linkedin-callback]
+verify_jwt = false
