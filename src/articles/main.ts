@@ -1,7 +1,7 @@
 // Module principal - Articles Chantier
 
 import './styles.css';
-import { generateArticle, fileToBase64, publishArticle, compressImage, convertHeicToJpeg, summarizeHistory, generateLinkedInPost, notifyReview, linkedinStatus, linkedinStart, linkedinPublish, SeoContext } from './api';
+import { generateArticle, fileToBase64, publishArticle, compressImage, convertHeicToJpeg, summarizeHistory, generateLinkedInPost, notifyReview, linkedinStatus, linkedinStart, linkedinPublish, linkedinDisconnect, SeoContext } from './api';
 
 // URL de l'article courant (pour la publication directe LinkedIn)
 let currentLinkedInUrl = '';
@@ -124,6 +124,14 @@ const elements = {
   btnConnectLinkedin: document.getElementById('btn-connect-linkedin') as HTMLButtonElement,
   linkedinAccountStatus: document.getElementById('linkedin-account-status')!,
 
+  // Panneau de test LinkedIn (page upload)
+  liTestStatus: document.getElementById('li-test-status')!,
+  liTestConnect: document.getElementById('li-test-connect') as HTMLButtonElement,
+  liTestPublishBox: document.getElementById('li-test-publish-box')!,
+  liTestTextarea: document.getElementById('li-test-textarea') as HTMLTextAreaElement,
+  liTestPublish: document.getElementById('li-test-publish') as HTMLButtonElement,
+  liTestDisconnect: document.getElementById('li-test-disconnect') as HTMLButtonElement,
+
   // Drafts
   draftsCount: document.getElementById('drafts-count')!,
   draftsList: document.getElementById('drafts-list')!,
@@ -174,6 +182,58 @@ async function refreshLinkedInButtons() {
       ? 'Session LinkedIn expirée — reconnecte ton compte.'
       : 'Connecte ton compte pour publier en un clic (avec la page Batipro taguée).';
   }
+}
+
+// Panneau de test autonome (connexion + post de test, sans publier d'article)
+async function setupLinkedInTestPanel() {
+  const refresh = async () => {
+    const s = await linkedinStatus();
+    if (s.connected && !s.expired) {
+      elements.liTestStatus.textContent = s.name ? `Connecté en tant que ${s.name}` : 'Compte LinkedIn connecté';
+      elements.liTestConnect.hidden = true;
+      elements.liTestPublishBox.hidden = false;
+    } else {
+      elements.liTestStatus.textContent = s.expired
+        ? 'Session LinkedIn expirée — reconnecte ton compte.'
+        : 'Pas encore connecté. Connecte ton compte pour tester (sans publier d\'article).';
+      elements.liTestConnect.hidden = false;
+      elements.liTestPublishBox.hidden = true;
+    }
+  };
+  await refresh();
+
+  elements.liTestConnect.addEventListener('click', async () => {
+    try {
+      elements.liTestConnect.disabled = true;
+      window.location.href = await linkedinStart();
+    } catch (err) {
+      elements.liTestConnect.disabled = false;
+      showToast(err instanceof Error ? err.message : 'Erreur connexion', 'error');
+    }
+  });
+
+  elements.liTestPublish.addEventListener('click', async () => {
+    const text = elements.liTestTextarea.value.trim();
+    if (!text) return;
+    elements.liTestPublish.disabled = true;
+    elements.liTestPublish.textContent = 'Publication…';
+    try {
+      const url = await linkedinPublish(text, '');
+      elements.liTestPublish.textContent = '✓ Publié';
+      showToast('Post de test publié 🎉', 'success');
+      window.open(url, '_blank');
+    } catch (err) {
+      elements.liTestPublish.disabled = false;
+      elements.liTestPublish.textContent = 'Publier ce test sur LinkedIn';
+      showToast('Échec : ' + (err instanceof Error ? err.message : 'erreur'), 'error');
+    }
+  });
+
+  elements.liTestDisconnect.addEventListener('click', async () => {
+    try { await linkedinDisconnect(); } catch { /* ignore */ }
+    await refresh();
+    showToast('Compte LinkedIn déconnecté', 'info');
+  });
 }
 
 // --- TOAST NOTIFICATIONS ---
@@ -1449,6 +1509,9 @@ async function init() {
     showToast('Connexion LinkedIn échouée. Réessaie.', 'error');
     window.history.replaceState({}, '', window.location.pathname);
   }
+
+  // Panneau de test LinkedIn (connexion + post de test sans publier d'article)
+  setupLinkedInTestPanel();
 
   // Peupler le select des départements
   populateDepartmentSelect(elements.seoDepartment, { placeholder: '--', defaultValue: '25' });
