@@ -42,6 +42,21 @@
     <main class="app-main">
       <!-- Étape 1: Upload -->
       <section id="step-upload" class="step active">
+        <!-- Panneau de test LinkedIn (connexion + post de test, sans publier d'article) -->
+        <details id="li-test-panel" class="li-test-panel">
+          <summary>🔗 Connexion LinkedIn (test)</summary>
+          <p id="li-test-status" class="linkedin-account-status">Vérification…</p>
+          <button type="button" id="li-test-connect" class="btn-primary" hidden>Connecter LinkedIn</button>
+          <div id="li-test-publish-box" hidden>
+            <textarea id="li-test-textarea" rows="3" class="linkedin-textarea">Petit test de publication depuis l'app Batipro. (post de test, je le supprimerai)</textarea>
+            <div class="linkedin-actions">
+              <button type="button" id="li-test-publish" class="btn-primary">Publier ce test sur LinkedIn</button>
+              <button type="button" id="li-test-disconnect" class="btn-secondary">Déconnecter</button>
+            </div>
+            <p class="field-hint">Le post part sur ton profil perso — tu peux le supprimer depuis LinkedIn juste après.</p>
+          </div>
+        </details>
+
         <div class="upload-zone" id="upload-zone">
           <input type="file" id="photo-input" accept="image/*,.heic,.heif" hidden />
           <div class="upload-placeholder">
