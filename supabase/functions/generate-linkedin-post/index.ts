@@ -14,31 +14,34 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const FALLBACK_LINKEDIN_PROMPT = `Tu rédiges un post LinkedIn pour Batipro Concept (bâtiments industriels & logistiques, Bourgogne-Franche-Comté / Grand Est).
+const FALLBACK_LINKEDIN_PROMPT = `Tu écris un post LinkedIn à la PREMIÈRE PERSONNE pour quelqu'un de Batipro Concept (bâtiments industriels & logistiques, Bourgogne-Franche-Comté / Grand Est). Objectif central : que ça sonne comme un VRAI pro du bâtiment qui raconte son chantier à un confrère — surtout PAS comme un post généré par IA. LinkedIn pénalise les posts qui sentent l'IA ; ton job est qu'on n'y voie que du feu.
 
-Article publié :
+Article publié (source d'infos, à NE PAS recopier ni résumer mécaniquement) :
 Titre : {{TITLE}}
 Contenu : {{CONTENT}}
 URL : {{ARTICLE_URL}}
 
-Rédige un post LinkedIn moderne et percutant. Règles strictes :
+=== VOIX HUMAINE (à faire) ===
+- Première personne : "on", "j'ai", "notre équipe". Comme si tu racontais ta semaine de boulot.
+- Démarre par un détail CONCRET et vécu : un imprévu sur le chantier, une contrainte technique, un moment précis, un chiffre qui parle (m², tonnes, délai, météo, dénivelé...).
+- Rythme NATUREL et irrégulier : alterne phrases courtes et plus longues. Une tournure orale de temps en temps ("franchement", "au final", "pas évident", "honnêtement"). Ça doit respirer l'humain, pas le gabarit.
+- Reste spécifique à CE chantier : si une phrase pourrait coller à n'importe quel projet, supprime-la.
+- Une petite opinion, une fierté discrète ou une leçon tirée, c'est bienvenu.
 
-STYLE :
-- Ton direct, énergique, phrases courtes. Pas de langage corporate creux.
-- INTERDIT : "Chez Batipro Concept, nous sommes fiers/heureux de...", "nous avons le plaisir", "nous sommes ravis". Ces formulations sont ringardes.
-- Privilégie les faits concrets : chiffres, m², tonnes, défis techniques résolus.
-- Utilise des sauts de ligne pour aérer (style LinkedIn moderne).
-- Le nom Batipro Concept peut apparaître mais de façon naturelle, jamais en ouverture de phrase.
+=== CE QUI SENT L'IA / LE SPAM (interdit) ===
+- Pas d'accroche bateau : "🚀", "Fier de vous annoncer", "Heureux/Ravi de partager", "C'est avec plaisir que".
+- Pas de listes à puces, pas d'emojis décoratifs en pagaille (1 emoji grand max, idéalement zéro).
+- Pas de tirets cadratins (—), pas de structure trop léchée ou symétrique.
+- Pas de CTA robotique : "Et vous, qu'en pensez-vous ?", "N'hésitez pas à...", "Dites-moi en commentaire".
+- Pas de jargon marketing : "solution clé en main", "savoir-faire d'exception", "au cœur de nos préoccupations", "acteur incontournable".
+- 3 hashtags MAXIMUM, simples et pertinents. Jamais un mur de hashtags.
 
-STRUCTURE :
-1. Accroche forte en 1 ligne (fait marquant, question provocante ou stat impactante)
-2. 3-5 phrases courtes qui racontent le projet (contexte, défi, solution)
-3. 1 phrase d'appel à l'action vers l'article
-4. Le lien {{ARTICLE_URL}}
-5. 3-5 hashtags pertinents
+=== FORME ===
+- 80-150 mots. Plutôt court. Quelques sauts de ligne pour aérer.
+- Amène le lien {{ARTICLE_URL}} naturellement, sur sa propre ligne en fin de post.
+- 1 à 3 hashtags max tout à la fin.
 
-Longueur : 120-200 mots.
-Écris uniquement le post, rien d'autre.`
+Écris UNIQUEMENT le post, prêt à publier, rien d'autre.`
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -95,7 +98,7 @@ serve(async (req) => {
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.7,
+            temperature: 0.9,
             maxOutputTokens: 2048,
             thinkingConfig: {
               thinkingBudget: 0
