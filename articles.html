@@ -291,10 +291,17 @@
                 <button id="btn-copy-linkedin" class="btn-secondary btn-linkedin-action">
                   Copier le texte
                 </button>
-                <a id="btn-share-linkedin" href="#" target="_blank" class="btn-primary btn-linkedin-action btn-linkedin-share">
+                <button id="btn-publish-linkedin" class="btn-primary btn-linkedin-action btn-linkedin-share" hidden>
                   Publier sur LinkedIn
+                </button>
+                <button id="btn-connect-linkedin" class="btn-primary btn-linkedin-action btn-linkedin-share" hidden>
+                  Connecter LinkedIn
+                </button>
+                <a id="btn-share-linkedin" href="#" target="_blank" class="btn-secondary btn-linkedin-action">
+                  Ouvrir manuellement
                 </a>
               </div>
+              <p id="linkedin-account-status" class="linkedin-account-status"></p>
             </div>
             <div id="linkedin-error" class="linkedin-error" hidden>
               <p>Impossible de générer le post LinkedIn automatiquement.</p>

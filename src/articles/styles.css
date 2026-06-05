@@ -1505,3 +1505,10 @@ body {
   gap: 8px;
   margin-top: 16px;
 }
+
+/* LinkedIn — statut de connexion (publication directe) */
+.linkedin-account-status {
+  font-size: 12px;
+  color: #64748b;
+  margin: 8px 0 0;
+}

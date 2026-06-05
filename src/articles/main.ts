@@ -1,7 +1,10 @@
 // Module principal - Articles Chantier
 
 import './styles.css';
-import { generateArticle, fileToBase64, publishArticle, compressImage, convertHeicToJpeg, summarizeHistory, generateLinkedInPost, notifyReview, SeoContext } from './api';
+import { generateArticle, fileToBase64, publishArticle, compressImage, convertHeicToJpeg, summarizeHistory, generateLinkedInPost, notifyReview, linkedinStatus, linkedinStart, linkedinPublish, SeoContext } from './api';
+
+// URL de l'article courant (pour la publication directe LinkedIn)
+let currentLinkedInUrl = '';
 import { createDraft, updateDraft, getDrafts, getDraftsByChantier, deleteDraft, markAsPublished, ArticleDraft } from './database';
 import { getChantiers, getChantier, Chantier } from '../chantiers/database';
 import { MAX_IMAGE_SIZE, WP_SITE_URL } from './config';
@@ -117,6 +120,9 @@ const elements = {
   linkedinPost: document.getElementById('linkedin-post') as HTMLTextAreaElement,
   btnCopyLinkedin: document.getElementById('btn-copy-linkedin')!,
   btnShareLinkedin: document.getElementById('btn-share-linkedin') as HTMLAnchorElement,
+  btnPublishLinkedin: document.getElementById('btn-publish-linkedin') as HTMLButtonElement,
+  btnConnectLinkedin: document.getElementById('btn-connect-linkedin') as HTMLButtonElement,
+  linkedinAccountStatus: document.getElementById('linkedin-account-status')!,
 
   // Drafts
   draftsCount: document.getElementById('drafts-count')!,
@@ -148,6 +154,27 @@ const elements = {
   seoSurface: document.getElementById('seo-surface') as HTMLInputElement,
   seoKeywords: document.getElementById('seo-keywords') as HTMLInputElement
 };
+
+// --- LINKEDIN : état connexion / boutons ---
+
+async function refreshLinkedInButtons() {
+  const status = await linkedinStatus();
+  if (status.connected && !status.expired) {
+    elements.btnPublishLinkedin.hidden = false;
+    elements.btnPublishLinkedin.disabled = false;
+    elements.btnPublishLinkedin.textContent = 'Publier sur LinkedIn';
+    elements.btnConnectLinkedin.hidden = true;
+    elements.linkedinAccountStatus.textContent = status.name
+      ? `Connecté en tant que ${status.name}` : 'Compte LinkedIn connecté';
+  } else {
+    elements.btnPublishLinkedin.hidden = true;
+    elements.btnConnectLinkedin.hidden = false;
+    elements.btnConnectLinkedin.disabled = false;
+    elements.linkedinAccountStatus.textContent = status.expired
+      ? 'Session LinkedIn expirée — reconnecte ton compte.'
+      : 'Connecte ton compte pour publier en un clic (avec la page Batipro taguée).';
+  }
+}
 
 // --- TOAST NOTIFICATIONS ---
 
@@ -1209,6 +1236,8 @@ async function handlePublish() {
           elements.linkedinContent.hidden = false;
           const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(result.link)}`;
           elements.btnShareLinkedin.href = shareUrl;
+          currentLinkedInUrl = result.link;
+          refreshLinkedInButtons();
         } else {
           elements.linkedinError.hidden = false;
         }
@@ -1411,6 +1440,16 @@ async function init() {
   userPerms = computePerms(profile);
   applyPermissionGating();
 
+  // Retour du flow OAuth LinkedIn
+  const liParam = new URLSearchParams(window.location.search).get('linkedin');
+  if (liParam === 'connected') {
+    showToast('Compte LinkedIn connecté ✓ Tu peux maintenant publier en un clic.', 'success', 6000);
+    window.history.replaceState({}, '', window.location.pathname);
+  } else if (liParam === 'error') {
+    showToast('Connexion LinkedIn échouée. Réessaie.', 'error');
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+
   // Peupler le select des départements
   populateDepartmentSelect(elements.seoDepartment, { placeholder: '--', defaultValue: '25' });
 
@@ -1455,6 +1494,43 @@ async function init() {
       // Fallback: select the textarea content
       elements.linkedinPost.select();
       showToast('Texte sélectionné, utilisez Ctrl+C pour copier', 'info');
+    }
+  });
+
+  // ── Publication directe LinkedIn ──
+  elements.btnConnectLinkedin.addEventListener('click', async () => {
+    try {
+      elements.btnConnectLinkedin.disabled = true;
+      const url = await linkedinStart();
+      // Redirection pleine page vers LinkedIn (connexion unique, persistante)
+      window.location.href = url;
+    } catch (err) {
+      elements.btnConnectLinkedin.disabled = false;
+      showToast(err instanceof Error ? err.message : 'Erreur connexion LinkedIn', 'error');
+    }
+  });
+
+  elements.btnPublishLinkedin.addEventListener('click', async () => {
+    const post = elements.linkedinPost.value.trim();
+    if (!post) return;
+    elements.btnPublishLinkedin.disabled = true;
+    elements.btnPublishLinkedin.textContent = 'Publication…';
+    try {
+      const url = await linkedinPublish(post, currentLinkedInUrl);
+      elements.btnPublishLinkedin.textContent = '✓ Publié';
+      showToast('Post publié sur LinkedIn 🎉', 'success');
+      window.open(url, '_blank');
+    } catch (err) {
+      elements.btnPublishLinkedin.disabled = false;
+      elements.btnPublishLinkedin.textContent = 'Publier sur LinkedIn';
+      const msg = err instanceof Error ? err.message : 'Erreur';
+      // Token expiré → proposer reconnexion
+      if (/expir|reconnect|401/i.test(msg)) {
+        showToast('Session LinkedIn expirée, reconnecte ton compte', 'error');
+        refreshLinkedInButtons();
+      } else {
+        showToast('Publication LinkedIn échouée : ' + msg, 'error');
+      }
     }
   });
 

@@ -1,8 +1,48 @@
 // Module API pour n8n
 
 import heic2any from 'heic2any';
-import { N8N_ARTICLE_WEBHOOK, N8N_PUBLISH_WEBHOOK, SUMMARIZE_HISTORY_URL, LINKEDIN_POST_URL, NOTIFY_REVIEW_URL, GENERATE_TIMEOUT, PUBLISH_TIMEOUT, MAX_IMAGE_DIMENSION, IMAGE_COMPRESSION_QUALITY } from './config';
+import { N8N_ARTICLE_WEBHOOK, N8N_PUBLISH_WEBHOOK, SUMMARIZE_HISTORY_URL, LINKEDIN_POST_URL, LINKEDIN_URL, NOTIFY_REVIEW_URL, GENERATE_TIMEOUT, PUBLISH_TIMEOUT, MAX_IMAGE_DIMENSION, IMAGE_COMPRESSION_QUALITY } from './config';
 import { SUPABASE_ANON_KEY } from '../config';
+import { getAuthClient } from '../auth/client';
+
+// ── Publication directe LinkedIn (Edge Function linkedin) ──
+async function linkedinCall(payload: Record<string, unknown>): Promise<any> {
+  const supabase = getAuthClient();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData?.session?.access_token;
+  if (!token) throw new Error('Session expirée');
+  const response = await fetch(LINKEDIN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+  const json = await response.json().catch(() => ({ success: false, error: `HTTP ${response.status}` }));
+  if (!response.ok || !json.success) throw new Error(json.error || `Erreur HTTP ${response.status}`);
+  return json;
+}
+
+export async function linkedinStatus(): Promise<{ connected: boolean; name?: string; expired?: boolean }> {
+  try {
+    const r = await linkedinCall({ action: 'status' });
+    return { connected: !!r.connected, name: r.name, expired: r.expired };
+  } catch {
+    return { connected: false };
+  }
+}
+
+export async function linkedinStart(): Promise<string> {
+  const r = await linkedinCall({ action: 'start' });
+  return r.authorizeUrl as string;
+}
+
+export async function linkedinPublish(post: string, articleUrl: string): Promise<string> {
+  const r = await linkedinCall({ action: 'publish', post, articleUrl });
+  return r.url as string;
+}
+
+export async function linkedinDisconnect(): Promise<void> {
+  await linkedinCall({ action: 'disconnect' });
+}
 
 // Types
 export interface SeoContext {
