@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.create-wp-draft]
 verify_jwt = false
+
+[functions.enhance-render]
+verify_jwt = false

@@ -14,6 +14,7 @@ export default defineConfig({
         chantiers: resolve(__dirname, 'chantiers.html'),
         login: resolve(__dirname, 'login.html'),
         admin: resolve(__dirname, 'admin.html'),
+        renders: resolve(__dirname, 'renders.html'),
         icpeCarte: resolve(__dirname, 'icpe/index.html'),
         icpeSimulateur: resolve(__dirname, 'icpe/simulateur.html')
       }
