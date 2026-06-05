@@ -51,6 +51,13 @@ export const MODULES: ModuleDef[] = [
     ],
   },
   {
+    key: 'renders',
+    label: 'Rendus IA',
+    actions: [
+      { key: 'read', label: 'Accéder' },
+    ],
+  },
+  {
     key: 'feedback',
     label: 'Tickets SAV',
     actions: [

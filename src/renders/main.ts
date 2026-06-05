@@ -8,7 +8,7 @@
 // Stratégie coût : on itère en 1K (rapide / ~0,13 $) et on n'upscale en 4K
 // que l'image finale validée.
 
-import { requireAdmin, logout } from '../auth/session';
+import { requirePermission, logout } from '../auth/session';
 import { enhanceRender, RenderPresets } from './api';
 import {
   listChantiers, saveRender, listRenders, signedUrl, deleteRender,
@@ -35,7 +35,7 @@ interface Card {
 // ── Init ────────────────────────────────────────────────
 
 (async function init() {
-  const profile = await requireAdmin('/');
+  const profile = await requirePermission('renders', 'read', '/');
   if (!profile) return;
   document.body.classList.add('gate-passed');
 
@@ -203,7 +203,7 @@ function createCard(kind: 'photoreal' | 'sketch'): Card {
           <button type="button" class="btn-ghost btn-refine">Affiner</button>
         </div>
         <div class="result-buttons">
-          <button type="button" class="btn-ghost btn-upscale">Upscaler 4K</button>
+          <button type="button" class="btn-ghost btn-upscale">Upscaler HD</button>
           <button type="button" class="btn-ghost btn-save">Enregistrer</button>
           <button type="button" class="btn-primary btn-download">Télécharger</button>
         </div>
@@ -284,15 +284,15 @@ async function upscaleCard(card: Card) {
   if (card.upscaledB64) { downloadCard(card); return; }
   btn.disabled = true;
   const original = btn.textContent;
-  btn.textContent = 'Upscale 4K…';
-  setStatus(card, 'Montée en 4K…', true);
+  btn.textContent = 'Upscale HD…';
+  setStatus(card, 'Montée en HD (2K)…', true);
   try {
     const res = await enhanceRender({
-      image: card.imageB64, mime: card.mime, mode: 'upscale', size: '4K',
+      image: card.imageB64, mime: card.mime, mode: 'upscale', size: '2K',
     });
     card.upscaledB64 = res.image;
-    btn.textContent = '✓ 4K prêt';
-    setStatus(card, '✓ Version 4K générée');
+    btn.textContent = '✓ HD prêt';
+    setStatus(card, '✓ Version HD (2K) générée');
     downloadCard(card);
   } catch (err) {
     btn.textContent = original;
@@ -304,7 +304,7 @@ async function upscaleCard(card: Card) {
 function downloadCard(card: Card) {
   const b64 = card.upscaledB64 || card.imageB64;
   if (!b64) return;
-  const suffix = card.upscaledB64 ? '4K' : '1K';
+  const suffix = card.upscaledB64 ? '2K' : '1K';
   const name = `rendu_${card.kind}_${suffix}_${card.id}.png`;
   const a = document.createElement('a');
   a.href = `data:image/png;base64,${b64}`;
@@ -321,7 +321,7 @@ async function saveCard(card: Card) {
     await saveRender({
       imageB64: card.upscaledB64 || card.imageB64,
       kind: card.kind,
-      resolution: card.upscaledB64 ? '4K' : '1K',
+      resolution: card.upscaledB64 ? '2K' : '1K',
       presets: collectPresets(),
       chantierId,
     });
