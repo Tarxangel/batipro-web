@@ -15,6 +15,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
   const navLogin   = $<HTMLAnchorElement>('nav-login');
   const navLogout  = $<HTMLButtonElement>('nav-logout');
   const adminTile  = $('admin-tile');
+  const rendersTile = $('renders-tile');
   const emptyState = $('tools-empty');
   const emptyMsg   = $('tools-empty-message');
   const emptyCta   = $<HTMLAnchorElement>('tools-empty-cta');
@@ -42,6 +43,7 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
     if (navLogout) navLogout.hidden = true;
     if (navUser)   navUser.hidden   = true;
     if (adminTile) adminTile.hidden = true;
+    if (rendersTile) rendersTile.hidden = true;
 
     // Toutes les tuiles restent cachées (déjà hidden par défaut)
     tiles.forEach(t => { t.hidden = true; });
@@ -66,6 +68,8 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 
     // Tuile admin : visible si is_admin
     if (adminTile) adminTile.hidden = !profile.is_admin;
+    // Tuile Rendus IA : réservée aux admins pour l'instant
+    if (rendersTile) rendersTile.hidden = !profile.is_admin;
 
     // Tuiles métier : visibles si l'utilisateur a la permission `module:read`
     // (admin court-circuite tout)

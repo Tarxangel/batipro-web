@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rendus IA — Batipro Concept</title>
+  <link rel="stylesheet" href="/src/styles/home.css">
+  <link rel="stylesheet" href="/src/renders/renders.css">
+</head>
+<body class="renders-body">
+  <nav class="nav">
+    <div class="nav-content">
+      <div class="nav-logo">Batipro Concept — Rendus IA</div>
+      <div class="nav-actions">
+        <a href="/" class="nav-link">← Accueil</a>
+        <button id="btn-logout" class="nav-link nav-logout">Déconnexion</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="renders-main">
+    <header class="renders-header">
+      <h1>Amélioration de rendus</h1>
+      <p class="renders-sub">
+        Importez un rendu Lumion brut, choisissez l'ambiance, et générez un visuel
+        photoréaliste haut de gamme ou une esquisse d'architecte — la géométrie du
+        bâtiment est strictement conservée.
+      </p>
+    </header>
+
+    <div class="renders-layout">
+      <!-- ── Panneau de configuration ──────────────────── -->
+      <section class="renders-config">
+        <!-- Zone d'import -->
+        <div id="dropzone" class="dropzone">
+          <input type="file" id="file-input" accept="image/*" hidden>
+          <div id="dropzone-empty" class="dropzone-empty">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <p><strong>Glissez un rendu ici</strong><br>ou cliquez pour choisir un fichier</p>
+            <span class="dropzone-hint">JPEG ou PNG · le rendu Lumion exporté</span>
+          </div>
+          <img id="source-preview" class="source-preview" hidden alt="Aperçu du rendu source">
+        </div>
+        <button type="button" id="btn-change-image" class="btn-ghost btn-block" hidden>Changer d'image</button>
+
+        <!-- Presets -->
+        <form id="presets-form" class="presets-form">
+          <label class="preset-field">
+            <span>Chantier <small>(pour ranger les visuels enregistrés)</small></span>
+            <select id="p-chantier">
+              <option value="">— Sans chantier —</option>
+            </select>
+          </label>
+
+          <fieldset class="preset-group">
+            <legend>Livrables à générer</legend>
+            <div class="seg-options">
+              <label class="seg"><input type="radio" name="livrable" value="photoreal" checked><span>Photoréaliste</span></label>
+              <label class="seg"><input type="radio" name="livrable" value="sketch"><span>Esquisse aquarelle</span></label>
+              <label class="seg"><input type="radio" name="livrable" value="both"><span>Les deux</span></label>
+            </div>
+          </fieldset>
+
+          <div class="preset-row">
+            <label class="preset-field">
+              <span>Heure</span>
+              <select id="p-heure">
+                <option value="journée">Journée</option>
+                <option value="coucher de soleil">Coucher de soleil</option>
+                <option value="tombée du jour" selected>Tombée du jour</option>
+                <option value="heure bleue">Heure bleue</option>
+                <option value="nuit">Nuit</option>
+              </select>
+            </label>
+            <label class="preset-field">
+              <span>Lumière intérieure</span>
+              <select id="p-intensite">
+                <option value="faible">Faible</option>
+                <option value="moyenne" selected>Moyenne</option>
+                <option value="forte">Forte</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="preset-row">
+            <label class="preset-field">
+              <span>Ambiance</span>
+              <select id="p-ambiance">
+                <option value="sobre">Sobre</option>
+                <option value="chaleureuse" selected>Chaleureuse</option>
+                <option value="premium">Premium</option>
+              </select>
+            </label>
+            <label class="preset-field">
+              <span>Végétation</span>
+              <select id="p-vegetation">
+                <option value="amélioration discrète">Discrète</option>
+                <option value="paysagisme haut de gamme" selected>Paysagisme haut de gamme</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="preset-row">
+            <label class="preset-field">
+              <span>Saison</span>
+              <select id="p-saison">
+                <option value="auto" selected>Auto</option>
+                <option value="printemps">Printemps</option>
+                <option value="été">Été</option>
+                <option value="automne">Automne</option>
+                <option value="hiver">Hiver</option>
+              </select>
+            </label>
+            <label class="preset-field">
+              <span>Ciel</span>
+              <select id="p-ciel">
+                <option value="auto" selected>Auto</option>
+                <option value="ciel dégagé">Dégagé</option>
+                <option value="quelques nuages">Quelques nuages</option>
+                <option value="ciel dramatique">Dramatique</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="preset-field">
+            <span>Localisation / climat <small>(pour une végétation cohérente)</small></span>
+            <input type="text" id="p-localisation" placeholder="ex : Pontarlier (25), climat continental/montagnard">
+          </label>
+
+          <label class="preset-field">
+            <span>Éléments à préserver <small>(optionnel)</small></span>
+            <input type="text" id="p-details" placeholder="ex : logo gan, clôture grillagée au premier plan">
+          </label>
+
+          <button type="submit" id="btn-generate" class="btn-primary btn-block" disabled>
+            Générer
+          </button>
+          <p class="renders-cost-hint">Itérations en 1K (~0,13 $). Upscale 4K à la demande sur l'image validée.</p>
+        </form>
+      </section>
+
+      <!-- ── Galerie de résultats ──────────────────────── -->
+      <section class="renders-results">
+        <div id="results-empty" class="results-empty">
+          <p>Les visuels générés apparaîtront ici.</p>
+        </div>
+        <div id="results-grid" class="results-grid"></div>
+
+        <!-- Historique des visuels enregistrés -->
+        <div class="history-block">
+          <div class="history-head">
+            <h2>Historique enregistré</h2>
+            <select id="history-filter" class="history-filter">
+              <option value="">Tous les chantiers</option>
+            </select>
+          </div>
+          <div id="history-empty" class="history-empty">Aucun visuel enregistré pour l'instant.</div>
+          <div id="history-grid" class="history-grid"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Lightbox -->
+  <div id="lightbox" class="lightbox" hidden>
+    <button id="lightbox-close" class="lightbox-close">×</button>
+    <img id="lightbox-img" alt="Visuel agrandi">
+  </div>
+
+  <script type="module" src="/src/renders/main.ts"></script>
+</body>
+</html>
