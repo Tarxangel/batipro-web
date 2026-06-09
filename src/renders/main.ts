@@ -9,7 +9,7 @@
 // que l'image finale validée.
 
 import { requirePermission, logout } from '../auth/session';
-import { enhanceRender, RenderPresets } from './api';
+import { enhanceRender, detectMaterials, RenderPresets } from './api';
 import {
   listChantiers, saveRender, listRenders, signedUrl, deleteRender,
   Chantier, RenderRecord,
@@ -47,6 +47,7 @@ interface Card {
   setupDropzone();
   setupLightbox();
   $<HTMLFormElement>('presets-form').addEventListener('submit', handleGenerate);
+  $<HTMLButtonElement>('btn-detect-materials').addEventListener('click', handleDetectMaterials);
 
   await loadChantiers();
   $<HTMLSelectElement>('history-filter').addEventListener('change', () => {
@@ -131,6 +132,27 @@ async function loadSourceImage(file: File) {
   $('dropzone-empty').hidden = true;
   $<HTMLButtonElement>('btn-change-image').hidden = false;
   $<HTMLButtonElement>('btn-generate').disabled = false;
+  $<HTMLButtonElement>('btn-detect-materials').disabled = false;
+}
+
+// Détecte les matériaux du rendu source et pré-remplit le champ (l'utilisateur
+// corrige ensuite, ex : Trespa pris pour de la pierre).
+async function handleDetectMaterials() {
+  if (!sourceB64) return;
+  const btn = $<HTMLButtonElement>('btn-detect-materials');
+  const field = $<HTMLTextAreaElement>('p-materiaux');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Analyse…';
+  try {
+    const materials = await detectMaterials(sourceB64, sourceMime);
+    field.value = materials;
+  } catch (err) {
+    field.placeholder = `Échec détection : ${(err as Error).message}`;
+  } finally {
+    btn.textContent = original;
+    btn.disabled = false;
+  }
 }
 
 // ── Génération ──────────────────────────────────────────
@@ -140,12 +162,15 @@ function collectPresets(): RenderPresets {
   return {
     heure: v('p-heure'),
     intensite: v('p-intensite'),
+    facade: v('p-facade'),
     ambiance: v('p-ambiance'),
     vegetation: v('p-vegetation'),
     saison: v('p-saison'),
     ciel: v('p-ciel'),
     localisation: $<HTMLInputElement>('p-localisation').value.trim(),
+    materiaux: $<HTMLTextAreaElement>('p-materiaux').value.trim(),
     details: $<HTMLInputElement>('p-details').value.trim(),
+    realisme: $<HTMLInputElement>('p-realisme').checked,
   };
 }
 
@@ -160,15 +185,15 @@ async function handleGenerate(e: Event) {
   const presets = collectPresets();
   const btn = $<HTMLButtonElement>('btn-generate');
   btn.disabled = true;
-  btn.textContent = 'Génération…';
+  btn.textContent = 'Génération HD…';
   $('results-empty').hidden = true;
 
-  // Séquentiel : limite la charge simultanée (VM + Gemini).
+  // Séquentiel : limite la charge simultanée (VM + OpenAI).
   for (const kind of kinds) {
     const card = createCard(kind);
     try {
       const res = await enhanceRender({
-        image: sourceB64, mime: sourceMime, mode: kind, presets, size: '1K',
+        image: sourceB64, mime: sourceMime, mode: kind, presets,
       });
       fillCard(card, res.image, res.mime);
     } catch (err) {
@@ -189,7 +214,7 @@ function createCard(kind: 'photoreal' | 'sketch'): Card {
   el.className = 'result-card loading';
   el.innerHTML = `
     <div class="result-media">
-      <div class="result-spinner"><span class="spinner"></span><span>Génération…</span></div>
+      <div class="result-spinner"><span class="spinner"></span><span>Génération HD (~1-2 min)…</span></div>
       <img class="result-img" hidden alt="${kind === 'photoreal' ? 'Rendu photoréaliste' : 'Esquisse'}">
     </div>
     <div class="result-body">
@@ -203,7 +228,7 @@ function createCard(kind: 'photoreal' | 'sketch'): Card {
           <button type="button" class="btn-ghost btn-refine">Affiner</button>
         </div>
         <div class="result-buttons">
-          <button type="button" class="btn-ghost btn-upscale">Upscaler HD</button>
+          ${kind === 'photoreal' ? '<button type="button" class="btn-ghost btn-sketch-from">🎨 Esquisse de ce rendu</button>' : ''}
           <button type="button" class="btn-ghost btn-save">Enregistrer</button>
           <button type="button" class="btn-primary btn-download">Télécharger</button>
         </div>
@@ -227,11 +252,36 @@ function createCard(kind: 'photoreal' | 'sketch'): Card {
       if (instruction) refineCard(card, instruction);
     }
   });
-  el.querySelector<HTMLButtonElement>('.btn-upscale')!.addEventListener('click', () => upscaleCard(card));
   el.querySelector<HTMLButtonElement>('.btn-save')!.addEventListener('click', () => saveCard(card));
   el.querySelector<HTMLButtonElement>('.btn-download')!.addEventListener('click', () => downloadCard(card));
+  el.querySelector<HTMLButtonElement>('.btn-sketch-from')?.addEventListener('click', () => sketchFromCard(card));
 
   return card;
+}
+
+// Retour Sébastien : l'esquisse aquarelle rend mieux quand elle part du rendu
+// photoréaliste VALIDÉ (et affiné/upscalé) plutôt que du Lumion brut. Ce bouton
+// envoie l'image courante de la carte photo comme source d'une nouvelle esquisse.
+async function sketchFromCard(card: Card) {
+  const btn = card.el.querySelector<HTMLButtonElement>('.btn-sketch-from')!;
+  btn.disabled = true;
+  setStatus(card, 'Esquisse en cours…', true);
+  const sketchCard = createCard('sketch');
+  try {
+    const res = await enhanceRender({
+      image: card.upscaledB64 || card.imageB64,
+      mime: card.mime,
+      mode: 'sketch',
+      presets: collectPresets(),
+    });
+    fillCard(sketchCard, res.image, res.mime);
+    setStatus(card, '✓ Esquisse générée');
+  } catch (err) {
+    errorCard(sketchCard, (err as Error).message);
+    setStatus(card, `⚠️ ${(err as Error).message}`);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function fillCard(card: Card, imageB64: string, mime: string) {
@@ -263,7 +313,6 @@ async function refineCard(card: Card, instruction: string) {
       image: card.imageB64, mime: card.mime, mode: 'refine',
       instructions: instruction,
       presets: { details: $<HTMLInputElement>('p-details').value.trim() },
-      size: '1K',
     });
     card.imageB64 = res.image;
     card.mime = res.mime;
@@ -279,32 +328,10 @@ async function refineCard(card: Card, instruction: string) {
   }
 }
 
-async function upscaleCard(card: Card) {
-  const btn = card.el.querySelector<HTMLButtonElement>('.btn-upscale')!;
-  if (card.upscaledB64) { downloadCard(card); return; }
-  btn.disabled = true;
-  const original = btn.textContent;
-  btn.textContent = 'Upscale HD…';
-  setStatus(card, 'Montée en HD (2K)…', true);
-  try {
-    const res = await enhanceRender({
-      image: card.imageB64, mime: card.mime, mode: 'upscale', size: '2K',
-    });
-    card.upscaledB64 = res.image;
-    btn.textContent = '✓ HD prêt';
-    setStatus(card, '✓ Version HD (2K) générée');
-    downloadCard(card);
-  } catch (err) {
-    btn.textContent = original;
-    btn.disabled = false;
-    setStatus(card, `⚠️ ${(err as Error).message}`);
-  }
-}
-
 function downloadCard(card: Card) {
   const b64 = card.upscaledB64 || card.imageB64;
   if (!b64) return;
-  const suffix = card.upscaledB64 ? '2K' : '1K';
+  const suffix = card.upscaledB64 ? '4K' : 'HD';
   const name = `rendu_${card.kind}_${suffix}_${card.id}.png`;
   const a = document.createElement('a');
   a.href = `data:image/png;base64,${b64}`;
