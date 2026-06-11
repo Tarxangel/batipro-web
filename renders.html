@@ -66,10 +66,10 @@
           </fieldset>
 
           <label class="preset-check">
-            <input type="checkbox" id="p-realisme">
+            <input type="checkbox" id="p-realisme" checked>
             <span>
               <strong>Réalisme photo renforcé</strong>
-              <small>Pousse le rendu vers la vraie photo (grain, imperfections, lumière photographique) pour casser le look « rendu 3D ». Ne modifie pas le bâtiment. À tester.</small>
+              <small>Pousse le rendu vers la vraie photo (grain, imperfections, lumière photographique) pour casser le look « rendu 3D ». Ne modifie pas le bâtiment. Décochez pour un rendu 3D plus « propre ».</small>
             </span>
           </label>
 
@@ -147,13 +147,16 @@
             <input type="text" id="p-localisation" placeholder="ex : Pontarlier (25), climat continental/montagnard">
           </label>
 
-          <label class="preset-field">
+          <div class="preset-field">
             <span class="field-head">
               Matériaux <small>(optionnel — évite que le Trespa soit pris pour de la pierre)</small>
               <button type="button" id="btn-detect-materials" class="btn-detect" disabled>🔍 Détecter</button>
             </span>
+            <!-- Lignes structurées après détection : un poste par ligne, champ de
+                 remplacement en face (vide = on garde le matériau détecté). -->
+            <div id="materials-rows" class="materials-rows" hidden></div>
             <textarea id="p-materiaux" rows="2" placeholder="ex : Bardage : panneaux composite Trespa gris ; Menuiseries : alu noir ; Soubassement : béton matricé"></textarea>
-          </label>
+          </div>
 
           <label class="preset-field">
             <span>Éléments à préserver <small>(optionnel)</small></span>

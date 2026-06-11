@@ -100,6 +100,26 @@
 .btn-detect:hover:not(:disabled) { background: #e0e7ff; }
 .btn-detect:disabled { opacity: .5; cursor: not-allowed; }
 
+/* Lignes matériaux après détection : poste | détecté | champ remplacement */
+.materials-rows { display: flex; flex-direction: column; gap: 6px; }
+.material-row {
+  display: grid; grid-template-columns: 86px 1fr 110px; gap: 8px; align-items: center;
+}
+.material-poste { font-size: 11px; font-weight: 600; color: #475569; }
+.material-detected {
+  font-size: 12px; color: #334155; background: #f1f5f9; border: 1px solid #e2e8f0;
+  border-radius: 6px; padding: 6px 8px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.preset-field .material-override {
+  padding: 6px 8px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px;
+}
+.preset-field .material-override:focus { outline: none; border-color: #6366f1; }
+.preset-field .material-override:not(:placeholder-shown) {
+  border-color: #f59e0b; background: #fffbeb; /* signale un remplacement demandé */
+}
+.materials-hint { font-size: 11px; color: #94a3b8; margin: 2px 0 0; line-height: 1.4; }
+
 /* Segmented control livrables */
 .seg-options { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
 .seg { position: relative; }

@@ -9,7 +9,7 @@
 // que l'image finale validée.
 
 import { requirePermission, logout } from '../auth/session';
-import { enhanceRender, detectMaterials, RenderPresets } from './api';
+import { enhanceRender, detectMaterials, RenderPresets, MaterialItem } from './api';
 import {
   listChantiers, saveRender, listRenders, signedUrl, deleteRender,
   Chantier, RenderRecord,
@@ -22,6 +22,7 @@ let sourceB64 = '';            // rendu source, base64 sans préfixe
 let sourceMime = 'image/jpeg';
 let cardSeq = 0;
 let chantiers: Chantier[] = [];
+let detectedMaterials: MaterialItem[] = []; // postes détectés (lignes structurées)
 
 interface Card {
   id: number;
@@ -124,6 +125,7 @@ async function loadSourceImage(file: File) {
 
   sourceB64 = resized.split(',')[1];
   sourceMime = 'image/jpeg';
+  resetMaterialRows(); // les matériaux détectés ne valent que pour l'image courante
 
   // UI
   const preview = $<HTMLImageElement>('source-preview');
@@ -135,8 +137,9 @@ async function loadSourceImage(file: File) {
   $<HTMLButtonElement>('btn-detect-materials').disabled = false;
 }
 
-// Détecte les matériaux du rendu source et pré-remplit le champ (l'utilisateur
-// corrige ensuite, ex : Trespa pris pour de la pierre).
+// Détecte les matériaux du rendu source et affiche une ligne par poste, avec un
+// champ de remplacement en face : vide = on garde le matériau détecté, rempli =
+// on demande le remplacement (ex : enrobé → pavés).
 async function handleDetectMaterials() {
   if (!sourceB64) return;
   const btn = $<HTMLButtonElement>('btn-detect-materials');
@@ -145,8 +148,8 @@ async function handleDetectMaterials() {
   btn.disabled = true;
   btn.textContent = '⏳ Analyse…';
   try {
-    const materials = await detectMaterials(sourceB64, sourceMime);
-    field.value = materials;
+    const items = await detectMaterials(sourceB64, sourceMime);
+    renderMaterialRows(items);
   } catch (err) {
     field.placeholder = `Échec détection : ${(err as Error).message}`;
   } finally {
@@ -155,10 +158,68 @@ async function handleDetectMaterials() {
   }
 }
 
+function renderMaterialRows(items: MaterialItem[]) {
+  detectedMaterials = items;
+  const rows = $('materials-rows');
+  const textarea = $<HTMLTextAreaElement>('p-materiaux');
+  if (!items.length) {
+    resetMaterialRows();
+    textarea.placeholder = 'Aucun matériau détecté — décrivez-les ici si besoin';
+    return;
+  }
+  rows.innerHTML = items.map((it, i) => `
+    <div class="material-row">
+      <span class="material-poste">${escapeHtml(it.poste)}</span>
+      <span class="material-detected" title="${escapeAttr(it.materiau)}">${escapeHtml(it.materiau)}</span>
+      <input type="text" class="material-override" data-idx="${i}" placeholder="Remplacer par…">
+    </div>
+  `).join('') + `
+    <p class="materials-hint">Laissez vide pour garder le matériau détecté ; tapez pour le remplacer (ex : enrobé → pavés).</p>`;
+  rows.hidden = false;
+  textarea.hidden = true; // les lignes structurées remplacent le champ libre
+}
+
+function resetMaterialRows() {
+  detectedMaterials = [];
+  const rows = $('materials-rows');
+  rows.innerHTML = '';
+  rows.hidden = true;
+  $<HTMLTextAreaElement>('p-materiaux').hidden = false;
+}
+
+// Fusionne détection + saisies : les postes non modifiés deviennent les matériaux
+// "confirmés" (autorité sur la perception du modèle), les postes remplis deviennent
+// des demandes de remplacement explicites.
+function collectMaterials(): { materiaux: string; materiauxRemplacements: string } {
+  if (!detectedMaterials.length) {
+    return {
+      materiaux: $<HTMLTextAreaElement>('p-materiaux').value.trim(),
+      materiauxRemplacements: '',
+    };
+  }
+  const overrides = Array.from(
+    $('materials-rows').querySelectorAll<HTMLInputElement>('.material-override'));
+  const confirmed: string[] = [];
+  const replacements: string[] = [];
+  detectedMaterials.forEach((it, i) => {
+    const wanted = overrides[i]?.value.trim();
+    if (wanted && wanted.toLowerCase() !== it.materiau.toLowerCase()) {
+      replacements.push(`${it.poste} : remplacer « ${it.materiau} » par « ${wanted} »`);
+    } else {
+      confirmed.push(`${it.poste} : ${it.materiau}`);
+    }
+  });
+  return {
+    materiaux: confirmed.join(' ; '),
+    materiauxRemplacements: replacements.join(' ; '),
+  };
+}
+
 // ── Génération ──────────────────────────────────────────
 
 function collectPresets(): RenderPresets {
   const v = (id: string) => $<HTMLSelectElement>(id).value;
+  const { materiaux, materiauxRemplacements } = collectMaterials();
   return {
     heure: v('p-heure'),
     intensite: v('p-intensite'),
@@ -168,7 +229,8 @@ function collectPresets(): RenderPresets {
     saison: v('p-saison'),
     ciel: v('p-ciel'),
     localisation: $<HTMLInputElement>('p-localisation').value.trim(),
-    materiaux: $<HTMLTextAreaElement>('p-materiaux').value.trim(),
+    materiaux,
+    materiauxRemplacements,
     details: $<HTMLInputElement>('p-details').value.trim(),
     realisme: $<HTMLInputElement>('p-realisme').checked,
   };

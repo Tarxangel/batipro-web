@@ -13,7 +13,7 @@
 //   - sketch    : esquisse architecte (trait + aquarelle) depuis la source
 //   - refine    : applique une instruction libre sur une image déjà générée
 //   - upscale   : régénère en 4K (optionnel — la base est déjà HD)
-//   - detect    : liste les matériaux visibles (vision → texte)
+//   - detect    : liste les matériaux visibles, un item par poste (vision → JSON)
 //
 // Accès : ADMIN UNIQUEMENT (vérifié via app_profiles.is_admin).
 
@@ -69,7 +69,8 @@ interface Presets {
   saison?: string
   ciel?: string
   localisation?: string
-  materiaux?: string   // matériaux déclarés/corrigés par l'utilisateur
+  materiaux?: string   // matériaux confirmés (détectés et non modifiés par l'utilisateur)
+  materiauxRemplacements?: string // remplacements demandés (ex : "Sol/voirie : remplacer « enrobé » par « pavés »")
   details?: string
   realisme?: boolean   // true = pousser le rendu vers le photoréalisme (casser le look 3D)
 }
@@ -77,28 +78,37 @@ interface Presets {
 type Mode = 'photoreal' | 'sketch' | 'refine' | 'upscale' | 'detect'
 
 // Bloc matériaux déclarés par l'utilisateur — fait autorité sur la perception du
-// modèle (corrige notamment les Trespa pris pour de la pierre).
+// modèle (corrige notamment les Trespa pris pour de la pierre). Les remplacements
+// demandés sont la SEULE exception à la règle « ne rien requalifier ».
 function materialsRules(p: Presets): string {
-  if (!p.materiaux || !p.materiaux.trim()) return ''
-  return `\nMATÉRIAUX DÉCLARÉS PAR L'UTILISATEUR (fait AUTORITÉ, prioritaire sur ta
+  let out = ''
+  if (p.materiaux && p.materiaux.trim()) {
+    out += `\nMATÉRIAUX DÉCLARÉS PAR L'UTILISATEUR (fait AUTORITÉ, prioritaire sur ta
 perception — ne pas requalifier) : ${p.materiaux.trim()}.`
+  }
+  if (p.materiauxRemplacements && p.materiauxRemplacements.trim()) {
+    out += `\nREMPLACEMENTS DE MATÉRIAUX DEMANDÉS — seules exceptions, PRIORITAIRES sur
+la règle « ne rien requalifier » : ${p.materiauxRemplacements.trim()}.
+Change UNIQUEMENT la matière de ces surfaces (texture, couleur, aspect réaliste du
+nouveau matériau, joints/calepinage crédibles) sans modifier leur géométrie, leurs
+limites, leur emprise ni le cadrage.`
+  }
+  return out
 }
 
 function geometryLock(details?: string): string {
   const extra = details && details.trim()
     ? `\nÉléments à conserver impérativement (consigne de l'utilisateur) : ${details.trim()}.`
     : ''
-  return `RÈGLE ABSOLUE — FIDÉLITÉ GÉOMÉTRIQUE :
+  return `PRESERVE — FIDÉLITÉ GÉOMÉTRIQUE (règle absolue) :
 L'image fournie est la référence géométrique UNIQUE. Reproduis à l'identique,
 sans aucune modification : les volumes, proportions, hauteurs, alignements,
 TOUTES les ouvertures (fenêtres et portes), les menuiseries, les matériaux et
 bardages, les acrotères, les vitrages, les logos/enseignes à leur position
 exacte, le stationnement, les clôtures, les accès et les véhicules.
 Aucune ouverture déplacée, ajoutée ou supprimée. Aucun élément architectural
-inventé. Tu n'améliores QUE : l'ambiance lumineuse, le rendu des matériaux, la
-végétation et la qualité paysagère. Cadrage et point de vue strictement
-identiques à la source. Image plein cadre, sans cartouche, titre, logo
-d'agence, légende ni montage.
+inventé. Cadrage et point de vue strictement identiques à la source. Image
+plein cadre, sans cartouche, titre, logo d'agence, légende ni montage.
 LOGOS BATIPRO — À PRÉSERVER FIDÈLEMENT : conserve le logo « Batipro » en bas à
 gauche de l'image à sa position, taille et lisibilité exactes (ne pas le
 recouvrir, le déplacer, le flouter ni l'effacer). Conserve également, sans le
@@ -108,7 +118,8 @@ rester net et identique à la source.
 MATÉRIAUX — NE RIEN REQUALIFIER : reproduis les matériaux exactement tels qu'ils
 apparaissent dans la source, sans réinterpréter leur nature (ne pas transformer
 un bardage type Trespa / panneau composite en pierre ou en brique, ni l'inverse).
-Tu n'améliores que la qualité de rendu (texture, reflets) du matériau réel.${extra}`
+Tu n'améliores que la qualité de rendu (texture, reflets) du matériau réel —
+seule exception : les remplacements de matériaux explicitement demandés plus bas.${extra}`
 }
 
 function vegetationRules(p: Presets): string {
@@ -164,7 +175,7 @@ function lightingRules(p: Presets): string {
   éclairée QUE par la lumière ambiante naturelle de l'heure et reste sombre là où
   le ciel ne l'éclaire pas. Aucune façade illuminée artificiellement, même de nuit.`
 
-  return `ÉCLAIRAGE :
+  return `CONSTRAINTS — ÉCLAIRAGE :
 - Intérieur : ${interieur}${facadeTxt}
 - INTERDICTION ABSOLUE — AUCUN éclairage extérieur artificiel rapporté dans la
   scène. N'ajoute AUCUNE source de lumière au sol : pas de spots, pas d'uplights,
@@ -240,22 +251,25 @@ function buildPhotorealPrompt(p: Presets): string {
   const ciel = p.ciel && p.ciel !== 'auto'
     ? p.ciel
     : 'ciel riche cohérent avec l\'heure (dégradé naturel)'
-  return `Produis UN SEUL rendu photoréaliste architectural haut de gamme à partir
-de cette image, qualité photographie d'architecture professionnelle / rendu concours.
+  return `ÉDITE cette image : transforme ce rendu 3D architectural en photographie
+d'architecture réaliste (prise au reflex plein format, objectif d'architecture
+24-35 mm, lumière physiquement crédible), en conservant strictement le bâtiment
+et la composition.
+
+CHANGE — les SEULS éléments à retravailler :
+- Ambiance lumineuse : heure ${heure}, tonalité générale ${ambiance}, ${ciel}.
+- Rendu des matériaux existants : textures et reflets réalistes, sans changer leur nature.
+- Végétation et qualité paysagère : ${vegetation}.
 
 ${geometryLock(p.details)}${materialsRules(p)}${realismRules(p)}
 
 ${lightingRules(p)}
 
-AMBIANCE DEMANDÉE :
-- Heure : ${heure}
-- Tonalité générale : ${ambiance}
-- Ciel : ${ciel}
-- Niveau de végétalisation : ${vegetation}
-
 ${vegetationRules(p)}
 
-La fidélité architecturale prime sur l'esthétique. Sortie : une image unique, plein cadre.`
+RAPPEL FINAL : la fidélité architecturale prime sur l'esthétique — mêmes volumes,
+mêmes ouvertures, même cadrage, mêmes logos que la source. Sortie : une image
+unique, plein cadre.`
 }
 
 function buildSketchPrompt(p: Presets): string {
@@ -277,14 +291,15 @@ Sortie : une image unique, plein cadre, sans cartouche ni légende.`
 }
 
 function buildRefinePrompt(instructions: string, details?: string): string {
-  return `Voici une image de rendu architectural déjà produite. Applique UNIQUEMENT
-la modification demandée par l'utilisateur, sans rien changer d'autre.
+  return `ÉDITE cette image de rendu architectural déjà produite — une seule
+modification, chirurgicale.
 
-MODIFICATION DEMANDÉE : ${instructions}
+CHANGE (la SEULE chose à modifier) : ${instructions}
 
 ${geometryLock(details)}
-Ne touche à rien d'autre que ce qui est explicitement demandé ci-dessus. Garde le
-style, le cadrage et tous les autres éléments rigoureusement identiques.
+CONSTRAINTS : ne touche à rien d'autre que ce qui est explicitement demandé
+ci-dessus. Garde le style, le cadrage, l'ambiance lumineuse et tous les autres
+éléments rigoureusement identiques. Aucun objet ajouté, aucun élément redessiné.
 Sortie : une image unique, plein cadre.`
 }
 
@@ -337,20 +352,27 @@ async function generateImage(
   return { image: b64, mime: 'image/png', model: OPENAI_IMAGE_MODEL }
 }
 
-// ── Détection des matériaux (vision → texte court) ────────
-// OpenAI gpt-4o-mini vision. Renvoie une ligne concise prête à pré-remplir le
-// champ "Matériaux" que l'utilisateur corrige ensuite.
-async function detectMaterials(imageB64: string, mime: string): Promise<string> {
+// ── Détection des matériaux (vision → liste structurée) ───
+// OpenAI gpt-4o-mini vision, sortie JSON : un item par poste visible. Le front
+// affiche un poste par ligne avec un champ de remplacement en face.
+interface MaterialItem { poste: string; materiau: string }
+
+async function detectMaterials(imageB64: string, mime: string): Promise<MaterialItem[]> {
   const prompt = `Tu es un expert façade/construction. Observe ce rendu architectural
 et liste UNIQUEMENT les matériaux réellement visibles, de façon factuelle, sans
-deviner la marque. Réponds en UNE seule ligne courte, format :
-"Bardage : … ; Menuiseries : … ; Soubassement : … ; Toiture/acrotère : … ; Sol/voirie : …"
-(n'inclus que les éléments visibles). Ne décris pas la scène, ne fais pas de phrases.`
+deviner la marque. Réponds en JSON strict, exactement ce format :
+{"items":[{"poste":"…","materiau":"…"}]}
+Postes à utiliser (uniquement ceux réellement visibles, dans cet ordre) :
+"Bardage", "Menuiseries", "Soubassement", "Toiture / acrotère", "Sol / voirie",
+"Clôture", "Autre".
+"materiau" : description courte et factuelle (ex : "enrobé bitumineux",
+"panneaux composite gris clair", "aluminium noir"). Pas de phrases.`
   const resp = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: OPENAI_VISION_MODEL,
+      response_format: { type: 'json_object' },
       messages: [{
         role: 'user',
         content: [
@@ -358,7 +380,7 @@ deviner la marque. Réponds en UNE seule ligne courte, format :
           { type: 'image_url', image_url: { url: `data:${mime};base64,${imageB64}` } },
         ],
       }],
-      max_tokens: 300,
+      max_tokens: 500,
       temperature: 0.2,
     }),
   })
@@ -368,7 +390,16 @@ deviner la marque. Réponds en UNE seule ligne courte, format :
   const data = await resp.json()
   const text = (data?.choices?.[0]?.message?.content || '').trim()
   if (!text) throw new Error('détection matériaux → réponse vide')
-  return text
+  let items: MaterialItem[]
+  try {
+    items = JSON.parse(text)?.items
+  } catch {
+    throw new Error('détection matériaux → JSON invalide')
+  }
+  if (!Array.isArray(items)) throw new Error('détection matériaux → format inattendu')
+  return items.filter(it =>
+    it && typeof it.poste === 'string' && typeof it.materiau === 'string' &&
+    it.poste.trim() && it.materiau.trim())
 }
 
 // ── Handler ───────────────────────────────────────────────
@@ -438,11 +469,13 @@ serve(async (req) => {
     return jsonResponse({ success: false, error: 'mode invalide' }, 400)
   }
 
-  // ── Mode détection matériaux : renvoie du texte, pas une image ──
+  // ── Mode détection matériaux : renvoie une liste structurée, pas une image ──
+  // `materials` (string) conservé pour compat avec un front pas encore redéployé.
   if (mode === 'detect') {
     try {
-      const materials = await detectMaterials(body.image, body.mime || 'image/png')
-      return jsonResponse({ success: true, materials })
+      const items = await detectMaterials(body.image, body.mime || 'image/png')
+      const materials = items.map(it => `${it.poste} : ${it.materiau}`).join(' ; ')
+      return jsonResponse({ success: true, items, materials })
     } catch (e) {
       return jsonResponse({ success: false, error: e instanceof Error ? e.message : 'Échec détection' }, 502)
     }
