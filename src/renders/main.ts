@@ -27,10 +27,84 @@ let detectedMaterials: MaterialItem[] = []; // postes détectés (lignes structu
 interface Card {
   id: number;
   kind: 'photoreal' | 'sketch';
-  imageB64: string;
+  imageB64: string;       // sortie IA brute (sans filigrane) — sert de source aux refine/esquisse
   mime: string;
+  stampedB64?: string;    // version avec le vrai logo Batipro incrusté (affichage/téléchargement/save)
   upscaledB64?: string;
   el: HTMLElement;
+}
+
+// ── Filigrane Batipro (vrai logo, incrusté par canvas) ──
+// L'IA reçoit l'instruction de RETIRER le filigrane source ; on réappose ici le
+// logo officiel + mention de propriété — déterministe, jamais redessiné par l'IA.
+const WATERMARK_LOGO_URL = '/branding/batipro-logo.svg';
+const WATERMARK_TEXT = '© Batipro Concept — Visuel non contractuel, reproduction interdite';
+
+let watermarkLogo: HTMLImageElement | null = null;
+function loadWatermarkLogo(): Promise<HTMLImageElement | null> {
+  if (watermarkLogo) return Promise.resolve(watermarkLogo);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => { watermarkLogo = img; resolve(img); };
+    img.onerror = () => resolve(null); // sans logo on n'empêche pas la génération
+    img.src = WATERMARK_LOGO_URL;
+  });
+}
+
+// Incruste cartouche blanc + logo + mention en bas à gauche. Renvoie le base64
+// PNG filigrané ; en cas de pépin, renvoie l'image brute (pas de blocage).
+async function applyWatermark(imageB64: string, mime: string): Promise<string> {
+  try {
+    const logo = await loadWatermarkLogo();
+    if (!logo) return imageB64;
+
+    const src = new Image();
+    await new Promise<void>((resolve, reject) => {
+      src.onload = () => resolve();
+      src.onerror = reject;
+      src.src = `data:${mime};base64,${imageB64}`;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = src.width;
+    canvas.height = src.height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(src, 0, 0);
+
+    // Dimensions relatives à la hauteur de l'image (≈ constantes en 1K/2K/4K)
+    const H = src.height;
+    const margin = Math.round(H * 0.025);
+    const logoH = Math.round(H * 0.062);
+    const logoW = Math.round(logoH * (logo.width / logo.height));
+    const pad = Math.round(logoH * 0.28);
+    const fontSize = Math.max(10, Math.round(logoH * 0.21));
+    ctx.font = `500 ${fontSize}px -apple-system, "Helvetica Neue", Arial, sans-serif`;
+    const textW = ctx.measureText(WATERMARK_TEXT).width;
+
+    const plateW = pad + logoW + pad + textW + pad;
+    const plateH = pad + logoH + pad;
+    const x = margin;
+    const y = canvas.height - margin - plateH;
+
+    // Cartouche blanc arrondi (légèrement translucide) — lisible de jour comme de nuit
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = '#ffffff';
+    const r = Math.round(plateH * 0.14);
+    ctx.beginPath();
+    ctx.roundRect(x, y, plateW, plateH, r);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.drawImage(logo, x + pad, y + pad, logoW, logoH);
+    ctx.fillStyle = '#1d1d1b';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(WATERMARK_TEXT, x + pad + logoW + pad, y + plateH / 2);
+
+    return canvas.toDataURL('image/png').split(',')[1];
+  } catch {
+    return imageB64;
+  }
 }
 
 // ── Init ────────────────────────────────────────────────
@@ -47,6 +121,7 @@ interface Card {
 
   setupDropzone();
   setupLightbox();
+  loadWatermarkLogo(); // précharge le logo officiel pour l'incrustation
   $<HTMLFormElement>('presets-form').addEventListener('submit', handleGenerate);
   $<HTMLButtonElement>('btn-detect-materials').addEventListener('click', handleDetectMaterials);
 
@@ -257,7 +332,7 @@ async function handleGenerate(e: Event) {
       const res = await enhanceRender({
         image: sourceB64, mime: sourceMime, mode: kind, presets,
       });
-      fillCard(card, res.image, res.mime);
+      await fillCard(card, res.image, res.mime);
     } catch (err) {
       errorCard(card, (err as Error).message);
     }
@@ -336,7 +411,7 @@ async function sketchFromCard(card: Card) {
       mode: 'sketch',
       presets: collectPresets(),
     });
-    fillCard(sketchCard, res.image, res.mime);
+    await fillCard(sketchCard, res.image, res.mime);
     setStatus(card, '✓ Esquisse générée');
   } catch (err) {
     errorCard(sketchCard, (err as Error).message);
@@ -346,12 +421,13 @@ async function sketchFromCard(card: Card) {
   }
 }
 
-function fillCard(card: Card, imageB64: string, mime: string) {
+async function fillCard(card: Card, imageB64: string, mime: string) {
   card.imageB64 = imageB64;
   card.mime = mime;
   card.upscaledB64 = undefined;
+  card.stampedB64 = await applyWatermark(imageB64, mime);
   const img = card.el.querySelector<HTMLImageElement>('.result-img')!;
-  img.src = `data:${mime};base64,${imageB64}`;
+  img.src = `data:image/png;base64,${card.stampedB64}`;
   img.hidden = false;
   card.el.classList.remove('loading', 'errored');
   card.el.querySelector('.result-spinner')!.remove();
@@ -379,8 +455,9 @@ async function refineCard(card: Card, instruction: string) {
     card.imageB64 = res.image;
     card.mime = res.mime;
     card.upscaledB64 = undefined;
+    card.stampedB64 = await applyWatermark(res.image, res.mime);
     const img = card.el.querySelector<HTMLImageElement>('.result-img')!;
-    img.src = `data:${res.mime};base64,${res.image}`;
+    img.src = `data:image/png;base64,${card.stampedB64}`;
     card.el.querySelector<HTMLInputElement>('.refine-input')!.value = '';
     setStatus(card, '✓ Affiné');
   } catch (err) {
@@ -391,7 +468,7 @@ async function refineCard(card: Card, instruction: string) {
 }
 
 function downloadCard(card: Card) {
-  const b64 = card.upscaledB64 || card.imageB64;
+  const b64 = card.upscaledB64 || card.stampedB64 || card.imageB64;
   if (!b64) return;
   const suffix = card.upscaledB64 ? '4K' : 'HD';
   const name = `rendu_${card.kind}_${suffix}_${card.id}.png`;
@@ -408,7 +485,7 @@ async function saveCard(card: Card) {
   setStatus(card, 'Enregistrement…', true);
   try {
     await saveRender({
-      imageB64: card.upscaledB64 || card.imageB64,
+      imageB64: card.upscaledB64 || card.stampedB64 || card.imageB64,
       kind: card.kind,
       resolution: card.upscaledB64 ? '2K' : '1K',
       presets: collectPresets(),
@@ -507,7 +584,7 @@ function setupLightbox() {
 }
 
 function openLightbox(card: Card) {
-  const b64 = card.upscaledB64 || card.imageB64;
+  const b64 = card.upscaledB64 || card.stampedB64 || card.imageB64;
   if (!b64) return;
   openLightboxUrl(`data:image/png;base64,${b64}`);
 }

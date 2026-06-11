@@ -109,9 +109,12 @@ exacte, le stationnement, les clôtures, les accès et les véhicules.
 Aucune ouverture déplacée, ajoutée ou supprimée. Aucun élément architectural
 inventé. Cadrage et point de vue strictement identiques à la source. Image
 plein cadre, sans cartouche, titre, logo d'agence, légende ni montage.
-LOGOS BATIPRO — À PRÉSERVER FIDÈLEMENT : conserve le logo « Batipro » en bas à
-gauche de l'image à sa position, taille et lisibilité exactes (ne pas le
-recouvrir, le déplacer, le flouter ni l'effacer). Conserve également, sans le
+FILIGRANE BAS-GAUCHE — À RETIRER : le logo/texte de propriété « Batipro »
+incrusté en bas à gauche de l'image source est un filigrane rapporté, PAS un
+élément de la scène. Retire-le complètement et reconstitue proprement la scène
+derrière (sol, végétation, ombres cohérentes). Le vrai logo sera réapposé
+numériquement après génération — n'en dessine aucune version toi-même.
+LOGO VÉHICULES — À PRÉSERVER FIDÈLEMENT : conserve en revanche, sans le
 déformer ni le faire disparaître, le logo Batipro figurant sur les véhicules de
 la scène (notamment la camionnette / le véhicule utilitaire blanc) : il doit
 rester net et identique à la source.
@@ -270,8 +273,8 @@ ${lightingRules(p)}
 ${vegetationRules(p)}
 
 RAPPEL FINAL : la fidélité architecturale prime sur l'esthétique — mêmes volumes,
-mêmes ouvertures, même cadrage, mêmes logos que la source. Sortie : une image
-unique, plein cadre.`
+mêmes ouvertures, même cadrage, même logo véhicule que la source ; filigrane
+bas-gauche retiré. Sortie : une image unique, plein cadre.`
 }
 
 function buildSketchPrompt(p: Presets): string {
