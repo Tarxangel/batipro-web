@@ -85,10 +85,15 @@ async function applyWatermark(imageB64: string, mime: string): Promise<string> {
     ctx.fillStyle = 'rgba(15, 15, 15, 0.78)';
     ctx.fillRect(0, H - bandH, W, bandH);
 
+    // Fond blanc sous le logo : le SVG est transparent derrière la bande
+    // verticale « CONCEPT » — sans ce fond, elle disparaît sur image sombre.
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, H - logoH, logoW, logoH);
     ctx.drawImage(logo, 0, H - logoH, logoW, logoH);
 
-    const fontSize = Math.max(9, Math.round(bandH * 0.5));
-    ctx.font = `400 ${fontSize}px -apple-system, "Helvetica Neue", Arial, sans-serif`;
+    // Police condensée comme sur les exports Lumion Batipro (Arial Narrow)
+    const fontSize = Math.max(9, Math.round(bandH * 0.62));
+    ctx.font = `400 ${fontSize}px "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif`;
     ctx.fillStyle = '#ffffff';
     ctx.textBaseline = 'middle';
     ctx.fillText(WATERMARK_TEXT, logoW + Math.round(bandH * 0.45), H - bandH / 2);
