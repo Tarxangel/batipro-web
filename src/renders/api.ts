@@ -20,7 +20,7 @@ export interface RenderPresets {
   materiaux?: string;             // matériaux confirmés (détectés, non modifiés)
   materiauxRemplacements?: string; // remplacements demandés (ex : enrobé → pavés)
   details?: string;
-  realisme?: boolean;
+  realisme?: boolean; // appliqué d'office côté edge ; `false` explicite pour couper (non exposé en UI)
 }
 
 export interface EnhancePayload {

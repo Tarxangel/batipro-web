@@ -232,7 +232,7 @@ function collectPresets(): RenderPresets {
     materiaux,
     materiauxRemplacements,
     details: $<HTMLInputElement>('p-details').value.trim(),
-    realisme: $<HTMLInputElement>('p-realisme').checked,
+    // réalisme photo : comportement de base côté edge function, plus d'option UI
   };
 }
 

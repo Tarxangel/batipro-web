@@ -72,7 +72,7 @@ interface Presets {
   materiaux?: string   // matériaux confirmés (détectés et non modifiés par l'utilisateur)
   materiauxRemplacements?: string // remplacements demandés (ex : "Sol/voirie : remplacer « enrobé » par « pavés »")
   details?: string
-  realisme?: boolean   // true = pousser le rendu vers le photoréalisme (casser le look 3D)
+  realisme?: boolean   // réalisme photo : appliqué d'office, `false` explicite pour le couper (API only)
 }
 
 type Mode = 'photoreal' | 'sketch' | 'refine' | 'upscale' | 'detect'
@@ -190,10 +190,12 @@ function lightingRules(p: Presets): string {
   vitrages est autorisé.)`
 }
 
-// Bloc optionnel (case « Réalisme photo renforcé ») : casse le look CGI / rendu
-// 3D en injectant des indices photographiques réels. NE TOUCHE PAS à la géométrie.
+// Bloc réalisme photographique — comportement DE BASE depuis le 2026-06-11
+// (demande Sébastien) : casse le look CGI / rendu 3D en injectant des indices
+// photographiques réels. NE TOUCHE PAS à la géométrie. Désactivable uniquement
+// par l'API avec `realisme: false` explicite (plus exposé dans l'UI).
 function realismRules(p: Presets): string {
-  if (p.realisme !== true) return ''
+  if (p.realisme === false) return ''
   const base = `\nRÉALISME PHOTOGRAPHIQUE RENFORCÉ — l'objectif est qu'on NE puisse PAS
 deviner qu'il s'agit d'un rendu 3D : le résultat doit ressembler à une VRAIE
 PHOTOGRAPHIE prise au reflex plein format. Applique (sans modifier les volumes,
