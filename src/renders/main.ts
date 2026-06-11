@@ -37,8 +37,10 @@ interface Card {
 // ── Filigrane Batipro (vrai logo, incrusté par canvas) ──
 // L'IA reçoit l'instruction de RETIRER le filigrane source ; on réappose ici le
 // logo officiel + mention de propriété — déterministe, jamais redessiné par l'IA.
+// Mise en page calquée sur les exports Lumion Batipro : bandeau sombre pleine
+// largeur en pied d'image, logo collé au coin bas-gauche débordant au-dessus.
 const WATERMARK_LOGO_URL = '/branding/batipro-logo.svg';
-const WATERMARK_TEXT = '© Batipro Concept — Visuel non contractuel, reproduction interdite';
+const WATERMARK_TEXT = 'Ce document est la propriété exclusive de la SAS Batipro Concept. Il ne peut être reproduit et/ou utilisé sans autorisation express.';
 
 let watermarkLogo: HTMLImageElement | null = null;
 function loadWatermarkLogo(): Promise<HTMLImageElement | null> {
@@ -51,8 +53,9 @@ function loadWatermarkLogo(): Promise<HTMLImageElement | null> {
   });
 }
 
-// Incruste cartouche blanc + logo + mention en bas à gauche. Renvoie le base64
-// PNG filigrané ; en cas de pépin, renvoie l'image brute (pas de blocage).
+// Incruste bandeau sombre pleine largeur + logo coin bas-gauche + mention de
+// propriété (même mise en page que les exports Lumion Batipro). Renvoie le
+// base64 PNG filigrané ; en cas de pépin, renvoie l'image brute (pas de blocage).
 async function applyWatermark(imageB64: string, mime: string): Promise<string> {
   try {
     const logo = await loadWatermarkLogo();
@@ -71,35 +74,24 @@ async function applyWatermark(imageB64: string, mime: string): Promise<string> {
     const ctx = canvas.getContext('2d')!;
     ctx.drawImage(src, 0, 0);
 
-    // Dimensions relatives à la hauteur de l'image (≈ constantes en 1K/2K/4K)
-    const H = src.height;
-    const margin = Math.round(H * 0.025);
-    const logoH = Math.round(H * 0.062);
+    // Proportions relevées sur un export Lumion réel (2560x1440) :
+    // bandeau ≈ 2,6 % de la hauteur, logo ≈ 9 % collé au coin bas-gauche.
+    const W = canvas.width;
+    const H = canvas.height;
+    const bandH = Math.round(H * 0.026);
+    const logoH = Math.round(H * 0.092);
     const logoW = Math.round(logoH * (logo.width / logo.height));
-    const pad = Math.round(logoH * 0.28);
-    const fontSize = Math.max(10, Math.round(logoH * 0.21));
-    ctx.font = `500 ${fontSize}px -apple-system, "Helvetica Neue", Arial, sans-serif`;
-    const textW = ctx.measureText(WATERMARK_TEXT).width;
 
-    const plateW = pad + logoW + pad + textW + pad;
-    const plateH = pad + logoH + pad;
-    const x = margin;
-    const y = canvas.height - margin - plateH;
+    ctx.fillStyle = 'rgba(15, 15, 15, 0.78)';
+    ctx.fillRect(0, H - bandH, W, bandH);
 
-    // Cartouche blanc arrondi (légèrement translucide) — lisible de jour comme de nuit
-    ctx.save();
-    ctx.globalAlpha = 0.92;
+    ctx.drawImage(logo, 0, H - logoH, logoW, logoH);
+
+    const fontSize = Math.max(9, Math.round(bandH * 0.5));
+    ctx.font = `400 ${fontSize}px -apple-system, "Helvetica Neue", Arial, sans-serif`;
     ctx.fillStyle = '#ffffff';
-    const r = Math.round(plateH * 0.14);
-    ctx.beginPath();
-    ctx.roundRect(x, y, plateW, plateH, r);
-    ctx.fill();
-    ctx.restore();
-
-    ctx.drawImage(logo, x + pad, y + pad, logoW, logoH);
-    ctx.fillStyle = '#1d1d1b';
     ctx.textBaseline = 'middle';
-    ctx.fillText(WATERMARK_TEXT, x + pad + logoW + pad, y + plateH / 2);
+    ctx.fillText(WATERMARK_TEXT, logoW + Math.round(bandH * 0.45), H - bandH / 2);
 
     return canvas.toDataURL('image/png').split(',')[1];
   } catch {
