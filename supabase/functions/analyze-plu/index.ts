@@ -42,19 +42,46 @@ interface IGNZoneUrbaResponse {
   }>
 }
 
+// apicarto IGN (cadastre + GPU) est régulièrement instable : il renvoie des 500
+// transitoires (et parfois 429/503), surtout quand le Géoportail de l'urbanisme
+// est sous charge. Sans retry, le moindre hoquet faisait planter TOUTE l'analyse
+// (« 0 retour »). On réessaie donc avec un backoff progressif sur les erreurs
+// transitoires (5xx / 429) et les erreurs réseau.
+async function fetchIGNWithRetry(url: string, label: string, retries = 4, baseDelayMs = 700): Promise<Response> {
+  let lastStatus = 0
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const resp = await fetch(url)
+      if (resp.ok) return resp
+      lastStatus = resp.status
+      // 5xx / 429 = transitoire → on retente ; 4xx (hors 429) = définitif → on sort
+      if (resp.status < 500 && resp.status !== 429) {
+        throw new Error(`IGN ${label} API error: ${resp.status}`)
+      }
+    } catch (e) {
+      // Erreur réseau (DNS/timeout) : on retente aussi, sauf au dernier tour
+      if (attempt === retries) throw e
+    }
+    if (attempt < retries) {
+      const delay = baseDelayMs * (attempt + 1) // 700, 1400, 2100, 2800 ms
+      console.log(`⏳ IGN ${label} ${lastStatus || 'réseau'} — retry ${attempt + 1}/${retries} dans ${delay}ms`)
+      await new Promise(r => setTimeout(r, delay))
+    }
+  }
+  throw new Error(`IGN ${label} API error: ${lastStatus || 'réseau'} (après ${retries} retries)`)
+}
+
 async function fetchIGNParcelle(lat: number, lon: number): Promise<IGNParcelleResponse> {
   const geom = JSON.stringify({ type: 'Point', coordinates: [lon, lat] })
   const url = `https://apicarto.ign.fr/api/cadastre/parcelle?geom=${encodeURIComponent(geom)}`
-  const resp = await fetch(url)
-  if (!resp.ok) throw new Error(`IGN Parcelle API error: ${resp.status}`)
+  const resp = await fetchIGNWithRetry(url, 'Parcelle')
   return resp.json()
 }
 
 async function fetchIGNZoneUrba(lat: number, lon: number): Promise<IGNZoneUrbaResponse> {
   const geom = JSON.stringify({ type: 'Point', coordinates: [lon, lat] })
   const url = `https://apicarto.ign.fr/api/gpu/zone-urba?geom=${encodeURIComponent(geom)}`
-  const resp = await fetch(url)
-  if (!resp.ok) throw new Error(`IGN Zone Urba API error: ${resp.status}`)
+  const resp = await fetchIGNWithRetry(url, 'Zone Urba')
   return resp.json()
 }
 
@@ -621,9 +648,12 @@ serve(async (req) => {
       const pdfSize = parseInt(headResp.headers.get('content-length') || '0')
       console.log(`📦 PDF size: ${pdfSize > 0 ? `${(pdfSize / 1_000_000).toFixed(1)} MB` : 'inconnue'}`)
 
-      if (pdfSize > 0 && pdfSize < INLINE_MAX_BYTES) {
-        // Petit PDF (< 15 MB) : envoi inline
-        console.log('📎 Envoi inline a Gemini...')
+      if (pdfSize < INLINE_MAX_BYTES) {
+        // PDF petit (< 15 MB) OU taille inconnue (HEAD sans content-length, fréquent
+        // sur data.geopf.fr — cas Cléron). On télécharge et on décide sur la taille
+        // RÉELLE : inline si possible (meilleure qualité que l'extraction de zone),
+        // sinon on bascule sur l'extraction. Évite de forcer pdf-extractor à tort.
+        console.log(pdfSize === 0 ? '📎 Taille inconnue — téléchargement pour décision...' : '📎 Envoi inline a Gemini...')
         const pdfResp = await fetch(pdfUrl)
         if (!pdfResp.ok) throw new Error(`PDF download failed: ${pdfResp.status}`)
         const pdfBuffer = new Uint8Array(await pdfResp.arrayBuffer())
@@ -636,10 +666,11 @@ serve(async (req) => {
           analyseTexte = await callGeminiText(textPrompt)
           sourceAnalyse = 'Google Gemini 3 Flash (extraction zone)'
         } else {
+          console.log(`📎 PDF ${(pdfBuffer.byteLength / 1_000_000).toFixed(1)} MB → envoi inline a Gemini...`)
           analyseTexte = await callGeminiWithInlinePDF(pdfBuffer, prompt)
           sourceAnalyse = 'Google Gemini 3 Flash'
         }
-      } else if (pdfSize > 0 && pdfSize < 50_000_000) {
+      } else if (pdfSize < 50_000_000) {
         // PDF moyen (15-50 MB) : stream vers Files API
         console.log('☁️ Stream via Gemini Files API...')
         const fileUri = await uploadToGeminiFiles(pdfUrl, pdfSize)

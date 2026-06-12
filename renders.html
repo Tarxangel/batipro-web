@@ -79,6 +79,7 @@
             <label class="preset-field">
               <span>Lumière intérieure</span>
               <select id="p-intensite">
+                <option value="aucune">Éteinte (intérieur sombre)</option>
                 <option value="faible">Faible</option>
                 <option value="moyenne" selected>Moyenne</option>
                 <option value="forte">Forte</option>
@@ -87,6 +88,13 @@
           </div>
 
           <div class="preset-row">
+            <label class="preset-field">
+              <span>Éclairage façade</span>
+              <select id="p-facade">
+                <option value="aucun" selected>Aucun</option>
+                <option value="indirect">Indirect discret</option>
+              </select>
+            </label>
             <label class="preset-field">
               <span>Ambiance</span>
               <select id="p-ambiance">
@@ -130,6 +138,17 @@
             <span>Localisation / climat <small>(pour une végétation cohérente)</small></span>
             <input type="text" id="p-localisation" placeholder="ex : Pontarlier (25), climat continental/montagnard">
           </label>
+
+          <div class="preset-field">
+            <span class="field-head">
+              Matériaux <small>(optionnel — évite que le Trespa soit pris pour de la pierre)</small>
+              <button type="button" id="btn-detect-materials" class="btn-detect" disabled>🔍 Détecter</button>
+            </span>
+            <!-- Lignes structurées après détection : un poste par ligne, champ de
+                 remplacement en face (vide = on garde le matériau détecté). -->
+            <div id="materials-rows" class="materials-rows" hidden></div>
+            <textarea id="p-materiaux" rows="2" placeholder="ex : Bardage : panneaux composite Trespa gris ; Menuiseries : alu noir ; Soubassement : béton matricé"></textarea>
+          </div>
 
           <label class="preset-field">
             <span>Éléments à préserver <small>(optionnel)</small></span>

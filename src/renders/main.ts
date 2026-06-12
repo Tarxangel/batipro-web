@@ -9,7 +9,7 @@
 // que l'image finale validée.
 
 import { requirePermission, logout } from '../auth/session';
-import { enhanceRender, RenderPresets } from './api';
+import { enhanceRender, detectMaterials, RenderPresets, MaterialItem } from './api';
 import {
   listChantiers, saveRender, listRenders, signedUrl, deleteRender,
   Chantier, RenderRecord,
@@ -22,14 +22,86 @@ let sourceB64 = '';            // rendu source, base64 sans préfixe
 let sourceMime = 'image/jpeg';
 let cardSeq = 0;
 let chantiers: Chantier[] = [];
+let detectedMaterials: MaterialItem[] = []; // postes détectés (lignes structurées)
 
 interface Card {
   id: number;
   kind: 'photoreal' | 'sketch';
-  imageB64: string;
+  imageB64: string;       // sortie IA brute (sans filigrane) — sert de source aux refine/esquisse
   mime: string;
+  stampedB64?: string;    // version avec le vrai logo Batipro incrusté (affichage/téléchargement/save)
   upscaledB64?: string;
   el: HTMLElement;
+}
+
+// ── Filigrane Batipro (vrai logo, incrusté par canvas) ──
+// L'IA reçoit l'instruction de RETIRER le filigrane source ; on réappose ici le
+// logo officiel + mention de propriété — déterministe, jamais redessiné par l'IA.
+// Mise en page calquée sur les exports Lumion Batipro : bandeau sombre pleine
+// largeur en pied d'image, logo collé au coin bas-gauche débordant au-dessus.
+const WATERMARK_LOGO_URL = '/branding/batipro-logo.svg';
+const WATERMARK_TEXT = 'Ce document est la propriété exclusive de la SAS Batipro Concept. Il ne peut être reproduit et/ou utilisé sans autorisation express.';
+
+let watermarkLogo: HTMLImageElement | null = null;
+function loadWatermarkLogo(): Promise<HTMLImageElement | null> {
+  if (watermarkLogo) return Promise.resolve(watermarkLogo);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => { watermarkLogo = img; resolve(img); };
+    img.onerror = () => resolve(null); // sans logo on n'empêche pas la génération
+    img.src = WATERMARK_LOGO_URL;
+  });
+}
+
+// Incruste bandeau sombre pleine largeur + logo coin bas-gauche + mention de
+// propriété (même mise en page que les exports Lumion Batipro). Renvoie le
+// base64 PNG filigrané ; en cas de pépin, renvoie l'image brute (pas de blocage).
+async function applyWatermark(imageB64: string, mime: string): Promise<string> {
+  try {
+    const logo = await loadWatermarkLogo();
+    if (!logo) return imageB64;
+
+    const src = new Image();
+    await new Promise<void>((resolve, reject) => {
+      src.onload = () => resolve();
+      src.onerror = reject;
+      src.src = `data:${mime};base64,${imageB64}`;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = src.width;
+    canvas.height = src.height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(src, 0, 0);
+
+    // Proportions relevées sur un export Lumion réel (2560x1440) :
+    // bandeau ≈ 2,6 % de la hauteur, logo ≈ 9 % collé au coin bas-gauche.
+    const W = canvas.width;
+    const H = canvas.height;
+    const bandH = Math.round(H * 0.026);
+    const logoH = Math.round(H * 0.092);
+    const logoW = Math.round(logoH * (logo.width / logo.height));
+
+    ctx.fillStyle = 'rgba(15, 15, 15, 0.78)';
+    ctx.fillRect(0, H - bandH, W, bandH);
+
+    // Fond blanc sous le logo : le SVG est transparent derrière la bande
+    // verticale « CONCEPT » — sans ce fond, elle disparaît sur image sombre.
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, H - logoH, logoW, logoH);
+    ctx.drawImage(logo, 0, H - logoH, logoW, logoH);
+
+    // Police condensée comme sur les exports Lumion Batipro (Arial Narrow)
+    const fontSize = Math.max(9, Math.round(bandH * 0.62));
+    ctx.font = `400 ${fontSize}px "Arial Narrow", "Liberation Sans Narrow", Arial, sans-serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(WATERMARK_TEXT, logoW + Math.round(bandH * 0.45), H - bandH / 2);
+
+    return canvas.toDataURL('image/png').split(',')[1];
+  } catch {
+    return imageB64;
+  }
 }
 
 // ── Init ────────────────────────────────────────────────
@@ -46,7 +118,9 @@ interface Card {
 
   setupDropzone();
   setupLightbox();
+  loadWatermarkLogo(); // précharge le logo officiel pour l'incrustation
   $<HTMLFormElement>('presets-form').addEventListener('submit', handleGenerate);
+  $<HTMLButtonElement>('btn-detect-materials').addEventListener('click', handleDetectMaterials);
 
   await loadChantiers();
   $<HTMLSelectElement>('history-filter').addEventListener('change', () => {
@@ -123,6 +197,7 @@ async function loadSourceImage(file: File) {
 
   sourceB64 = resized.split(',')[1];
   sourceMime = 'image/jpeg';
+  resetMaterialRows(); // les matériaux détectés ne valent que pour l'image courante
 
   // UI
   const preview = $<HTMLImageElement>('source-preview');
@@ -131,21 +206,105 @@ async function loadSourceImage(file: File) {
   $('dropzone-empty').hidden = true;
   $<HTMLButtonElement>('btn-change-image').hidden = false;
   $<HTMLButtonElement>('btn-generate').disabled = false;
+  $<HTMLButtonElement>('btn-detect-materials').disabled = false;
+}
+
+// Détecte les matériaux du rendu source et affiche une ligne par poste, avec un
+// champ de remplacement en face : vide = on garde le matériau détecté, rempli =
+// on demande le remplacement (ex : enrobé → pavés).
+async function handleDetectMaterials() {
+  if (!sourceB64) return;
+  const btn = $<HTMLButtonElement>('btn-detect-materials');
+  const field = $<HTMLTextAreaElement>('p-materiaux');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ Analyse…';
+  try {
+    const items = await detectMaterials(sourceB64, sourceMime);
+    renderMaterialRows(items);
+  } catch (err) {
+    field.placeholder = `Échec détection : ${(err as Error).message}`;
+  } finally {
+    btn.textContent = original;
+    btn.disabled = false;
+  }
+}
+
+function renderMaterialRows(items: MaterialItem[]) {
+  detectedMaterials = items;
+  const rows = $('materials-rows');
+  const textarea = $<HTMLTextAreaElement>('p-materiaux');
+  if (!items.length) {
+    resetMaterialRows();
+    textarea.placeholder = 'Aucun matériau détecté — décrivez-les ici si besoin';
+    return;
+  }
+  rows.innerHTML = items.map((it, i) => `
+    <div class="material-row">
+      <span class="material-poste">${escapeHtml(it.poste)}</span>
+      <span class="material-detected" title="${escapeAttr(it.materiau)}">${escapeHtml(it.materiau)}</span>
+      <input type="text" class="material-override" data-idx="${i}" placeholder="Remplacer par…">
+    </div>
+  `).join('') + `
+    <p class="materials-hint">Laissez vide pour garder le matériau détecté ; tapez pour le remplacer (ex : enrobé → pavés).</p>`;
+  rows.hidden = false;
+  textarea.hidden = true; // les lignes structurées remplacent le champ libre
+}
+
+function resetMaterialRows() {
+  detectedMaterials = [];
+  const rows = $('materials-rows');
+  rows.innerHTML = '';
+  rows.hidden = true;
+  $<HTMLTextAreaElement>('p-materiaux').hidden = false;
+}
+
+// Fusionne détection + saisies : les postes non modifiés deviennent les matériaux
+// "confirmés" (autorité sur la perception du modèle), les postes remplis deviennent
+// des demandes de remplacement explicites.
+function collectMaterials(): { materiaux: string; materiauxRemplacements: string } {
+  if (!detectedMaterials.length) {
+    return {
+      materiaux: $<HTMLTextAreaElement>('p-materiaux').value.trim(),
+      materiauxRemplacements: '',
+    };
+  }
+  const overrides = Array.from(
+    $('materials-rows').querySelectorAll<HTMLInputElement>('.material-override'));
+  const confirmed: string[] = [];
+  const replacements: string[] = [];
+  detectedMaterials.forEach((it, i) => {
+    const wanted = overrides[i]?.value.trim();
+    if (wanted && wanted.toLowerCase() !== it.materiau.toLowerCase()) {
+      replacements.push(`${it.poste} : remplacer « ${it.materiau} » par « ${wanted} »`);
+    } else {
+      confirmed.push(`${it.poste} : ${it.materiau}`);
+    }
+  });
+  return {
+    materiaux: confirmed.join(' ; '),
+    materiauxRemplacements: replacements.join(' ; '),
+  };
 }
 
 // ── Génération ──────────────────────────────────────────
 
 function collectPresets(): RenderPresets {
   const v = (id: string) => $<HTMLSelectElement>(id).value;
+  const { materiaux, materiauxRemplacements } = collectMaterials();
   return {
     heure: v('p-heure'),
     intensite: v('p-intensite'),
+    facade: v('p-facade'),
     ambiance: v('p-ambiance'),
     vegetation: v('p-vegetation'),
     saison: v('p-saison'),
     ciel: v('p-ciel'),
     localisation: $<HTMLInputElement>('p-localisation').value.trim(),
+    materiaux,
+    materiauxRemplacements,
     details: $<HTMLInputElement>('p-details').value.trim(),
+    // réalisme photo : comportement de base côté edge function, plus d'option UI
   };
 }
 
@@ -160,17 +319,17 @@ async function handleGenerate(e: Event) {
   const presets = collectPresets();
   const btn = $<HTMLButtonElement>('btn-generate');
   btn.disabled = true;
-  btn.textContent = 'Génération…';
+  btn.textContent = 'Génération HD…';
   $('results-empty').hidden = true;
 
-  // Séquentiel : limite la charge simultanée (VM + Gemini).
+  // Séquentiel : limite la charge simultanée (VM + OpenAI).
   for (const kind of kinds) {
     const card = createCard(kind);
     try {
       const res = await enhanceRender({
-        image: sourceB64, mime: sourceMime, mode: kind, presets, size: '1K',
+        image: sourceB64, mime: sourceMime, mode: kind, presets,
       });
-      fillCard(card, res.image, res.mime);
+      await fillCard(card, res.image, res.mime);
     } catch (err) {
       errorCard(card, (err as Error).message);
     }
@@ -189,7 +348,7 @@ function createCard(kind: 'photoreal' | 'sketch'): Card {
   el.className = 'result-card loading';
   el.innerHTML = `
     <div class="result-media">
-      <div class="result-spinner"><span class="spinner"></span><span>Génération…</span></div>
+      <div class="result-spinner"><span class="spinner"></span><span>Génération HD (~1-2 min)…</span></div>
       <img class="result-img" hidden alt="${kind === 'photoreal' ? 'Rendu photoréaliste' : 'Esquisse'}">
     </div>
     <div class="result-body">
@@ -203,7 +362,7 @@ function createCard(kind: 'photoreal' | 'sketch'): Card {
           <button type="button" class="btn-ghost btn-refine">Affiner</button>
         </div>
         <div class="result-buttons">
-          <button type="button" class="btn-ghost btn-upscale">Upscaler HD</button>
+          ${kind === 'photoreal' ? '<button type="button" class="btn-ghost btn-sketch-from">🎨 Esquisse de ce rendu</button>' : ''}
           <button type="button" class="btn-ghost btn-save">Enregistrer</button>
           <button type="button" class="btn-primary btn-download">Télécharger</button>
         </div>
@@ -227,19 +386,45 @@ function createCard(kind: 'photoreal' | 'sketch'): Card {
       if (instruction) refineCard(card, instruction);
     }
   });
-  el.querySelector<HTMLButtonElement>('.btn-upscale')!.addEventListener('click', () => upscaleCard(card));
   el.querySelector<HTMLButtonElement>('.btn-save')!.addEventListener('click', () => saveCard(card));
   el.querySelector<HTMLButtonElement>('.btn-download')!.addEventListener('click', () => downloadCard(card));
+  el.querySelector<HTMLButtonElement>('.btn-sketch-from')?.addEventListener('click', () => sketchFromCard(card));
 
   return card;
 }
 
-function fillCard(card: Card, imageB64: string, mime: string) {
+// Retour Sébastien : l'esquisse aquarelle rend mieux quand elle part du rendu
+// photoréaliste VALIDÉ (et affiné/upscalé) plutôt que du Lumion brut. Ce bouton
+// envoie l'image courante de la carte photo comme source d'une nouvelle esquisse.
+async function sketchFromCard(card: Card) {
+  const btn = card.el.querySelector<HTMLButtonElement>('.btn-sketch-from')!;
+  btn.disabled = true;
+  setStatus(card, 'Esquisse en cours…', true);
+  const sketchCard = createCard('sketch');
+  try {
+    const res = await enhanceRender({
+      image: card.upscaledB64 || card.imageB64,
+      mime: card.mime,
+      mode: 'sketch',
+      presets: collectPresets(),
+    });
+    await fillCard(sketchCard, res.image, res.mime);
+    setStatus(card, '✓ Esquisse générée');
+  } catch (err) {
+    errorCard(sketchCard, (err as Error).message);
+    setStatus(card, `⚠️ ${(err as Error).message}`);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function fillCard(card: Card, imageB64: string, mime: string) {
   card.imageB64 = imageB64;
   card.mime = mime;
   card.upscaledB64 = undefined;
+  card.stampedB64 = await applyWatermark(imageB64, mime);
   const img = card.el.querySelector<HTMLImageElement>('.result-img')!;
-  img.src = `data:${mime};base64,${imageB64}`;
+  img.src = `data:image/png;base64,${card.stampedB64}`;
   img.hidden = false;
   card.el.classList.remove('loading', 'errored');
   card.el.querySelector('.result-spinner')!.remove();
@@ -263,13 +448,13 @@ async function refineCard(card: Card, instruction: string) {
       image: card.imageB64, mime: card.mime, mode: 'refine',
       instructions: instruction,
       presets: { details: $<HTMLInputElement>('p-details').value.trim() },
-      size: '1K',
     });
     card.imageB64 = res.image;
     card.mime = res.mime;
     card.upscaledB64 = undefined;
+    card.stampedB64 = await applyWatermark(res.image, res.mime);
     const img = card.el.querySelector<HTMLImageElement>('.result-img')!;
-    img.src = `data:${res.mime};base64,${res.image}`;
+    img.src = `data:image/png;base64,${card.stampedB64}`;
     card.el.querySelector<HTMLInputElement>('.refine-input')!.value = '';
     setStatus(card, '✓ Affiné');
   } catch (err) {
@@ -279,32 +464,10 @@ async function refineCard(card: Card, instruction: string) {
   }
 }
 
-async function upscaleCard(card: Card) {
-  const btn = card.el.querySelector<HTMLButtonElement>('.btn-upscale')!;
-  if (card.upscaledB64) { downloadCard(card); return; }
-  btn.disabled = true;
-  const original = btn.textContent;
-  btn.textContent = 'Upscale HD…';
-  setStatus(card, 'Montée en HD (2K)…', true);
-  try {
-    const res = await enhanceRender({
-      image: card.imageB64, mime: card.mime, mode: 'upscale', size: '2K',
-    });
-    card.upscaledB64 = res.image;
-    btn.textContent = '✓ HD prêt';
-    setStatus(card, '✓ Version HD (2K) générée');
-    downloadCard(card);
-  } catch (err) {
-    btn.textContent = original;
-    btn.disabled = false;
-    setStatus(card, `⚠️ ${(err as Error).message}`);
-  }
-}
-
 function downloadCard(card: Card) {
-  const b64 = card.upscaledB64 || card.imageB64;
+  const b64 = card.upscaledB64 || card.stampedB64 || card.imageB64;
   if (!b64) return;
-  const suffix = card.upscaledB64 ? '2K' : '1K';
+  const suffix = card.upscaledB64 ? '4K' : 'HD';
   const name = `rendu_${card.kind}_${suffix}_${card.id}.png`;
   const a = document.createElement('a');
   a.href = `data:image/png;base64,${b64}`;
@@ -319,7 +482,7 @@ async function saveCard(card: Card) {
   setStatus(card, 'Enregistrement…', true);
   try {
     await saveRender({
-      imageB64: card.upscaledB64 || card.imageB64,
+      imageB64: card.upscaledB64 || card.stampedB64 || card.imageB64,
       kind: card.kind,
       resolution: card.upscaledB64 ? '2K' : '1K',
       presets: collectPresets(),
@@ -418,7 +581,7 @@ function setupLightbox() {
 }
 
 function openLightbox(card: Card) {
-  const b64 = card.upscaledB64 || card.imageB64;
+  const b64 = card.upscaledB64 || card.stampedB64 || card.imageB64;
   if (!b64) return;
   openLightboxUrl(`data:image/png;base64,${b64}`);
 }
