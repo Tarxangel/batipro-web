@@ -1,7 +1,7 @@
 // Module de base de données Supabase pour stocker les analyses PLU
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { AnalysePLUResponse, DetailedTable, MonumentHistorique } from './api';
+import type { AnalysePLUResponse, DetailedTable, MonumentHistorique, ServitudePatrimoine } from './api';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 
 // Interface étendue pour les analyses sauvegardées
@@ -33,6 +33,7 @@ interface AnalysesPLURow {
   created_at: string;
   detailed_table: DetailedTable | null;
   monuments_historiques: MonumentHistorique[] | null;
+  servitudes_patrimoine: ServitudePatrimoine[] | null;
 }
 
 // Client Supabase singleton
@@ -89,6 +90,7 @@ export async function saveAnalysis(
       analyse_source: analysis.data.analyse.source,
       timestamp: analysis.data.timestamp,
       monuments_historiques: analysis.data.monuments_historiques ?? null,
+      servitudes_patrimoine: analysis.data.servitudes_patrimoine ?? null,
     };
 
     const { data, error } = await supabase
@@ -186,6 +188,7 @@ function convertDbRowToAnalysis(row: AnalysesPLURow): SavedAnalysis {
         source: row.analyse_source
       },
       monuments_historiques: row.monuments_historiques,
+      servitudes_patrimoine: row.servitudes_patrimoine,
       timestamp: row.timestamp,
       detailed_table: row.detailed_table
     }

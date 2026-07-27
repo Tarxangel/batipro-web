@@ -109,7 +109,9 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
   return Math.round(2 * R * Math.asin(Math.sqrt(a)))
 }
 
-// Fetch Mérimée (data.culture.gouv.fr) — immeubles MH dans un rayon.
+// Fetch Mérimée — immeubles MH dans un rayon.
+// ⚠️ data.culture.gouv.fr est mort (domaine abandonné, 404 tiers depuis 2026) :
+// on passe par le miroir Opendatasoft du même dataset (même API Explore v2.1).
 // Tolère les erreurs : renvoie [] si l'API tombe, n'interrompt pas l'analyse.
 async function fetchMerimeeMonuments(
   lat: number,
@@ -127,7 +129,7 @@ async function fetchMerimeeMonuments(
       'coordonnees_au_format_wgs84',
     ].join(',')
     const where = `within_distance(coordonnees_au_format_wgs84,GEOM'POINT(${lon} ${lat})',${radiusMeters}m)`
-    const url = `https://data.culture.gouv.fr/api/explore/v2.1/catalog/datasets/liste-des-immeubles-proteges-au-titre-des-monuments-historiques/records?where=${encodeURIComponent(where)}&select=${encodeURIComponent(select)}&limit=${limit}`
+    const url = `https://data.opendatasoft.com/api/explore/v2.1/catalog/datasets/liste-des-immeubles-proteges-au-titre-des-monuments-historiques@culture/records?where=${encodeURIComponent(where)}&select=${encodeURIComponent(select)}&limit=${limit}`
 
     const resp = await fetch(url)
     if (!resp.ok) {
@@ -163,6 +165,64 @@ async function fetchMerimeeMonuments(
     return items
   } catch (err) {
     console.warn(`⚠️ Mérimée fetch erreur — on continue sans MH:`, err)
+    return []
+  }
+}
+
+// ─── Servitudes patrimoine (API Carto GPU) ───────────────────
+// Test point-dans-polygone sur les assiettes de servitudes surfaciques du
+// Géoportail de l'Urbanisme. Contrairement à Mérimée (points des édifices),
+// c'est LA source qui dit si la parcelle est DANS un périmètre de protection :
+//   AC1 = abords de monument historique (avis ABF)
+//   AC2 = site inscrit / site classé
+//   AC4 = site patrimonial remarquable (SPR / ex-AVAP/ZPPAUP)
+
+const SUPTYPES_PATRIMOINE: Record<string, string> = {
+  ac1: 'Abords de monument historique (AC1)',
+  ac2: 'Site inscrit / classé (AC2)',
+  ac4: 'Site patrimonial remarquable (AC4)',
+}
+
+export interface ServitudePatrimoine {
+  suptype: string          // "ac1" | "ac2" | "ac4"
+  libelle: string          // libellé humain du type (cf. SUPTYPES_PATRIMOINE)
+  nom: string              // ex: "Abbaye de Corcelles"
+  type_assiette: string | null // ex: "Périmètre des abords"
+  fichier: string | null   // PDF de l'acte (nom de fichier GPU)
+  geometry: unknown | null // GeoJSON MultiPolygon de l'assiette (pour la carte)
+}
+
+async function fetchServitudesPatrimoine(lat: number, lon: number): Promise<ServitudePatrimoine[]> {
+  try {
+    const geom = JSON.stringify({ type: 'Point', coordinates: [lon, lat] })
+    const url = `https://apicarto.ign.fr/api/gpu/assiette-sup-s?geom=${encodeURIComponent(geom)}`
+    const resp = await fetch(url)
+    if (!resp.ok) {
+      console.warn(`⚠️ API Carto GPU ${resp.status} — on continue sans servitudes`)
+      return []
+    }
+    const data = await resp.json()
+    const features = Array.isArray(data.features) ? data.features : []
+
+    const items: ServitudePatrimoine[] = features
+      .filter((f: any) => SUPTYPES_PATRIMOINE[String(f?.properties?.suptype || '').toLowerCase()])
+      .map((f: any) => {
+        const p = f.properties
+        const suptype = String(p.suptype).toLowerCase()
+        return {
+          suptype,
+          libelle: SUPTYPES_PATRIMOINE[suptype],
+          nom: String(p.nomsuplitt || p.nomass || p.libelle || 'Servitude sans nom'),
+          type_assiette: p.typeass || null,
+          fichier: p.fichier || null,
+          geometry: f.geometry || null,
+        }
+      })
+
+    console.log(`🏛️ Servitudes patrimoine: ${items.length} (${items.map((s) => s.suptype).join(', ') || 'aucune'})`)
+    return items
+  } catch (err) {
+    console.warn(`⚠️ API Carto GPU erreur — on continue sans servitudes:`, err)
     return []
   }
 }
@@ -567,11 +627,12 @@ serve(async (req) => {
 
     console.log(`📍 Analyse PLU: lat=${latitude}, lon=${longitude}`)
 
-    // 1. Appels IGN + Mérimée en parallèle (MH tolérant aux erreurs)
-    const [parcelle, zoneUrba, monumentsHistoriques] = await Promise.all([
+    // 1. Appels IGN + Mérimée + servitudes GPU en parallèle (patrimoine tolérant aux erreurs)
+    const [parcelle, zoneUrba, monumentsHistoriques, servitudesPatrimoine] = await Promise.all([
       fetchIGNParcelle(latitude, longitude),
       fetchIGNZoneUrba(latitude, longitude),
       fetchMerimeeMonuments(latitude, longitude, 500),
+      fetchServitudesPatrimoine(latitude, longitude),
     ])
 
     if (!parcelle.features || parcelle.features.length === 0) {
@@ -714,6 +775,7 @@ serve(async (req) => {
           source: sourceAnalyse,
         },
         monuments_historiques: monumentsHistoriques,
+        servitudes_patrimoine: servitudesPatrimoine,
         timestamp: new Date().toISOString(),
       },
     }

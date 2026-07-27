@@ -1,7 +1,7 @@
-import type { AnalysePLUResponse, MonumentHistorique } from './api';
+import type { AnalysePLUResponse, MonumentHistorique, ServitudePatrimoine } from './api';
 import { deleteAnalysis, SavedAnalysis } from './database';
 import { showDetailedTableModal } from './detailedTable';
-import { showMonumentsHistoriques, clearMonumentsHistoriques } from './monumentsHistoriques';
+import { showMonumentsHistoriques, showServitudesPatrimoine, clearMonumentsHistoriques } from './monumentsHistoriques';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
 
 // Extrait { insee, prefix, section } depuis l'URL Géoportail Urbanisme.
@@ -65,6 +65,7 @@ export function showResultsCard(data: AnalysePLUResponse): void {
 
   const { parcelle, zonage, analyse } = data.data;
   const monumentsHistoriques = data.data.monuments_historiques;
+  const servitudesPatrimoine = data.data.servitudes_patrimoine;
 
   // Déterminer couleur selon type de zonage
   const zoneColor = zonage.type === 'RNU' ? 'orange' : 'blue';
@@ -100,7 +101,8 @@ export function showResultsCard(data: AnalysePLUResponse): void {
         <h4>📋 Analyse Urbanistique</h4>
         <div class="analyse-text">${formatAnalyseText(analyse.texte)}</div>
       </div>
-      ${renderMonumentsSection(monumentsHistoriques)}
+      ${renderServitudesSection(servitudesPatrimoine)}
+      ${renderMonumentsSection(monumentsHistoriques, servitudesPatrimoine)}
       ${data.id ? `
         <button class="btn-detailed-table" title="Générer le tableau réglementaire détaillé (14 rubriques)">
           📋 Générer tableau détaillé
@@ -131,6 +133,8 @@ export function showResultsCard(data: AnalysePLUResponse): void {
 
   // Afficher les MH sur la carte (vide la couche puis ajoute les markers)
   showMonumentsHistoriques(monumentsHistoriques);
+  // Dessiner les assiettes de servitudes patrimoine (AC1/AC2/AC4)
+  showServitudesPatrimoine(servitudesPatrimoine);
 
   // Ajouter handler de suppression
   if (data.id) {
@@ -207,15 +211,43 @@ function escapeMhHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function renderMonumentsSection(monuments: MonumentHistorique[] | null | undefined): string {
+// La parcelle est-elle DANS une assiette de servitude patrimoine ?
+// Source : API Carto GPU (point-dans-polygone) — c'est elle qui fait foi,
+// pas la recherche de MH à 500m (points Mérimée, parfois incomplets).
+function renderServitudesSection(servitudes: ServitudePatrimoine[] | null | undefined): string {
+  // null = analyse legacy (avant la feature), on ne montre rien
+  if (servitudes == null || servitudes.length === 0) return '';
+
+  const items = servitudes.map(s => {
+    const assiette = s.type_assiette ? ` <span class="mh-distance">(${escapeMhHtml(s.type_assiette)})</span>` : '';
+    return `<li><strong>${escapeMhHtml(s.nom)}</strong> — ${escapeMhHtml(s.libelle)}${assiette}</li>`;
+  }).join('');
+
+  return `
+    <div class="mh-section">
+      <h4>🏛️ Protection du patrimoine</h4>
+      <div class="mh-badge-abf">🛑 Parcelle DANS un périmètre protégé — avis ABF requis</div>
+      <ul>${items}</ul>
+    </div>
+  `;
+}
+
+function renderMonumentsSection(
+  monuments: MonumentHistorique[] | null | undefined,
+  servitudes?: ServitudePatrimoine[] | null,
+): string {
   // null = analyse legacy (avant la feature), on ne montre rien
   if (monuments == null) return '';
 
   if (monuments.length === 0) {
+    // Si une servitude couvre la parcelle, ne surtout pas conclure "pas de contrainte".
+    const noConstraint = servitudes && servitudes.length > 0
+      ? 'Aucun édifice MH recensé à moins de 500m, mais la parcelle est dans un périmètre protégé (voir ci-dessus).'
+      : 'Aucun MH dans un rayon de 500m. Pas de contrainte ABF à ce titre.';
     return `
       <div class="mh-section">
         <h4>🏛️ Monuments Historiques</h4>
-        <div class="mh-empty">Aucun MH dans un rayon de 500m. Pas de contrainte ABF à ce titre.</div>
+        <div class="mh-empty">${noConstraint}</div>
       </div>
     `;
   }
