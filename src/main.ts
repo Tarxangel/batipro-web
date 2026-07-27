@@ -1,8 +1,8 @@
 import './styles/main.css';
 import { MAINTENANCE_MODE } from './config';
 import { showMaintenancePage } from './maintenance';
-import { initializeMap } from './map';
-import { loadCadastreLayer, initGlobalCadastreLayer } from './cadastre';
+import { initializeMap, registerOverlayLayer } from './map';
+import { loadCadastreLayer, initGlobalCadastreLayer, setCadastreOpacity } from './cadastre';
 import { setupLongPressInteraction } from './interactions';
 import { setupSearchBar } from './search';
 import { SavedPinsManager } from './savedPins';
@@ -10,7 +10,6 @@ import { createToggleButton, updateToggleButtonState } from './ui/toggleButton';
 import { testDatabaseConnection } from './database';
 import { PinsListPanel } from './ui/pinsList';
 import { showResultsCard } from './resultsCard';
-import { createLayersUI, registerLayer } from './layers';
 import { createGeolocationButton } from './geolocation';
 import { initMonumentsHistoriquesLayer } from './monumentsHistoriques';
 
@@ -87,10 +86,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupLongPressInteraction(map);
   console.log('Interactions appui long configurées');
 
-  // Créer l'UI de gestion des couches
-  createLayersUI();
-  console.log('UI gestion des couches créée');
-
   // Créer le bouton de géolocalisation
   createGeolocationButton(map);
   console.log('Bouton géolocalisation créé');
@@ -98,8 +93,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialiser la couche cadastre globale UNE SEULE FOIS
   const globalCadastreLayer = initGlobalCadastreLayer(map);
 
-  // Enregistrer la couche dans le gestionnaire UNE SEULE FOIS
-  registerLayer('Cadastre', globalCadastreLayer, 0.15);
+  // L'enregistrer dans le panneau de couches unifié (checkbox + slider),
+  // en tête de liste, affichée à 15% par défaut
+  registerOverlayLayer(
+    '📐 Cadastre',
+    globalCadastreLayer,
+    0.15,
+    (opacity) => setCadastreOpacity(globalCadastreLayer, opacity),
+    { visible: true, insertFirst: true },
+  );
   console.log('✅ Couche cadastre globale initialisée et enregistrée');
 
   // Charger les données cadastre quand zoom >= 14

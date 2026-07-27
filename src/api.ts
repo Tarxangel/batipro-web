@@ -40,6 +40,15 @@ export interface MonumentHistorique {
   lon: number;
 }
 
+export interface ServitudePatrimoine {
+  suptype: string;              // "ac1" | "ac2" | "ac4"
+  libelle: string;              // ex: "Abords de monument historique (AC1)"
+  nom: string;                  // ex: "Abbaye de Corcelles"
+  type_assiette: string | null; // ex: "Périmètre des abords"
+  fichier: string | null;       // PDF de l'acte (nom de fichier GPU)
+  geometry: GeoJSON.Geometry | null; // assiette (MultiPolygon) pour affichage carte
+}
+
 export interface AnalysePLUResponse {
   id?: string; // ID de l'analyse sauvegardée (si provient de la DB)
   success: boolean;
@@ -49,6 +58,9 @@ export interface AnalysePLUResponse {
     analyse: AnalyseDonnees;
     /** Liste des MH dans 500m (périmètre ABF). null = pas fetché, [] = fetché vide. */
     monuments_historiques?: MonumentHistorique[] | null;
+    /** Servitudes patrimoine (AC1/AC2/AC4) dont l'assiette CONTIENT la parcelle.
+     *  Source : API Carto GPU (point-dans-polygone). null = analyse legacy. */
+    servitudes_patrimoine?: ServitudePatrimoine[] | null;
     timestamp: string;
     latitude?: number;  // Coordonnées pour analyses sauvegardées
     longitude?: number; // Coordonnées pour analyses sauvegardées

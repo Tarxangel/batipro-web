@@ -180,13 +180,93 @@ body {
   color: #d32f2f;
 }
 
-/* Cacher les contrôles Leaflet (zoom et layers) */
+/* Cacher le contrôle de zoom Leaflet (gestes tactiles suffisent) */
 .leaflet-control-zoom {
   display: none !important;
 }
 
-.leaflet-control-layers {
-  display: none !important;
+/* Panneau fonds + couches : sous le bouton pins (85px + 56px), même look */
+.leaflet-top.leaflet-right .bp-layers-control {
+  margin-top: 155px;
+  margin-right: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.bp-layers-toggle {
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: white;
+  color: #333;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bp-layers-toggle:active {
+  transform: scale(0.95);
+}
+
+.bp-layers-panel {
+  margin-top: 10px;
+  width: 280px;
+  max-height: 65vh;
+  overflow-y: auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.bp-layers-section {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  margin: 10px 0 6px;
+}
+
+.bp-layers-section:first-child {
+  margin-top: 0;
+}
+
+.bp-base-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  cursor: pointer;
+}
+
+.bp-layer-row {
+  padding: 6px 0;
+  border-top: 1px solid #f0f0f0;
+}
+
+.bp-layer-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  margin-bottom: 6px;
+}
+
+.bp-layer-name {
+  flex: 1;
+}
+
+.bp-layer-pct {
+  font-size: 12px;
+  color: #888;
+  min-width: 36px;
+  text-align: right;
 }
 
 /* Responsive mobile */
