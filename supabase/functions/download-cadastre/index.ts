@@ -82,11 +82,15 @@ serve(async (req) => {
 
   // ── 2. Parse les fichiers .tar.bz2 matchant la section ────
   // Format attendu : dxf-{insee}{prefix}{section}{NN}.tar.bz2
+  // On matche le NOM DE FICHIER seul, pas le href : depuis 2026 le listing
+  // sert des href absolus (/data/dgfip-pci-vecteur/2026-06-01/dxf/...) alors
+  // qu'il servait des href relatifs ("dxf-...tar.bz2"). Chercher le basename
+  // n'importe où dans le HTML rend le parsing insensible aux deux formats.
   const filePattern = new RegExp(
-    `href="(dxf-${insee}${prefix}${sectionPadded}\\d{2}\\.tar\\.bz2)"`,
+    `dxf-${insee}${prefix}${sectionPadded}\\d{2}\\.tar\\.bz2`,
     'gi'
   )
-  const matches = [...listingHtml.matchAll(filePattern)].map(m => m[1])
+  const matches = [...listingHtml.matchAll(filePattern)].map(m => m[0])
   const filenames = [...new Set(matches)] // dédoublonne
 
   if (filenames.length === 0) {

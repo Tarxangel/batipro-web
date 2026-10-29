@@ -161,6 +161,23 @@ function geminiUrl(): string {
   return `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`
 }
 
+// Lit le texte d'une reponse Gemini en signalant les troncatures.
+// finishReason MAX_TOKENS => le JSON est coupe en plein milieu et JSON.parse
+// echouera plus loin avec un "Expected ',' or '}'" incomprehensible : on veut
+// savoir que c'est une troncature, pas un JSON malforme par le modele.
+function readGeminiText(data: any): string {
+  const candidate = data?.candidates?.[0]
+  const finishReason = candidate?.finishReason
+  const text = candidate?.content?.parts?.[0]?.text
+  if (typeof text !== 'string' || text.length === 0) {
+    throw new Error(`Gemini n'a renvoye aucun texte (finishReason: ${finishReason ?? 'inconnu'})`)
+  }
+  if (finishReason && finishReason !== 'STOP') {
+    console.warn(`⚠️ Gemini finishReason=${finishReason} (reponse potentiellement tronquee, ${text.length} chars)`)
+  }
+  return text
+}
+
 async function callGeminiWithText(prompt: string): Promise<string> {
   const resp = await fetch(geminiUrl(), {
     method: 'POST',
@@ -179,7 +196,7 @@ async function callGeminiWithText(prompt: string): Promise<string> {
     throw new Error(`Gemini API error: ${resp.status} - ${err}`)
   }
   const data = await resp.json()
-  return data.candidates[0].content.parts[0].text
+  return readGeminiText(data)
 }
 
 async function callGeminiWithPDF(pdfBuffer: Uint8Array, prompt: string): Promise<string> {
@@ -206,7 +223,7 @@ async function callGeminiWithPDF(pdfBuffer: Uint8Array, prompt: string): Promise
     throw new Error(`Gemini API error: ${resp.status} - ${err}`)
   }
   const data = await resp.json()
-  return data.candidates[0].content.parts[0].text
+  return readGeminiText(data)
 }
 
 // ─── Prompts ────────────────────────────────────────────────
@@ -391,8 +408,14 @@ serve(async (req) => {
 
     let rawJSON: string
 
-    if (pdfSize > 0 && pdfSize < INLINE_MAX_BYTES) {
-      // Petit PDF : inline
+    // data.geopf.fr ne renvoie plus de content-length sur les HEAD (constate le
+    // 2026-08-24) : pdfSize vaut alors 0. Traiter 0 comme "gros PDF" envoyait
+    // TOUS les reglements vers le pdf-extractor, chemin lent et sujet aux 502
+    // (incomplete chunked read). On telecharge et on decide sur la taille reelle,
+    // comme le fait deja analyze-plu.
+    if (pdfSize < INLINE_MAX_BYTES) {
+      // Petit PDF (ou taille inconnue) : telecharger puis decider
+      console.log(pdfSize === 0 ? '📎 Taille inconnue — telechargement pour decision...' : '📎 Petit PDF, telechargement...')
       const pdfResp = await fetch(pdfUrl)
       if (!pdfResp.ok) throw new Error(`PDF download failed: ${pdfResp.status}`)
       const pdfBuffer = new Uint8Array(await pdfResp.arrayBuffer())

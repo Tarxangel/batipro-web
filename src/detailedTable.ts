@@ -59,7 +59,7 @@ interface Cartouche {
   section: string;
   numero: string;
   zone: string;
-  zonageType: 'PLU' | 'RNU';
+  zonageType: 'PLU' | 'RNU' | 'NON_PUBLIE';
   generatedAt: string;
 }
 

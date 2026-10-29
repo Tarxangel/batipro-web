@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!
-const GEMINI_MODEL = 'gemini-3-flash-preview'
+// Stable depuis septembre 2026 (l'ancien gemini-3-flash-preview était une preview).
+const GEMINI_MODEL = 'gemini-3.8-flash'
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 const INLINE_MAX_BYTES = 15_000_000 // 15 MB - au dela on utilise Files API
 const PDF_EXTRACTOR_URL = Deno.env.get('PDF_EXTRACTOR_URL') || '' // URL du micro-service d'extraction PDF
@@ -85,6 +86,56 @@ async function fetchIGNZoneUrba(lat: number, lon: number): Promise<IGNZoneUrbaRe
   return resp.json()
 }
 
+// Quand zone-urba ne renvoie rien sous la parcelle, ça ne veut PAS dire RNU :
+// beaucoup de communes ont un PLU ou une carte communale jamais versés au
+// Géoportail de l'urbanisme (ex : Autechaux 25032 — 158 cas dans le Doubs).
+// L'IGN tient le vrai statut dans gpu/municipality (is_rnu). Les cartes
+// communales, elles, n'apparaissent pas dans zone-urba (secteurs à part) :
+// on les repère via les documents de la partition DU_<insee>.
+type StatutSansZonage = 'RNU' | 'CC' | 'NON_PUBLIE'
+
+interface SecteurCC {
+  libelle: string   // ex: "ZC", "ZCa", "ZN"
+  libelong: string  // ex: "Secteur ouvert à la construction"
+  typesect: string  // CNIG : 01 ouvert à la construction, 02 réservé aux activités, 03 non ouvert
+}
+
+// Secteur de carte communale sous la parcelle. Tolérant aux erreurs : sans
+// réponse, on retombe sur la détection par la commune (fetchStatutSansZonage).
+async function fetchIGNSecteurCC(lat: number, lon: number): Promise<SecteurCC | null> {
+  try {
+    const geom = JSON.stringify({ type: 'Point', coordinates: [lon, lat] })
+    const resp = await fetchIGNWithRetry(
+      `https://apicarto.ign.fr/api/gpu/secteur-cc?geom=${encodeURIComponent(geom)}`, 'Secteur CC')
+    const data = await resp.json()
+    const props = data.features?.[0]?.properties
+    return props ? { libelle: props.libelle || '', libelong: props.libelong || '', typesect: props.typesect || '' } : null
+  } catch (err) {
+    console.warn(`⚠️ API Carto secteur-cc erreur — on continue sans:`, err)
+    return null
+  }
+}
+
+async function fetchStatutSansZonage(insee: string): Promise<StatutSansZonage> {
+  try {
+    const muniResp = await fetchIGNWithRetry(
+      `https://apicarto.ign.fr/api/gpu/municipality?insee=${insee}`, 'Municipality')
+    const muni = await muniResp.json()
+    const isRnu = muni.features?.[0]?.properties?.is_rnu
+    // Statut inconnu de l'IGN → on garde l'ancien comportement (RNU)
+    if (isRnu !== false) return 'RNU'
+
+    const docResp = await fetchIGNWithRetry(
+      `https://apicarto.ign.fr/api/gpu/document?partition=DU_${insee}`, 'Document')
+    const docs = await docResp.json()
+    const hasCC = (docs.features || []).some((f: any) => f.properties?.du_type === 'CC')
+    return hasCC ? 'CC' : 'NON_PUBLIE'
+  } catch (err) {
+    console.warn(`⚠️ Statut GPU de ${insee} indisponible — repli RNU:`, err)
+    return 'RNU'
+  }
+}
+
 // ─── Mérimée API (monuments historiques) ─────────────────────
 
 export interface MonumentHistorique {
@@ -109,7 +160,9 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
   return Math.round(2 * R * Math.asin(Math.sqrt(a)))
 }
 
-// Fetch Mérimée (data.culture.gouv.fr) — immeubles MH dans un rayon.
+// Fetch Mérimée — immeubles MH dans un rayon.
+// ⚠️ data.culture.gouv.fr est mort (domaine abandonné, 404 tiers depuis 2026) :
+// on passe par le miroir Opendatasoft du même dataset (même API Explore v2.1).
 // Tolère les erreurs : renvoie [] si l'API tombe, n'interrompt pas l'analyse.
 async function fetchMerimeeMonuments(
   lat: number,
@@ -127,7 +180,7 @@ async function fetchMerimeeMonuments(
       'coordonnees_au_format_wgs84',
     ].join(',')
     const where = `within_distance(coordonnees_au_format_wgs84,GEOM'POINT(${lon} ${lat})',${radiusMeters}m)`
-    const url = `https://data.culture.gouv.fr/api/explore/v2.1/catalog/datasets/liste-des-immeubles-proteges-au-titre-des-monuments-historiques/records?where=${encodeURIComponent(where)}&select=${encodeURIComponent(select)}&limit=${limit}`
+    const url = `https://data.opendatasoft.com/api/explore/v2.1/catalog/datasets/liste-des-immeubles-proteges-au-titre-des-monuments-historiques@culture/records?where=${encodeURIComponent(where)}&select=${encodeURIComponent(select)}&limit=${limit}`
 
     const resp = await fetch(url)
     if (!resp.ok) {
@@ -163,6 +216,64 @@ async function fetchMerimeeMonuments(
     return items
   } catch (err) {
     console.warn(`⚠️ Mérimée fetch erreur — on continue sans MH:`, err)
+    return []
+  }
+}
+
+// ─── Servitudes patrimoine (API Carto GPU) ───────────────────
+// Test point-dans-polygone sur les assiettes de servitudes surfaciques du
+// Géoportail de l'Urbanisme. Contrairement à Mérimée (points des édifices),
+// c'est LA source qui dit si la parcelle est DANS un périmètre de protection :
+//   AC1 = abords de monument historique (avis ABF)
+//   AC2 = site inscrit / site classé
+//   AC4 = site patrimonial remarquable (SPR / ex-AVAP/ZPPAUP)
+
+const SUPTYPES_PATRIMOINE: Record<string, string> = {
+  ac1: 'Abords de monument historique (AC1)',
+  ac2: 'Site inscrit / classé (AC2)',
+  ac4: 'Site patrimonial remarquable (AC4)',
+}
+
+export interface ServitudePatrimoine {
+  suptype: string          // "ac1" | "ac2" | "ac4"
+  libelle: string          // libellé humain du type (cf. SUPTYPES_PATRIMOINE)
+  nom: string              // ex: "Abbaye de Corcelles"
+  type_assiette: string | null // ex: "Périmètre des abords"
+  fichier: string | null   // PDF de l'acte (nom de fichier GPU)
+  geometry: unknown | null // GeoJSON MultiPolygon de l'assiette (pour la carte)
+}
+
+async function fetchServitudesPatrimoine(lat: number, lon: number): Promise<ServitudePatrimoine[]> {
+  try {
+    const geom = JSON.stringify({ type: 'Point', coordinates: [lon, lat] })
+    const url = `https://apicarto.ign.fr/api/gpu/assiette-sup-s?geom=${encodeURIComponent(geom)}`
+    const resp = await fetch(url)
+    if (!resp.ok) {
+      console.warn(`⚠️ API Carto GPU ${resp.status} — on continue sans servitudes`)
+      return []
+    }
+    const data = await resp.json()
+    const features = Array.isArray(data.features) ? data.features : []
+
+    const items: ServitudePatrimoine[] = features
+      .filter((f: any) => SUPTYPES_PATRIMOINE[String(f?.properties?.suptype || '').toLowerCase()])
+      .map((f: any) => {
+        const p = f.properties
+        const suptype = String(p.suptype).toLowerCase()
+        return {
+          suptype,
+          libelle: SUPTYPES_PATRIMOINE[suptype],
+          nom: String(p.nomsuplitt || p.nomass || p.libelle || 'Servitude sans nom'),
+          type_assiette: p.typeass || null,
+          fichier: p.fichier || null,
+          geometry: f.geometry || null,
+        }
+      })
+
+    console.log(`🏛️ Servitudes patrimoine: ${items.length} (${items.map((s) => s.suptype).join(', ') || 'aucune'})`)
+    return items
+  } catch (err) {
+    console.warn(`⚠️ API Carto GPU erreur — on continue sans servitudes:`, err)
     return []
   }
 }
@@ -286,7 +397,39 @@ STRUCTURE ATTENDUE:
 🟢 FAVORABLE (Points forts)`
 }
 
-function buildRNUPrompt(parcel: ParcelInfo): string {
+// cc : absent = commune au RNU ; { secteur: null } = carte communale, parcelle
+// hors de tout secteur publié ; { secteur } = parcelle dans ce secteur.
+function buildRNUPrompt(parcel: ParcelInfo, cc?: { secteur: SecteurCC | null }): string {
+  // En carte communale, le RNU s'applique aussi (pas de règlement écrit), mais
+  // la constructibilité dépend des secteurs.
+  const secteur = cc?.secteur
+  const constructible = secteur && (secteur.typesect === '01' || secteur.typesect === '02')
+  const statut = secteur
+    ? `Cette commune dispose d'une CARTE COMMUNALE, sans reglement propre : les regles du RNU (Reglement National d'Urbanisme, articles R.111-1 et suivants) s'appliquent pour l'implantation, l'aspect, les acces et les reseaux.
+La parcelle est dans le secteur ${secteur.libelle} de la carte communale : "${secteur.libelong}".
+${constructible
+  ? `Ce secteur est constructible${secteur.typesect === '02' ? ' (reserve aux activites : habitat non admis sauf lie a l\'activite)' : ''}. La regle de constructibilite limitee aux Parties Actuellement Urbanisees (L.111-3) NE S'APPLIQUE PAS : c'est le secteur de la carte communale qui fixe la constructibilite. Ne mentionne ni PAU ni L.111-3.`
+  : `Ce secteur n'est pas ouvert a la construction : seules les exceptions de l'article L.161-4 sont admises (adaptation, refection, extension de l'existant, equipements collectifs, exploitation agricole ou forestiere). Ne mentionne ni PAU ni L.111-3.`}`
+    : cc
+    ? `Cette commune dispose d'une CARTE COMMUNALE, sans reglement propre : les regles du RNU (Reglement National d'Urbanisme) s'appliquent. La parcelle n'est dans aucun secteur constructible publie sur le Geoportail de l'urbanisme : elle est donc a priori en secteur non constructible de la carte communale (constructions limitees aux exceptions de l'article L.161-4 : adaptation, refection, extension de l'existant, equipements collectifs, exploitation agricole ou forestiere). Ne mentionne ni PAU ni L.111-3.`
+    : `Cette commune ne dispose PAS de PLU ni de carte communale. Elle est soumise au RNU (Reglement National d'Urbanisme).`
+
+  const titre = !cc ? `⚠️ ZONE SOUS RNU (Reglement National d'Urbanisme)`
+    : secteur ? `⚠️ CARTE COMMUNALE - SECTEUR ${secteur.libelle}`
+    : `⚠️ CARTE COMMUNALE - HORS SECTEUR CONSTRUCTIBLE`
+  const constructibilite = !cc
+    ? `- 🛑 Regle de constructibilite limitee (Article L.111-3) : construction autorisee uniquement dans les Parties Actuellement Urbanisees (PAU)
+- ✅ Exceptions : interet public, agricole, extension mesuree
+- ⚠️ A VERIFIER : La localisation dans la PAU est la condition sine qua non`
+    : constructible
+    ? `- ✅ Secteur ${secteur!.libelle} : ${secteur!.libelong} (constructibilite fixee par la carte communale)
+- ⚠️ A VERIFIER : desserte par les reseaux et acces`
+    : `- 🛑 Secteur non ouvert a la construction (L.161-4)
+- ✅ Exceptions : adaptation, refection, extension de l'existant, equipements collectifs, exploitation agricole ou forestiere`
+  const vigilance = !cc
+    ? `- 🛑 Refus de permis si hors PAU (L.111-3)`
+    : `- 🛑 Refus de permis si projet non conforme au secteur de la carte communale`
+
   return `ROLE: Expert urbanisme.
 
 CONTEXTE:
@@ -295,7 +438,7 @@ CONTEXTE:
 - Surface : ${parcel.surface} m²
 - Fiche parcelle : ${parcel.url_parcelle}
 
-Cette commune ne dispose PAS de PLU ni de carte communale. Elle est soumise au RNU (Reglement National d'Urbanisme).
+${statut}
 
 OBJECTIF: Analyser la faisabilite d'un projet sur cette parcelle en appliquant les regles du Code de l'Urbanisme (Articles R.111-1 et suivants). Reponse visuelle, aeree et synthetique pour un architecte ou promoteur.
 
@@ -308,12 +451,10 @@ FORMATTAGE:
 
 STRUCTURE ATTENDUE:
 
-⚠️ ZONE SOUS RNU (Reglement National d'Urbanisme)
+${titre}
 
 🏗️ 1. USAGES & CONSTRUCTIBILITE
-- 🛑 Regle de constructibilite limitee (Article L.111-3) : construction autorisee uniquement dans les Parties Actuellement Urbanisees (PAU)
-- ✅ Exceptions : interet public, agricole, extension mesuree
-- ⚠️ A VERIFIER : La localisation dans la PAU est la condition sine qua non
+${constructibilite}
 
 📏 2. IMPLANTATION & DISTANCES
 - 🛣️ Retrait voirie : regles d'alignement (R.111-17)
@@ -329,7 +470,7 @@ STRUCTURE ATTENDUE:
 - Gestion eaux pluviales et reseaux
 
 🚩 5. POINTS DE VIGILANCE RNU
-- 🛑 Refus de permis si hors PAU (L.111-3)
+${vigilance}
 - 🔌 Desserte reseaux obligatoire (L.111-11)
 - 📋 Avis conforme du Prefet souvent requis
 
@@ -567,11 +708,12 @@ serve(async (req) => {
 
     console.log(`📍 Analyse PLU: lat=${latitude}, lon=${longitude}`)
 
-    // 1. Appels IGN + Mérimée en parallèle (MH tolérant aux erreurs)
-    const [parcelle, zoneUrba, monumentsHistoriques] = await Promise.all([
+    // 1. Appels IGN + Mérimée + servitudes GPU en parallèle (patrimoine tolérant aux erreurs)
+    const [parcelle, zoneUrba, monumentsHistoriques, servitudesPatrimoine] = await Promise.all([
       fetchIGNParcelle(latitude, longitude),
       fetchIGNZoneUrba(latitude, longitude),
       fetchMerimeeMonuments(latitude, longitude, 500),
+      fetchServitudesPatrimoine(latitude, longitude),
     ])
 
     if (!parcelle.features || parcelle.features.length === 0) {
@@ -584,16 +726,41 @@ serve(async (req) => {
     // 2. Construction infos parcelle
     const parcelInfo = buildParcelInfo(parcelle, zoneUrba)
     const isRNU = zoneUrba.totalFeatures === 0
-    console.log(`🏘️ ${parcelInfo.commune} - ${isRNU ? 'RNU' : `PLU zone ${parcelInfo.zone_code}`}`)
+    const p = parcelle.features[0].properties
+    // Les secteurs de carte communale n'apparaissent pas dans zone-urba : on les
+    // cherche en premier, puis à défaut le statut de la commune.
+    const secteurCC = isRNU ? await fetchIGNSecteurCC(latitude, longitude) : null
+    const statut: StatutSansZonage | null = !isRNU ? null
+      : secteurCC ? 'CC'
+      : await fetchStatutSansZonage(`${p.code_dep}${p.code_com}`)
+    console.log(`🏘️ ${parcelInfo.commune} - ${isRNU ? statut : `PLU zone ${parcelInfo.zone_code}`}`)
 
     let analyseTexte: string
     let sourceAnalyse: string
     let resolvedNomfic = '' // nom du PDF règlement, après éventuel fallback API geoportail-urbanisme
 
-    if (isRNU) {
-      // ─── RNU : analyse textuelle sans PDF ───
+    if (statut === 'NON_PUBLIE') {
+      // ─── Document d'urbanisme existant mais absent du GPU : pas d'analyse ───
+      // Appliquer le RNU ici donnerait des règles fausses : le vrai document peut
+      // être bien plus (ou moins) restrictif.
+      parcelInfo.zonage = 'Document non publié'
+      parcelInfo.zone_code = ''
+      analyseTexte = `⚠️ DOCUMENT D'URBANISME NON PUBLIÉ
+
+${parcelInfo.commune} n'est pas soumise au RNU : la commune dispose d'un document d'urbanisme (PLU ou carte communale), mais celui-ci n'est pas publié sur le Géoportail de l'urbanisme.
+
+Aucune analyse automatique n'est possible : le règlement applicable doit être demandé directement à la mairie.`
+      sourceAnalyse = "Géoportail de l'urbanisme"
+    } else if (isRNU) {
+      // ─── RNU ou carte communale : analyse textuelle sans PDF ───
+      if (secteurCC) {
+        parcelInfo.zonage = `${secteurCC.libelle} - ${secteurCC.libelong} (carte communale)`
+        parcelInfo.zone_code = secteurCC.libelle
+      } else if (statut === 'CC') {
+        parcelInfo.zonage = 'Carte communale (hors secteur)'
+      }
       console.log('📜 Analyse RNU via Gemini...')
-      const prompt = buildRNUPrompt(parcelInfo)
+      const prompt = buildRNUPrompt(parcelInfo, statut === 'CC' ? { secteur: secteurCC } : undefined)
       analyseTexte = await callGeminiText(prompt)
       sourceAnalyse = 'Google Gemini 3 Flash'
     } else {
@@ -704,7 +871,7 @@ serve(async (req) => {
           coordonnees: { lat: latitude, long: longitude },
         },
         zonage: {
-          type: isRNU ? 'RNU' : 'PLU',
+          type: statut === 'NON_PUBLIE' ? 'NON_PUBLIE' : isRNU ? 'RNU' : 'PLU',
           code: parcelInfo.zone_code,
           libelle: parcelInfo.zonage,
           url_document: urlDocument,
@@ -714,6 +881,7 @@ serve(async (req) => {
           source: sourceAnalyse,
         },
         monuments_historiques: monumentsHistoriques,
+        servitudes_patrimoine: servitudesPatrimoine,
         timestamp: new Date().toISOString(),
       },
     }
