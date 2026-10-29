@@ -24,7 +24,7 @@ interface AnalysesPLURow {
   parcelle_numero: string;
   parcelle_surface: number;
   parcelle_url_geoportail: string;
-  zonage_type: 'PLU' | 'RNU';
+  zonage_type: 'PLU' | 'RNU' | 'NON_PUBLIE';
   zonage_libelle: string;
   zonage_url_document: string | null;
   analyse_texte: string;

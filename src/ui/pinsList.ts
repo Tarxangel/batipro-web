@@ -84,7 +84,7 @@ export class PinsListPanel {
       minute: '2-digit'
     });
 
-    const zoneColor = zonage.type === 'RNU' ? 'orange' : 'blue';
+    const zoneColor = zonage.type === 'NON_PUBLIE' ? 'grey' : zonage.type === 'RNU' ? 'orange' : 'blue';
 
     item.innerHTML = `
       <div class="pins-list-item-header">

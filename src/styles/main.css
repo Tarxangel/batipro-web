@@ -352,6 +352,11 @@ body {
   color: #f57c00;
 }
 
+.zone-badge.grey {
+  background: #eceff1;
+  color: #546e7a;
+}
+
 .results-card-header h3 {
   margin: 8px 0 4px 0;
   font-size: 20px;
@@ -842,6 +847,10 @@ body {
 
 .zone-badge-small.orange {
   background: #f57c00;
+}
+
+.zone-badge-small.grey {
+  background: #78909c;
 }
 
 .pins-list-item-date {

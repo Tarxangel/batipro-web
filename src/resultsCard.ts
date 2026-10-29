@@ -68,7 +68,7 @@ export function showResultsCard(data: AnalysePLUResponse): void {
   const servitudesPatrimoine = data.data.servitudes_patrimoine;
 
   // Déterminer couleur selon type de zonage
-  const zoneColor = zonage.type === 'RNU' ? 'orange' : 'blue';
+  const zoneColor = zonage.type === 'NON_PUBLIE' ? 'grey' : zonage.type === 'RNU' ? 'orange' : 'blue';
 
   // Bouton supprimer si c'est une analyse sauvegardée
   const deleteButtonHtml = data.id ? `
@@ -94,7 +94,7 @@ export function showResultsCard(data: AnalysePLUResponse): void {
       </div>
       <div class="info-row">
         <span class="info-label">Type:</span>
-        <span class="info-value">${zonage.type === 'RNU' ? 'RNU - Règlement National' : 'PLU - Plan Local'}</span>
+        <span class="info-value">${zonage.type === 'NON_PUBLIE' ? 'Non publié - voir mairie' : zonage.type === 'RNU' ? 'RNU - Règlement National' : 'PLU - Plan Local'}</span>
       </div>
       <hr>
       <div class="analyse-content">
@@ -103,7 +103,7 @@ export function showResultsCard(data: AnalysePLUResponse): void {
       </div>
       ${renderServitudesSection(servitudesPatrimoine)}
       ${renderMonumentsSection(monumentsHistoriques, servitudesPatrimoine)}
-      ${data.id ? `
+      ${data.id && zonage.type !== 'NON_PUBLIE' ? `
         <button class="btn-detailed-table" title="Générer le tableau réglementaire détaillé (14 rubriques)">
           📋 Générer tableau détaillé
         </button>

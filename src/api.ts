@@ -19,7 +19,8 @@ export interface ParcelleDonnees {
 }
 
 export interface ZonageDonnees {
-  type: 'PLU' | 'RNU';
+  // NON_PUBLIE : la commune a un document d'urbanisme absent du Géoportail
+  type: 'PLU' | 'RNU' | 'NON_PUBLIE';
   libelle: string;
   url_document: string | null;
 }
