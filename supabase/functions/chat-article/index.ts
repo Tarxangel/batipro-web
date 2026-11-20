@@ -12,8 +12,11 @@
 // L'IA pose 1-2 questions par tour, et propose un brouillon (draft)
 // quand elle estime avoir assez d'éléments factuels.
 //
-// Format de réponse de l'IA (forcé via responseMimeType JSON) :
-//   { "message": "...", "draft": null | { "title": "...", "content_html": "..." } }
+// Deux modes, deux formats :
+//   - CHAT  : JSON forcé { "message": "...", "draft": null }
+//   - DRAFT : texte libre balisé TITRE:/ARTICLE:/QUESTIONS:, reparsé ici.
+//     L'article n'est PAS encapsulé dans une string JSON : pas d'échappement
+//     de HTML à gérer par le modèle, et le prompt de rédaction reste court.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.90.1"
@@ -27,14 +30,22 @@ const corsHeaders = {
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!
 
 // Hybride deux-modèles :
-// - CHAT (conversation, questions, allers-retours) : flash preview, rapide et léger
-// - DRAFT (rédaction de l'article final) : pro preview, plus lent mais qualité
+// - CHAT (conversation, questions, allers-retours) : flash, rapide et léger
+// - DRAFT (rédaction de l'article final) : pro, plus lent mais qualité
 //   journalistique nettement supérieure
 //
-// Attention : ces Gemini 3.x sont en preview. gemini-3-pro-preview a été
-// retiré le 9 mars 2026 → à surveiller. En cas de shutdown, fallback 2.5.
-const GEMINI_MODEL_CHAT = 'gemini-3-flash-preview'
+// gemini-3.8-flash est STABLE (plus de risque de shutdown preview).
+// gemini-3.1-pro-preview reste en preview : en cas de retrait, replier sur
+// gemini-3.8-flash — surtout PAS sur les 2.5, qui ferment le 16 octobre 2026.
+const GEMINI_MODEL_CHAT = 'gemini-3.8-flash'
 const GEMINI_MODEL_DRAFT = 'gemini-3.1-pro-preview'
+
+// Budgets de sortie. ⚠️ Chez Gemini, les tokens de "thinking" sont facturés ET
+// décomptés dans maxOutputTokens : un budget trop serré fait sortir une réponse
+// tronquée plutôt qu'une erreur. On laisse donc de la marge, et on vérifie
+// finishReason plus bas.
+const MAX_TOKENS_CHAT = 4000
+const MAX_TOKENS_DRAFT = 16000
 
 function geminiUrl(model: string): string {
   return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`
@@ -133,95 +144,93 @@ serve(async (req) => {
     .eq('chantier_id', body.chantier_id)
     .order('event_date', { ascending: true })
 
+  // ── Sélection du mode (hybride flash/pro) ───────────────
+  const useDraft = shouldUseDraftModel(body.mode, body.messages)
+  const model = useDraft ? GEMINI_MODEL_DRAFT : GEMINI_MODEL_CHAT
+
   // ── Construction du system prompt ───────────────────────
   const chantierBlock = formatChantierBlock(chantier)
   const eventsBlock = formatEventsBlock(events || [])
 
-  // Charge le template depuis ai_prompts (éditable depuis l'admin),
-  // fallback sur le prompt en dur si la DB ne répond pas.
+  // Deux slots distincts : conduire l'entretien et rédiger l'article sont deux
+  // métiers différents, et Sébastien doit pouvoir régler l'un sans casser
+  // l'autre. Fallback sur le prompt en dur si la DB ne répond pas.
+  const promptKey = useDraft ? 'chat-article-draft' : 'chat-article'
   const { data: promptRow } = await adminClient
     .from('ai_prompts')
     .select('content')
-    .eq('key', 'chat-article')
+    .eq('key', promptKey)
     .single()
 
-  const template = promptRow?.content || FALLBACK_PROMPT_TEMPLATE
+  const template = promptRow?.content
+    || (useDraft ? FALLBACK_DRAFT_TEMPLATE : FALLBACK_PROMPT_TEMPLATE)
   const systemInstruction = template
     .replaceAll('{{CHANTIER}}', chantierBlock)
     .replaceAll('{{EVENTS}}', eventsBlock)
 
   // ── Construction de l'historique pour Gemini ────────────
   // Gemini utilise role: "user" | "model" et "parts": [{text}, {inlineData}]
-  // La photo est attachée au PREMIER tour utilisateur uniquement.
-  const contents: Array<Record<string, unknown>> = []
+  //
+  // Le message de cadrage + la photo sont rejoués à CHAQUE appel. Sans ça, dès
+  // le tour 2 la conversation envoyée au modèle commençait par une réponse du
+  // modèle à une question qu'il ne voyait plus, et la photo se retrouvait
+  // accrochée à une réplique quelconque de l'utilisateur.
+  const KICKOFF = "Voici la photo du chantier. Démarre la conversation : décris factuellement ce que tu vois et pose 1 ou 2 questions ciblées pour comprendre ce qui s'est passé."
 
-  if (body.messages.length === 0) {
-    // Premier appel : on demande à l'IA d'amorcer la conversation
-    // en regardant la photo et l'historique.
-    const firstUserParts: Array<Record<string, unknown>> = [
-      { text: "Voici la photo du chantier. Démarre la conversation : décris factuellement ce que tu vois et pose 1 ou 2 questions ciblées pour comprendre ce qui s'est passé." }
-    ]
-    if (body.photo_base64) {
-      firstUserParts.push({
-        inlineData: {
-          mimeType: body.mime_type || 'image/jpeg',
-          data: body.photo_base64
-        }
-      })
-    }
-    contents.push({ role: 'user', parts: firstUserParts })
-  } else {
-    // Conversation en cours : on rebuild l'historique en attachant la photo
-    // au tout premier tour utilisateur (pour que Gemini garde le contexte visuel)
-    let photoAttached = false
-    for (const msg of body.messages) {
-      const parts: Array<Record<string, unknown>> = [{ text: msg.content }]
-      if (msg.role === 'user' && !photoAttached && body.photo_base64) {
-        parts.push({
-          inlineData: {
-            mimeType: body.mime_type || 'image/jpeg',
-            data: body.photo_base64
-          }
-        })
-        photoAttached = true
-      }
-      contents.push({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts
-      })
-    }
+  const kickoffParts: Array<Record<string, unknown>> = [{ text: KICKOFF }]
+  if (body.photo_base64) {
+    kickoffParts.push({
+      inlineData: {
+        mimeType: body.mime_type || 'image/jpeg',
+        data: body.photo_base64,
+      },
+    })
   }
 
-  // ── Sélection du modèle (hybride flash/pro) ─────────────
-  const useDraft = shouldUseDraftModel(body.mode, body.messages)
-  const model = useDraft ? GEMINI_MODEL_DRAFT : GEMINI_MODEL_CHAT
-  console.log(`chat-article: using model ${model} (mode=${body.mode || 'auto'}, draft=${useDraft})`)
+  const contents: Array<Record<string, unknown>> = [{ role: 'user', parts: kickoffParts }]
+  for (const msg of body.messages) {
+    contents.push({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }],
+    })
+  }
 
-  // En mode draft, on ajoute un dernier message système-utilisateur pour
-  // forcer le modèle à produire un brouillon complet immédiatement, sans
-  // re-poser de questions préalables.
+  console.log(`chat-article: model=${model} (mode=${body.mode || 'auto'}, draft=${useDraft}, prompt=${promptKey})`)
+
+  // En mode draft, un dernier tour utilisateur force la rédaction immédiate.
   if (useDraft) {
     contents.push({
       role: 'user',
-      parts: [{
-        text: '[INSTRUCTION INTERNE — NE PAS RÉPÉTER] Produis MAINTENANT le brouillon complet d\'article (300+ mots, 3-5 paragraphes, ton journalistique BTP, RÈGLES #1 à #5 strictes). Aucune balise [à confirmer] dans le corps. Si des infos manquent, écris l\'article sans les évoquer et liste les questions de complément dans le champ "message" du JSON.'
-      }]
+      parts: [{ text: "Produis maintenant l'article avec ce qu'on a, au format TITRE:/ARTICLE:/QUESTIONS:." }],
     })
   }
 
   // ── Appel Gemini ────────────────────────────────────────
+  // thinkingLevel (Gemini 3.x) plutôt que thinkingBudget : mesuré à ~1300 tokens
+  // de raisonnement en "high" sur une rédaction, ~0 en "low". Ces tokens sont
+  // facturés ET décomptés de maxOutputTokens, d'où les budgets larges.
+  const generationConfig: Record<string, unknown> = useDraft
+    ? {
+        temperature: 0.7,
+        topP: 0.95,
+        maxOutputTokens: MAX_TOKENS_DRAFT,
+        thinkingConfig: { thinkingLevel: 'high' },
+      }
+    : {
+        temperature: 0.4,
+        topP: 0.9,
+        maxOutputTokens: MAX_TOKENS_CHAT,
+        responseMimeType: 'application/json',
+        thinkingConfig: { thinkingLevel: 'low' },
+      }
+
   const geminiResponse = await fetch(geminiUrl(model), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemInstruction }] },
       contents,
-      generationConfig: {
-        temperature: useDraft ? 0.55 : 0.4, // chat un peu plus stable, draft plus stylistique
-        topP: 0.9,
-        maxOutputTokens: 8000,
-        responseMimeType: 'application/json',
-      }
+      generationConfig,
     })
   })
 
@@ -236,12 +245,39 @@ serve(async (req) => {
     return jsonResponse({ error: result.error.message }, 502)
   }
 
-  const rawText = result.candidates?.[0]?.content?.parts?.[0]?.text
+  const candidate = result.candidates?.[0]
+  const rawText = candidate?.content?.parts?.[0]?.text
+  const finishReason = candidate?.finishReason
+  const usage = result.usageMetadata || {}
+  console.log(`chat-article: finish=${finishReason} thoughts=${usage.thoughtsTokenCount ?? '?'} output=${usage.candidatesTokenCount ?? '?'}`)
+
+  // MAX_TOKENS = le budget de sortie a été consommé (raisonnement compris) et la
+  // réponse est coupée. Sans ce garde-fou, une troncature ressortait en façade
+  // comme un message de chat incohérent plutôt que comme une erreur.
+  if (finishReason && finishReason !== 'STOP') {
+    console.error(`chat-article: réponse interrompue (${finishReason})`)
+    if (!rawText) {
+      return jsonResponse({ error: `Génération interrompue (${finishReason}). Réessaie.` }, 502)
+    }
+  }
+
   if (!rawText) {
     return jsonResponse({ error: 'Réponse Gemini vide' }, 502)
   }
 
-  // Parse le JSON renvoyé par Gemini (forcé via responseMimeType)
+  // ── Mode DRAFT : texte libre balisé ──
+  if (useDraft) {
+    const parsedDraft = parseDraftOutput(rawText)
+    if (!parsedDraft) {
+      // Format inattendu : on rend la main à l'utilisateur dans le chat plutôt
+      // que d'échouer sec, il peut relancer une demande de brouillon.
+      console.error('chat-article: format de brouillon non reconnu')
+      return jsonResponse({ message: rawText, draft: null })
+    }
+    return jsonResponse(parsedDraft)
+  }
+
+  // ── Mode CHAT : JSON forcé ──
   let parsed: { message?: string; draft?: { title: string; content_html: string } | null }
   try {
     parsed = JSON.parse(rawText)
@@ -255,6 +291,46 @@ serve(async (req) => {
     draft: parsed.draft || null,
   })
 })
+
+// Reparse la sortie de rédaction : TITRE: / ARTICLE: / QUESTIONS:
+// Découpage par index plutôt que par un regex unique : avec le flag /m, un `$`
+// marque la fin de LIGNE, et une capture paresseuse s'arrêtait au premier
+// saut de ligne — l'article se retrouvait amputé de tout sauf son premier
+// paragraphe. Renvoie null si le format n'est pas reconnaissable.
+function parseDraftOutput(raw: string): {
+  message: string
+  draft: { title: string; content_html: string }
+} | null {
+  // Le modèle enrobe parfois sa réponse dans un bloc de code.
+  const text = raw.trim().replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/, '').trim()
+
+  const titleMatch = text.match(/^[ \t]*TITRE[ \t]*:[ \t]*(.+)$/im)
+  const articleMatch = /^[ \t]*ARTICLE[ \t]*:[ \t]*/im.exec(text)
+  if (!titleMatch || !articleMatch) return null
+
+  const title = titleMatch[1].trim()
+  const bodyStart = articleMatch.index + articleMatch[0].length
+
+  // QUESTIONS: est cherché APRÈS le début de l'article, pour ne pas tomber sur
+  // une occurrence qui serait remontée dans le titre.
+  const rest = text.slice(bodyStart)
+  const questionsMatch = /^[ \t]*QUESTIONS[ \t]*:[ \t]*/im.exec(rest)
+
+  const contentHtml = (questionsMatch ? rest.slice(0, questionsMatch.index) : rest).trim()
+  if (!title || !contentHtml) return null
+
+  const questions = questionsMatch
+    ? rest.slice(questionsMatch.index + questionsMatch[0].length).trim()
+    : ''
+  const hasQuestions = questions && !/^-?\s*aucune\.?$/i.test(questions)
+
+  const message = hasQuestions
+    ? `Voici le brouillon, il est ouvert dans l'éditeur. Pour l'enrichir :\n${questions}`
+    : "Voici le brouillon, il est ouvert dans l'éditeur."
+
+  return { message, draft: { title, content_html: contentHtml } }
+}
+
 
 // ─── HELPERS ────────────────────────────────────────────
 
@@ -281,6 +357,61 @@ function formatEventsBlock(events: Array<{ event_date: string; event_type: strin
     return `- ${date}${type} : ${e.description}`
   }).join('\n')
 }
+
+// Repli du prompt de RÉDACTION (slot `chat-article-draft`, migration
+// 20260917120000). Mesuré contre l'ancien prompt sur le même entretien :
+// 153 mots denses au lieu de 350 mots délayés, et 935 tokens d'entrée au lieu
+// de 3230. Le levier, c'est la règle de longueur : autoriser explicitement
+// l'article court supprime le remplissage.
+// ⚠️ Doit rester byte-identique au seed de la migration.
+const FALLBACK_DRAFT_TEMPLATE = `Tu es journaliste BTP pour la presse spécialisée bâtiment / industrie. Tu écris un article publiable en l'état sur l'OPÉRATION EN COURS sur un chantier.
+
+═══ TES SOURCES — ET RIEN D'AUTRE ═══
+(a) ce que l'utilisateur t'a dit dans la conversation — source PRINCIPALE
+(b) les ÉVÉNEMENTS de l'historique ci-dessous — source de vérité factuelle
+(c) ce qui est visible sur la photo — contexte seulement, jamais le sujet
+
+Tu n'inventes aucune action, aucun matériau, aucune dimension, aucune durée, aucune norme, aucune marque, aucun acteur qui ne vienne pas de (a), (b) ou (c).
+
+═══ LONGUEUR — LA RÈGLE LA PLUS IMPORTANTE ═══
+Tu écris aussi long que la matière le permet, PAS PLUS.
+- Beaucoup de matière factuelle → 350-450 mots.
+- Peu de matière → 150-250 mots. C'est un TRÈS BON article, pas un échec.
+Un article court et dense vaut infiniment mieux qu'un article long et délayé.
+
+Test à appliquer à CHAQUE phrase avant de la garder : « est-ce que cette phrase
+apporte un fait que le lecteur n'a pas déjà lu ? » Si non, tu la supprimes.
+Si une phrase pourrait être collée telle quelle sur n'importe quel autre
+chantier de France, elle est vide : supprime-la. Tu ne délayes JAMAIS pour
+atteindre une longueur.
+
+═══ CE QUI FAIT UN BON ARTICLE ICI ═══
+- Une attaque qui dit en UNE phrase : qui fait quoi, maintenant, où.
+- Des faits concrets : les chiffres, les matériaux, les contraintes réelles.
+- Des phrases actives, des sujets concrets ("les façadiers ont posé…").
+- Le vocabulaire technique du métier, uniquement s'il vient des sources.
+- Ce qui rend CE chantier différent d'un autre : la contrainte, l'imprévu, le
+  détail technique. C'est là qu'est l'article.
+
+═══ À BANNIR ═══
+"marque une étape importante/clé", "dans le respect des règles de l'art",
+"savoir-faire reconnu", "nécessite une coordination/synchronisation…",
+"permet de garantir la pérennité", "s'inscrit dans la continuité",
+"témoigne de", et toute phrase qui décrit la photo ("on distingue…").
+Aucune balise [à confirmer] dans le corps.
+
+═══ FICHE CHANTIER (contexte de fond — chaque fait au plus UNE fois) ═══
+{{CHANTIER}}
+
+═══ HISTORIQUE DES ÉVÉNEMENTS (vérité factuelle) ═══
+{{EVENTS}}
+
+═══ FORMAT DE RÉPONSE — EXACTEMENT CECI, SANS JSON ═══
+TITRE: <titre factuel, 8-12 mots>
+ARTICLE:
+<p>…</p> puis éventuellement <h2>…</h2> et d'autres <p>…</p>
+QUESTIONS:
+- <1 à 3 questions qui permettraient d'enrichir l'article, ou "aucune">`
 
 // Fallback utilisé uniquement si la table ai_prompts ne répond pas
 // (par sécurité — en pratique le prompt est édité depuis l'admin et stocké en DB).

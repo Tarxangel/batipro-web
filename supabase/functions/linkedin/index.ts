@@ -3,8 +3,10 @@
 // Actions (POST { action }) :
 //   - start      : démarre l'OAuth, renvoie l'URL d'autorisation LinkedIn
 //   - status     : { connected, name, expired }
-//   - publish    : poste { title, content, articleUrl, post } sur le profil,
+//   - publish    : poste { post, articleUrl, draftId } sur le profil,
 //                  avec mention de la page entreprise Batipro (@[Nom](urn))
+//                  et, si draftId est fourni, la photo du chantier en image
+//                  native (upload via l'API Images de LinkedIn)
 //   - disconnect : supprime le compte connecté
 //
 // Le callback OAuth est géré par la fonction séparée `linkedin-callback`.
@@ -75,6 +77,71 @@ async function getValidToken(sb: ReturnType<typeof admin>, account: Record<strin
   return tok.access_token
 }
 
+// Taille max acceptee pour la photo. Le worker edge est plafonne en RAM et on
+// charge l'image entiere en memoire : au-dela on publie sans photo plutot que
+// de faire tomber la publication.
+const MAX_IMAGE_BYTES = 15_000_000
+
+// Upload une image sur LinkedIn et renvoie son URN (urn:li:image:...).
+// Renvoie null si quoi que ce soit echoue : la publication doit partir meme
+// sans photo, un post sans image vaut mieux qu'un post perdu.
+async function uploadImage(accessToken: string, ownerUrn: string, imageUrl: string): Promise<string | null> {
+  const liHeaders = {
+    'Authorization': `Bearer ${accessToken}`,
+    'X-Restli-Protocol-Version': '2.0.0',
+    'LinkedIn-Version': LI_VERSION,
+  }
+
+  try {
+    // 1. Reserver un emplacement d'upload
+    const initResp = await fetch('https://api.linkedin.com/rest/images?action=initializeUpload', {
+      method: 'POST',
+      headers: { ...liHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initializeUploadRequest: { owner: ownerUrn } }),
+    })
+    if (!initResp.ok) {
+      console.error('LinkedIn initializeUpload', initResp.status, (await initResp.text().catch(() => '')).slice(0, 300))
+      return null
+    }
+    const init = await initResp.json()
+    const uploadUrl: string = init?.value?.uploadUrl
+    const imageUrn: string = init?.value?.image
+    if (!uploadUrl || !imageUrn) {
+      console.error('LinkedIn initializeUpload : reponse inattendue')
+      return null
+    }
+
+    // 2. Recuperer la photo (WordPress)
+    const imgResp = await fetch(imageUrl)
+    if (!imgResp.ok) {
+      console.error('Telechargement image', imgResp.status, imageUrl)
+      return null
+    }
+    const bytes = new Uint8Array(await imgResp.arrayBuffer())
+    if (bytes.byteLength === 0 || bytes.byteLength > MAX_IMAGE_BYTES) {
+      console.error(`Image ignoree : ${bytes.byteLength} octets`)
+      return null
+    }
+
+    // 3. Deposer le binaire
+    const putResp = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+      body: bytes,
+    })
+    if (!putResp.ok) {
+      console.error('LinkedIn upload binaire', putResp.status, (await putResp.text().catch(() => '')).slice(0, 300))
+      return null
+    }
+
+    console.log(`🖼️ Image uploadee : ${imageUrn} (${(bytes.byteLength / 1024).toFixed(0)} Ko)`)
+    return imageUrn
+  } catch (err) {
+    console.error('uploadImage', (err as Error).message)
+    return null
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -125,7 +192,7 @@ serve(async (req) => {
 
   // ── PUBLISH ──────────────────────────────────────────────
   if (action === 'publish') {
-    const { post, articleUrl } = body
+    const { post, draftId } = body
     if (!post) return json({ success: false, error: 'post requis' }, 400)
 
     const { data: account } = await sb.from('linkedin_accounts').select('*').eq('user_id', userId).single()
@@ -140,13 +207,35 @@ serve(async (req) => {
       commentary += `\n\nUn projet signé @[${ORG_NAME}](${ORG_URN})`
     }
 
-    const payload = {
+    // Photo du chantier en image native. On relit l'URL depuis la base a partir
+    // du draft plutot que de la prendre dans le body : le client ne doit pas
+    // pouvoir faire telecharger une URL arbitraire par la fonction.
+    let imageUrn: string | null = null
+    let altText = ''
+    if (draftId) {
+      const { data: draft } = await sb
+        .from('article_drafts')
+        .select('image_url, title')
+        .eq('id', draftId)
+        .single()
+      if (draft?.image_url) {
+        altText = String(draft.title || '').slice(0, 350)
+        imageUrn = await uploadImage(accessToken, account.person_urn, draft.image_url)
+      } else {
+        console.warn(`Draft ${draftId} sans image_url — publication sans photo`)
+      }
+    }
+
+    const payload: Record<string, unknown> = {
       author: account.person_urn,
       commentary,
       visibility: 'PUBLIC',
       distribution: { feedDistribution: 'MAIN_FEED', targetEntities: [], thirdPartyDistributionChannels: [] },
       lifecycleState: 'PUBLISHED',
       isReshareDisabledByAuthor: false,
+    }
+    if (imageUrn) {
+      payload.content = { media: { id: imageUrn, altText: altText || undefined } }
     }
 
     const resp = await fetch('https://api.linkedin.com/rest/posts', {
@@ -167,7 +256,7 @@ serve(async (req) => {
     }
     const postId = resp.headers.get('x-restli-id') || ''
     const postUrl = postId ? `https://www.linkedin.com/feed/update/${postId}/` : 'https://www.linkedin.com/feed/'
-    return json({ success: true, url: postUrl, postId })
+    return json({ success: true, url: postUrl, postId, imageAttached: Boolean(imageUrn) })
   }
 
   return json({ success: false, error: 'action inconnue' }, 400)

@@ -50,10 +50,11 @@
         <!-- Presets -->
         <form id="presets-form" class="presets-form">
           <label class="preset-field">
-            <span>Chantier <small>(pour ranger les visuels enregistrés)</small></span>
+            <span>Projet <small>(pour ranger les visuels enregistrés)</small></span>
             <select id="p-chantier">
-              <option value="">— Sans chantier —</option>
+              <option value="">— Sans projet —</option>
             </select>
+            <small id="p-chantier-hint" class="field-hint" hidden></small>
           </label>
 
           <fieldset class="preset-group">
@@ -173,7 +174,7 @@
           <div class="history-head">
             <h2>Historique enregistré</h2>
             <select id="history-filter" class="history-filter">
-              <option value="">Tous les chantiers</option>
+              <option value="">Tous les projets</option>
             </select>
           </div>
           <div id="history-empty" class="history-empty">Aucun visuel enregistré pour l'instant.</div>

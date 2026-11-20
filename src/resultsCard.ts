@@ -3,6 +3,7 @@ import { deleteAnalysis, SavedAnalysis } from './database';
 import { showDetailedTableModal } from './detailedTable';
 import { showMonumentsHistoriques, showServitudesPatrimoine, clearMonumentsHistoriques } from './monumentsHistoriques';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
+import { georisquesReportUrl } from './georisques';
 
 // Extrait { insee, prefix, section } depuis l'URL Géoportail Urbanisme.
 // Format URL : https://www.geoportail-urbanisme.gouv.fr/map/parcel-info/{dep}_{com}_{com_abs}_{code_arr}_{section}_{numero}/
@@ -77,6 +78,22 @@ export function showResultsCard(data: AnalysePLUResponse): void {
     </button>
   ` : '';
 
+  // Fiche risques Géorisques de la parcelle (PPR, sites pollués, canalisations,
+  // argiles, radon, sismique). Les coordonnées manquent sur les analyses legacy
+  // enregistrées sans lat/lon : dans ce cas on n'affiche pas le lien.
+  const codes = parseCadastreCodes(parcelle.url_geoportail);
+  const { latitude, longitude } = data.data;
+  const georisquesHtml = (latitude != null && longitude != null)
+    ? `<a href="${georisquesReportUrl({
+          lat: latitude,
+          lon: longitude,
+          commune: parcelle.commune,
+          insee: codes?.insee,
+        })}" target="_blank" class="btn-link" title="Fiche risques Géorisques de la parcelle">
+          ⚠️ Fiche Géorisques
+        </a>`
+    : '';
+
   // Créer card de résultats
   const card = document.createElement('div');
   card.className = 'results-card';
@@ -116,6 +133,7 @@ export function showResultsCard(data: AnalysePLUResponse): void {
         <a href="${parcelle.url_geoportail}" target="_blank" class="btn-link">
           🗺️ Voir sur Géoportail
         </a>
+        ${georisquesHtml}
         ${zonage.url_document ? `
           <a href="${zonage.url_document}" target="_blank" class="btn-link">
             📄 Document PLU

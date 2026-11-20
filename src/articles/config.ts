@@ -4,14 +4,16 @@ import { SUPABASE_URL } from '../config';
 
 // URL du proxy Supabase pour appeler n8n (contourne CORS)
 export const N8N_ARTICLE_WEBHOOK = `${SUPABASE_URL}/functions/v1/n8n-proxy`;
-export const N8N_PUBLISH_WEBHOOK = `${SUPABASE_URL}/functions/v1/smart-endpoint`;
+// Publication directe via l'API REST WordPress (Edge Function wp-publish, sans n8n)
+export const PUBLISH_WEBHOOK = `${SUPABASE_URL}/functions/v1/wp-publish`;
 export const SUMMARIZE_HISTORY_URL = `${SUPABASE_URL}/functions/v1/summarize-history`;
 export const NOTIFY_REVIEW_URL = `${SUPABASE_URL}/functions/v1/notify-review`;
 export const LINKEDIN_POST_URL = `${SUPABASE_URL}/functions/v1/generate-linkedin-post`;
 export const LINKEDIN_URL = `${SUPABASE_URL}/functions/v1/linkedin`;
 
-// Configuration WordPress (pour référence uniquement)
-export const WP_SITE_URL = 'https://www.thibautlab.fr';
+// Site WordPress de prod. Sert de repli pour construire le shortlink `?p=<id>`
+// quand WordPress ne renvoie pas de permalien exploitable.
+export const WP_SITE_URL = 'https://www.batiproconcept.fr';
 
 // Limites
 export const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB

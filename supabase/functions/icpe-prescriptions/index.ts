@@ -1,8 +1,23 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.90.1"
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!
-const GEMINI_MODEL = 'gemini-3-flash-preview'
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`
+// Extraction depuis le texte d'arrêté : flash stable suffit et encaisse
+// les 120k caractères d'entrée sans faire exploser la facture.
+const GEMINI_MODEL = 'gemini-3.8-flash'
+// Modèle du chat ICPE : raisonnement plus long, on prend le pro.
+const CHAT_MODEL = 'gemini-3.1-pro-preview'
+// Liste blanche : le front choisit son modèle, mais il ne peut pas faire appeler
+// n'importe quoi sur notre clé Gemini.
+const ALLOWED_MODELS = new Set([
+  'gemini-3.8-flash',
+  'gemini-3.1-pro-preview',
+  'gemini-3.5-flash-lite',
+])
+const geminiUrl = (model: string) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`
+const GEMINI_URL = geminiUrl(GEMINI_MODEL)
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -97,6 +112,12 @@ const ARRETES_DB: Record<string, Record<string, { title: string, url: string }>>
     enregistrement: { title: 'Arrete du 12/12/14', url: 'https://aida.ineris.fr/reglementation/arrete-121214-relatif-prescriptions-generales-applicables-installations-regime' },
     autorisation: { title: 'Arrete du 15/02/16', url: 'https://aida.ineris.fr/reglementation/arrete-150216-relatif-installations-stockage-dechets-non-dangereux' }
   },
+  '2712': {
+    enregistrement: { title: 'Arrete du 26/11/12', url: 'https://aida.ineris.fr/reglementation/arrete-261112-relatif-prescriptions-generales-applicables-installations-classees' }
+  },
+  '2791': {
+    declaration: { title: 'Arrete du 23/11/11', url: 'https://aida.ineris.fr/reglementation/arrete-231111-relatif-prescriptions-generales-applicables-installations-classees' }
+  },
   '2910': {
     declaration: { title: 'Arrete du 03/08/18', url: 'https://aida.ineris.fr/reglementation/arrete-030818-relatif-prescriptions-generales-applicables-installations-classees' },
     enregistrement: { title: 'Arrete du 03/08/18', url: 'https://aida.ineris.fr/reglementation/arrete-030818-relatif-prescriptions-generales-applicables-installations-relevant' },
@@ -189,7 +210,120 @@ async function fetchAidaText(url: string): Promise<string> {
   return text
 }
 
+// ─── PROMPTS ÉDITABLES (table ai_prompts) ───────────────────
+
+function admin() {
+  return createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  )
+}
+
+// Charge un prompt éditable depuis l'admin. Repli sur le texte en dur si la
+// table ne répond pas : une panne de DB ne doit pas couper le simulateur.
+async function loadPrompt(key: string, fallback: string): Promise<string> {
+  try {
+    const { data, error } = await admin()
+      .from('ai_prompts')
+      .select('content')
+      .eq('key', key)
+      .single()
+    if (error || !data?.content) {
+      console.warn(`ai_prompts[${key}] indisponible (${error?.message ?? 'vide'}) — repli sur le prompt par defaut`)
+      return fallback
+    }
+    return data.content as string
+  } catch (err) {
+    console.warn(`ai_prompts[${key}] : ${(err as Error).message} — repli sur le prompt par defaut`)
+    return fallback
+  }
+}
+
+// Remplace les {{PLACEHOLDER}}. Callback plutôt que chaîne de remplacement :
+// les prescriptions peuvent contenir des $& / $1 qui seraient réinterprétés.
+function renderPrompt(template: string, vars: Record<string, string>): string {
+  return template.replace(/\{\{(\w+)\}\}/g, (match, name) => vars[name] ?? match)
+}
+
+// ─── MISE EN FORME DU CONTEXTE ICPE ─────────────────────────
+
+interface RubriqueInput { code: string, regime: string, intitule: string }
+
+// Le corps de requête vient du navigateur : on ne garde que des chaînes, et on
+// borne la taille pour ne pas construire un prompt arbitrairement gros.
+function normalizeRubriques(input: unknown): RubriqueInput[] {
+  if (!Array.isArray(input)) return []
+  return input.slice(0, 40).map((r) => ({
+    code: String((r as RubriqueInput)?.code ?? '').slice(0, 20),
+    regime: String((r as RubriqueInput)?.regime ?? '').slice(0, 40),
+    intitule: String((r as RubriqueInput)?.intitule ?? '').slice(0, 300),
+  })).filter((r) => r.code)
+}
+
+function formatRubriques(rubriques: RubriqueInput[]): string {
+  return rubriques
+    .map((r) => `Rubrique ${r.code} (${r.intitule}): Regime ${r.regime}`)
+    .join('\n')
+}
+
+// Aplatit les prescriptions déjà extraites en lignes "categorie > champ: valeur",
+// en sautant les cases que l'extraction n'a pas pu remplir.
+function formatPrescriptions(
+  prescriptions: unknown,
+  rubriques: RubriqueInput[],
+  header: string,
+): string {
+  if (!prescriptions || typeof prescriptions !== 'object') return ''
+  const all = prescriptions as Record<string, Record<string, unknown>>
+  let out = ''
+
+  for (const rub of rubriques) {
+    const rubData = all[rub.code]
+    if (!rubData) continue
+    const regime = Object.keys(rubData)[0]
+    const presc = rubData[regime] as Record<string, unknown> | undefined
+    if (!presc) continue
+
+    out += `\n--- Rubrique ${rub.code} (${regime}) ---\n`
+    for (const [cat, fields] of Object.entries(presc)) {
+      if (typeof fields !== 'object' || fields === null) continue
+      for (const [key, val] of Object.entries(fields as Record<string, unknown>)) {
+        if (val && val !== "Non precise dans l'arrete" && val !== 'Selon arrete prefectoral') {
+          out += `${cat} > ${key}: ${val}\n`
+        }
+      }
+    }
+  }
+
+  return out ? `\n\n${header}\n${out}` : ''
+}
+
 // ─── CALL GEMINI ────────────────────────────────────────────
+
+// Appel texte libre (analyse / chat). callGemini ci-dessous reste réservé à
+// l'extraction, qui elle force le mode JSON.
+async function callGeminiText(
+  prompt: string,
+  model: string,
+  temperature: number,
+  maxOutputTokens: number,
+): Promise<string> {
+  const response = await fetch(geminiUrl(model), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature, maxOutputTokens },
+    }),
+  })
+
+  const result = await response.json()
+  if (result.error) throw new Error(result.error.message)
+  return result.candidates?.[0]?.content?.parts?.[0]?.text || ''
+}
+
+
 
 async function callGemini(prompt: string): Promise<string> {
   const response = await fetch(GEMINI_URL, {
@@ -205,9 +339,73 @@ async function callGemini(prompt: string): Promise<string> {
     })
   })
 
+  const rawBody = await response.text()
+  let result: { error?: { message?: string }, candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }
+  try {
+    result = JSON.parse(rawBody)
+  } catch {
+    // Google a renvoyé une page HTML (5xx passerelle, quota, payload trop gros…)
+    throw new Error(`Gemini a renvoyé une reponse non-JSON (HTTP ${response.status})`)
+  }
+  if (result.error) throw new Error(result.error.message)
+  return result.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || ''
+}
+
+// ─── CALL GEMINI AVEC GOOGLE SEARCH GROUNDING ───────────────
+// Pour les rubriques sans arrêté en base ET introuvables via l'index AIDA :
+// on laisse Gemini chercher lui-même l'arrêté type sur le web (aida.ineris.fr)
+// et en extraire les prescriptions, plutôt que de renvoyer "non trouvé".
+
+async function callGeminiGrounded(prompt: string): Promise<string> {
+  const response = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      tools: [{ google_search: {} }],
+      // ⚠️ responseMimeType:'application/json' est incompatible avec le grounding.
+      // On demande donc le JSON dans le prompt et on parse en tolérant les fences.
+      generationConfig: {
+        temperature: 0,
+        maxOutputTokens: 32000
+      }
+    })
+  })
+
   const result = await response.json()
   if (result.error) throw new Error(result.error.message)
-  return result.candidates[0].content.parts[0].text
+  return result.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text || '').join('') || ''
+}
+
+// Parse JSON tolérant : retire les ```json ... ```, ignore le texte parasite
+// avant/après, et gère le cas où le modèle émet plusieurs objets à la suite
+// en extrayant le PREMIER objet {...} équilibré (comptage d'accolades, en
+// tenant compte des chaînes et des échappements).
+function parseJsonLoose(raw: string): Record<string, unknown> {
+  let s = (raw || '').trim()
+  // Retire les fences markdown
+  s = s.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim()
+  try {
+    return JSON.parse(s)
+  } catch {
+    // Fallback : scanner le premier objet JSON équilibré
+    const start = s.indexOf('{')
+    if (start === -1) throw new Error('Réponse IA non parsable en JSON (aucun objet)')
+    let depth = 0, inStr = false, esc = false
+    for (let i = start; i < s.length; i++) {
+      const c = s[i]
+      if (esc) { esc = false; continue }
+      if (c === '\\') { esc = true; continue }
+      if (c === '"') { inStr = !inStr; continue }
+      if (inStr) continue
+      if (c === '{') depth++
+      else if (c === '}') {
+        depth--
+        if (depth === 0) return JSON.parse(s.substring(start, i + 1))
+      }
+    }
+    throw new Error('Réponse IA non parsable en JSON (objet non clos)')
+  }
 }
 
 // ─── AIDA INDEX PAGES — Trouver l'URL d'un arrêté dynamiquement ───
@@ -313,32 +511,51 @@ serve(async (req: Request) => {
       throw new Error('GEMINI_API_KEY non configuree')
     }
 
-    // ─── MODE CHAT : appel Gemini direct avec un prompt libre ───
-    if (mode === 'chat') {
-      const { prompt, temperature, maxTokens } = body
-      if (!prompt) throw new Error('Parametre "prompt" requis pour mode chat')
+    // ─── MODE ANALYSE : bouton « Approfondir avec l'IA » (etape 3) ───
+    // Le prompt est construit ICI, pas dans le navigateur : il est editable
+    // depuis l'admin, et la fonction n'accepte plus de prompt libre.
+    if (mode === 'analyse') {
+      const list = normalizeRubriques(body.rubriques)
+      if (list.length === 0) throw new Error('Parametre "rubriques" requis pour mode analyse')
 
-      const response = await fetch(GEMINI_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: temperature ?? 0.3,
-            maxOutputTokens: maxTokens ?? 4000
-          }
-        })
+      const template = await loadPrompt('icpe-approfondir', FALLBACK_APPROFONDIR)
+      const prompt = renderPrompt(template, {
+        RUBRIQUES: formatRubriques(list),
+        PRESCRIPTIONS: formatPrescriptions(body.prescriptions, list, 'Prescriptions extraites des arretes:'),
       })
 
-      const result = await response.json()
-      if (result.error) throw new Error(result.error.message)
-      const text = result.candidates?.[0]?.content?.parts?.[0]?.text || ''
+      const text = await callGeminiText(prompt, GEMINI_MODEL, 0.2, 4000)
       return new Response(JSON.stringify({ text }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // ─── MODES SIMULATEUR / ANALYSE ───
+    // ─── MODE CHATBOT : chat expert ICPE ───
+    if (mode === 'chatbot') {
+      const question = String(body.question ?? '').trim().slice(0, 4000)
+      if (!question) throw new Error('Parametre "question" requis pour mode chatbot')
+
+      const list = normalizeRubriques(body.rubriques)
+      const template = await loadPrompt('icpe-chatbot', FALLBACK_CHATBOT)
+      const projet = String(body.projet ?? '').trim().slice(0, 200)
+      const localisation = String(body.localisation ?? '').trim().slice(0, 200)
+
+      const prompt = renderPrompt(template, {
+        RUBRIQUES: formatRubriques(list),
+        PRESCRIPTIONS: formatPrescriptions(body.prescriptions, list, 'PRESCRIPTIONS EXTRAITES DES ARRETES :'),
+        PROJET: projet ? `Projet: ${projet}` : '',
+        LOCALISATION: localisation ? `Localisation: ${localisation}` : '',
+        QUESTION: question,
+      })
+
+      const model = ALLOWED_MODELS.has(body.model) ? String(body.model) : CHAT_MODEL
+      const text = await callGeminiText(prompt, model, 0.3, 2000)
+      return new Response(JSON.stringify({ text }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // ─── MODE SIMULATEUR : extraction des tableaux de prescriptions ───
     if (!rubriques || !Array.isArray(rubriques) || rubriques.length === 0) {
       throw new Error('Parametre "rubriques" requis (tableau)')
     }
@@ -404,14 +621,25 @@ serve(async (req: Request) => {
     let finalResult: Record<string, unknown>
 
     // Simulateur: one Gemini call PER rubrique, then merge
+    // Un seul chargement du template pour toutes les rubriques de la requête.
+    const extractionTemplate = await loadPrompt('icpe-tableau-prescriptions', FALLBACK_TABLEAU)
+
     const geminiPromises = rubriques.map(async (rub: { code: string, regime: string, intitule: string }) => {
       if (needsGrounding.has(rub.code)) {
-        // No arrêté found — return fallback
-        return { code: rub.code, data: buildFallbackResponse(rub) }
+        // Aucun arrêté en base ni via l'index AIDA → on laisse Gemini chercher
+        // lui-même l'arrêté type (Google Search grounding) et l'extraire.
+        try {
+          const prompt = buildGroundedSinglePrompt(rub)
+          const result = await callGeminiGrounded(prompt)
+          return { code: rub.code, data: parseJsonLoose(result) }
+        } catch (err) {
+          console.error(`Grounding échoué pour ${rub.code}, fallback statique:`, err)
+          return { code: rub.code, data: buildFallbackResponse(rub) }
+        }
       }
-      const prompt = buildSimulateurSinglePrompt(rub, arretesTexts[rub.code] || '')
+      const prompt = buildSimulateurSinglePrompt(extractionTemplate, rub, arretesTexts[rub.code] || '')
       const result = await callGemini(prompt)
-      return { code: rub.code, data: JSON.parse(result) }
+      return { code: rub.code, data: parseJsonLoose(result) }
     })
 
     const results = await Promise.all(geminiPromises)
@@ -435,15 +663,62 @@ serve(async (req: Request) => {
 
 // ─── PROMPT BUILDERS ────────────────────────────────────────
 
-function buildSimulateurSinglePrompt(rubrique: { code: string, regime: string, intitule: string }, arreteText: string): string {
-  return `Tu es un assistant specialise en reglementation ICPE.
+// Replis des prompts editables, utilises si ai_prompts est injoignable.
+// ⚠️ Doivent rester alignes avec les slots de la migration 20260917100000.
+// Si tu modifies ici, modifie aussi le seed.
+const FALLBACK_APPROFONDIR = `Tu es un expert ICPE specialise dans les entrepots et batiments industriels en France.
+
+Voici les rubriques identifiees pour ce projet:
+{{RUBRIQUES}}
+{{PRESCRIPTIONS}}
+
+A partir des prescriptions extraites ci-dessus, fournis une analyse contextuelle:
+1. Interactions et cumuls entre les rubriques: quand plusieurs rubriques imposent des prescriptions sur le meme theme, identifie la valeur la PLUS CONTRAIGNANTE (ex: la distance la plus grande, le REI le plus eleve)
+2. Points de vigilance specifiques a cette combinaison
+3. Prescriptions qui se cumulent ou entrent en conflit — avec les valeurs chiffrees
+4. Recommandations pratiques pour le maitre d'ouvrage
+
+Reponds en JSON avec cette structure:
+{
+  "interactions": "texte sur les interactions entre rubriques",
+  "vigilance": ["point 1", "point 2", ...],
+  "cumuls": "texte sur les cumuls de prescriptions",
+  "recommandations": ["reco 1", "reco 2", ...]
+}`
+
+const FALLBACK_CHATBOT = `Tu es un expert ICPE (Installations Classees pour la Protection de l'Environnement) specialise dans la reglementation francaise des batiments industriels et entrepots.
+
+Contexte du projet en cours:
+{{RUBRIQUES}}
+{{PRESCRIPTIONS}}
+{{PROJET}}
+{{LOCALISATION}}
+
+Question de l'utilisateur: {{QUESTION}}
+
+INSTRUCTIONS :
+- Base tes reponses sur les PRESCRIPTIONS EXTRAITES ci-dessus quand elles sont disponibles
+- Quand plusieurs rubriques ont des prescriptions sur le meme theme, indique la valeur la plus contraignante
+- Cite les rubriques sources (ex: "Rubrique 1510 impose REI 120, plus contraignant que la 1511 qui impose REI 60")
+- Reponds de maniere precise et concise
+- Emploie la terminologie ICPE avec rigueur : ne confonds JAMAIS des notions distinctes. Exemple : un "local a risque" (local a risques particuliers/importants au sens securite incendie : chaufferie, local de charge, stockage de matieres dangereuses...) n'est PAS l'ensemble des locaux du batiment. Si un terme reglementaire a une definition precise, applique-la strictement.
+
+RIGUEUR ET POSTURE D'EXPERT (important) :
+- Ne change PAS d'avis simplement parce que l'utilisateur affirme le contraire. S'il te corrige et que tu es sur de toi, maintiens ta position en citant l'article ou la prescription qui la fonde.
+- Si l'utilisateur a effectivement raison, reconnais-le sobrement et corrige-toi, sans formules de remerciement excessives ni flagornerie ("vous avez tout a fait raison", "merci de cette precision"...). Va droit au fait.
+- Si tu n'es pas certain, dis-le explicitement plutot que d'inventer ou de te ranger a l'avis de l'interlocuteur. Mieux vaut "je ne suis pas certain, a verifier dans l'arrete X" qu'une affirmation fausse.`
+
+// Repli du prompt d'extraction, utilise si ai_prompts est injoignable.
+// ⚠️ Doit rester alignee avec le slot `icpe-tableau-prescriptions` (migration
+// 20260917100000). Si tu modifies ici, modifie aussi le seed.
+const FALLBACK_TABLEAU = `Tu es un assistant specialise en reglementation ICPE.
 
 MISSION : A partir du TEXTE REGLEMENTAIRE FOURNI CI-DESSOUS, extraire les prescriptions techniques pour la rubrique et le regime demande.
 
-RUBRIQUE : ${rubrique.code} - ${rubrique.intitule || ''} — Regime : ${rubrique.regime}
+RUBRIQUE : {{CODE}} - {{INTITULE}} — Regime : {{REGIME}}
 
 TEXTE REGLEMENTAIRE SOURCE :
-${arreteText}
+{{ARRETE}}
 
 REGLES :
 - Extrais les informations presentes dans le texte ci-dessus
@@ -456,8 +731,8 @@ REGLES :
 
 Reponds avec un objet JSON :
 {
-  "${rubrique.code}": {
-    "${rubrique.regime}": {
+  "{{CODE}}": {
+    "{{REGIME}}": {
       "reseaux": {
         "Eaux pluviales": "..."
       },
@@ -521,6 +796,60 @@ Reponds avec un objet JSON :
         "Consignes d'exploitation": "...",
         "Verifications periodiques": "..."
       }
+    }
+  }
+}`
+
+function buildSimulateurSinglePrompt(
+  template: string,
+  rubrique: { code: string, regime: string, intitule: string },
+  arreteText: string,
+): string {
+  return renderPrompt(template, {
+    CODE: rubrique.code,
+    INTITULE: rubrique.intitule || '',
+    REGIME: rubrique.regime,
+    ARRETE: arreteText,
+  })
+}
+
+// Prompt pour l'extraction "groundée" : Gemini cherche lui-même l'arrêté type
+// sur le web (aida.ineris.fr / Légifrance) puis en extrait les prescriptions.
+function buildGroundedSinglePrompt(rubrique: { code: string, regime: string, intitule: string }): string {
+  return `Tu es un expert en reglementation ICPE (installations classees pour la protection de l'environnement, France).
+
+RUBRIQUE : ${rubrique.code} - ${rubrique.intitule || ''} — Regime : ${rubrique.regime}
+
+MISSION :
+1. Utilise la recherche Google pour identifier, sur aida.ineris.fr de preference (ou Legifrance), l'ARRETE MINISTERIEL DE PRESCRIPTIONS GENERALES applicable a cette rubrique pour le regime "${rubrique.regime}".
+2. A partir du contenu reel de cet arrete, extrais les prescriptions techniques demandees.
+
+REGLES :
+- Base-toi uniquement sur le texte reglementaire reel trouve via la recherche. N'invente aucune valeur.
+- Si le regime "${rubrique.regime}" n'a PAS d'arrete type (frequent en Autorisation : prescriptions fixees au cas par cas) : mets "Selon arrete prefectoral" dans chaque champ.
+- Si un theme precis n'est pas aborde dans l'arrete : "Non precise dans l'arrete".
+- Si tu ne trouves vraiment aucun arrete type applicable : mets "Arrete type non trouve - consulter aida.ineris.fr" dans chaque champ.
+- Terminologie exacte (REI 120, R15, R30, R60, Broof t3, etc.) et valeurs numeriques exactes.
+- Sois CONCIS : valeurs cles et exigences, pas de paragraphes recopies.
+
+Reponds UNIQUEMENT avec un objet JSON valide, sans aucun texte autour ni balise markdown :
+{
+  "${rubrique.code}": {
+    "${rubrique.regime}": {
+      "reseaux": { "Eaux pluviales": "..." },
+      "dechets": { "Gestion des dechets": "..." },
+      "implantation": { "Distances limites": "...", "Distances inter-batiments": "..." },
+      "accessibilite": { "Acces au site": "...", "Voie engin": "...", "Echelles": "...", "Issues et quais": "...", "Locaux a risques": "..." },
+      "construction": { "Structure": "...", "Toiture": "...", "Facades": "...", "Portes et fermetures": "..." },
+      "cantonnement": { "Surface cellules": "...", "Murs separatifs": "...", "Ecrans de cantonnement": "..." },
+      "desenfumage": { "Surface utile": "...", "Commandes": "...", "Exutoires": "..." },
+      "stockage": { "Hauteur stockage": "...", "Allees de circulation": "...", "Distance aux parois": "..." },
+      "lutte_incendie": { "Extincteurs": "...", "RIA": "...", "Sprinkler": "...", "Colonnes seches": "..." },
+      "eau_incendie": { "Besoins en eau": "...", "Retention eaux extinction": "..." },
+      "ventilation": { "Dispositifs de ventilation": "..." },
+      "elec": { "Conformite": "...", "Coupure d'urgence": "..." },
+      "chauffage": { "Type autorise": "...", "Implantation": "..." },
+      "exploitation": { "Consignes d'exploitation": "...", "Verifications periodiques": "..." }
     }
   }
 }`

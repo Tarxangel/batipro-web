@@ -20,7 +20,8 @@ const corsHeaders = {
 }
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!
-const GEMINI_MODEL = 'gemini-3-flash-preview' // flash : édition ponctuelle, doit être rapide
+// flash : édition ponctuelle, doit être rapide. Stable depuis septembre 2026.
+const GEMINI_MODEL = 'gemini-3.8-flash'
 
 function geminiUrl(): string {
   return `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`

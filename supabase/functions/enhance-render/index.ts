@@ -4,9 +4,10 @@
 // strictement la géométrie du bâtiment — seuls l'ambiance lumineuse, les
 // matériaux, la végétation et le paysagisme sont retravaillés.
 //
-// Moteur : OpenAI gpt-image-2 en édition d'image (/v1/images/edits). 16:9 natif
+// Moteur : OpenAI gpt-image-2.5 en édition d'image (/v1/images/edits). 16:9 natif
 // jusqu'à 3840px (4K UHD), sort directement une version HD imprimable — pas
-// d'étape d'upscale séparée. (Bascule depuis Gemini Nano Banana le 2026-06-05.)
+// d'étape d'upscale séparée. (Bascule depuis Gemini Nano Banana le 2026-06-05,
+// puis de gpt-image-2 vers gpt-image-2.5 le 2026-09-17.)
 //
 // Modes :
 //   - photoreal : rendu photoréaliste HD imprimable depuis la source
@@ -28,12 +29,25 @@ const corsHeaders = {
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
 
-// Moteur image OpenAI (le dernier modèle dispo) + modèle vision pour la détection.
-const OPENAI_IMAGE_MODEL = 'gpt-image-2'
-const OPENAI_VISION_MODEL = 'gpt-4o-mini'
+// Moteur image OpenAI + modèle vision pour la détection.
+//
+// gpt-image-2.5 se décline en "flare" (rapide, tout-venant) et "sunburst"
+// (précision et tenue des éditions successives). Ici on ÉDITE un rendu dont la
+// géométrie doit être strictement préservée, et l'utilisateur enchaîne les
+// passes de refine : c'est exactement ce que vise sunburst. Le tarif au token
+// est identique aux deux variantes et identique à gpt-image-2 — seule la
+// latence augmente.
+const OPENAI_IMAGE_MODEL = 'gpt-image-2.5-sunburst'
 
-// Token de taille (1K/2K/4K) → dimension pixel 16:9 valide pour gpt-image-2
-// (côté le plus long ≤ 3840, dimensions multiples de 16).
+// Remplace gpt-4o-mini. ⚠️ Les modèles GPT-5.x refusent `max_tokens` :
+// il faut `max_completion_tokens`, et ils n'acceptent pas un `temperature`
+// arbitraire — on s'en remet au défaut.
+const OPENAI_VISION_MODEL = 'gpt-5.6-luna'
+
+// Token de taille (1K/2K/4K) → dimension pixel 16:9 valide pour gpt-image-2.5
+// (côtés multiples de 16, ratio entre 1:3 et 3:1, aucun côté > 3840,
+// surface totale entre 655 360 et 8 294 400 px — les trois valeurs ci-dessous
+// respectent ces bornes, 4K étant pile au plafond).
 function sizePx(token?: string): string {
   switch (token) {
     case '4K': return '3840x2160'
@@ -325,7 +339,7 @@ function buildPrompt(mode: Mode, presets: Presets, instructions?: string): strin
   }
 }
 
-// ── Génération image via OpenAI gpt-image-2 (édition d'image) ──
+// ── Génération image via OpenAI gpt-image-2.5 (édition d'image) ──
 // /v1/images/edits en multipart : la source sert de référence géométrique, le
 // modèle réinterprète l'ambiance/matériaux/végétation en gardant la composition.
 async function generateImage(
@@ -349,16 +363,16 @@ async function generateImage(
     body: form,
   })
   if (!resp.ok) {
-    throw new Error(`gpt-image-2 → HTTP ${resp.status}: ${(await resp.text()).slice(0, 300)}`)
+    throw new Error(`${OPENAI_IMAGE_MODEL} → HTTP ${resp.status}: ${(await resp.text()).slice(0, 300)}`)
   }
   const data = await resp.json()
   const b64 = data?.data?.[0]?.b64_json
-  if (!b64) throw new Error('gpt-image-2 → pas d\'image dans la réponse')
+  if (!b64) throw new Error(`${OPENAI_IMAGE_MODEL} → pas d'image dans la réponse`)
   return { image: b64, mime: 'image/png', model: OPENAI_IMAGE_MODEL }
 }
 
 // ── Détection des matériaux (vision → liste structurée) ───
-// OpenAI gpt-4o-mini vision, sortie JSON : un item par poste visible. Le front
+// Vision OpenAI, sortie JSON : un item par poste visible. Le front
 // affiche un poste par ligne avec un champ de remplacement en face.
 interface MaterialItem { poste: string; materiau: string }
 
@@ -385,8 +399,7 @@ Postes à utiliser (uniquement ceux réellement visibles, dans cet ordre) :
           { type: 'image_url', image_url: { url: `data:${mime};base64,${imageB64}` } },
         ],
       }],
-      max_tokens: 500,
-      temperature: 0.2,
+      max_completion_tokens: 1000,
     }),
   })
   if (!resp.ok) {
@@ -485,7 +498,7 @@ serve(async (req) => {
       return jsonResponse({ success: false, error: e instanceof Error ? e.message : 'Échec détection' }, 502)
     }
   }
-  // gpt-image-2 sort directement une version HD imprimable : photo/esquisse/refine
+  // gpt-image-2.5 sort directement une version HD imprimable : photo/esquisse/refine
   // en 2K (2560x1440), upscale optionnel en 4K. Qualité high (~110s @ 2K).
   const size = body.size || (mode === 'upscale' ? '4K' : '2K')
   const quality = 'high'

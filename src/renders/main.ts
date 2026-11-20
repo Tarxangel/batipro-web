@@ -14,6 +14,7 @@ import {
   listChantiers, saveRender, listRenders, signedUrl, deleteRender,
   Chantier, RenderRecord,
 } from './history';
+import { listOciDossiers, importOciDossier, prettyCity, OciDossier } from '../oci';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -22,6 +23,8 @@ let sourceB64 = '';            // rendu source, base64 sans préfixe
 let sourceMime = 'image/jpeg';
 let cardSeq = 0;
 let chantiers: Chantier[] = [];
+let ociProjets: OciDossier[] = [];  // projets ERP pas encore dans l'app (préfixe « oci: » dans le select)
+const OCI_PREFIX = 'oci:';
 let detectedMaterials: MaterialItem[] = []; // postes détectés (lignes structurées)
 
 interface Card {
@@ -123,25 +126,73 @@ async function applyWatermark(imageB64: string, mime: string): Promise<string> {
   $<HTMLButtonElement>('btn-detect-materials').addEventListener('click', handleDetectMaterials);
 
   await loadChantiers();
+  $<HTMLSelectElement>('p-chantier').addEventListener('change', updateChantierHint);
   $<HTMLSelectElement>('history-filter').addEventListener('change', () => {
     renderHistory($<HTMLSelectElement>('history-filter').value || null);
   });
   await renderHistory(null);
 })();
 
+// Sélecteur de projet : projets déjà dans l'app + projets ERP (phase « Projet »)
+// pas encore importés. Un projet ERP n'est créé dans la gestion chantier qu'au
+// premier visuel enregistré (cf. resolveChantierId), pas à la simple sélection.
 async function loadChantiers() {
-  try {
-    chantiers = await listChantiers();
-  } catch {
-    chantiers = [];
-  }
-  const optionsHtml = chantiers
-    .map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.city ? ' — ' + escapeHtml(c.city) : ''}</option>`)
-    .join('');
+  const [chs, oci] = await Promise.all([
+    listChantiers().catch(() => [] as Chantier[]),
+    listOciDossiers(['Projet']).catch(() => [] as OciDossier[]),
+  ]);
+  chantiers = chs;
+  const linked = new Set(chantiers.map(c => c.oci_dossier_id).filter(Boolean));
+  ociProjets = oci.filter(d => !linked.has(d.id));
+  renderChantierPickers();
+}
+
+function chantierLabel(c: Chantier): string {
+  return `${c.oci ? c.oci.num_dossier + ' · ' : ''}${c.name}${c.city ? ' — ' + prettyCity(c.city) : ''}`;
+}
+
+function renderChantierPickers() {
   const picker = $<HTMLSelectElement>('p-chantier');
-  picker.insertAdjacentHTML('beforeend', optionsHtml);
   const filter = $<HTMLSelectElement>('history-filter');
-  filter.insertAdjacentHTML('beforeend', optionsHtml);
+  const keepPicker = picker.value;
+  const keepFilter = filter.value;
+
+  const appOptions = chantiers
+    .map(c => `<option value="${c.id}">${escapeHtml(chantierLabel(c))}</option>`)
+    .join('');
+  const ociOptions = ociProjets
+    .map(d => `<option value="${OCI_PREFIX}${escapeHtml(d.id)}">${escapeHtml(`${d.num_dossier} · ${d.nom}${d.ville ? ' — ' + prettyCity(d.ville) : ''}`)}</option>`)
+    .join('');
+
+  picker.innerHTML = '<option value="">— Sans projet —</option>'
+    + (appOptions ? `<optgroup label="Dans l'app">${appOptions}</optgroup>` : '')
+    + (ociOptions ? `<optgroup label="Projets de l'ERP (ajoutés au 1er enregistrement)">${ociOptions}</optgroup>` : '');
+  filter.innerHTML = '<option value="">Tous les projets</option>' + appOptions;
+
+  picker.value = [...picker.options].some(o => o.value === keepPicker) ? keepPicker : '';
+  filter.value = [...filter.options].some(o => o.value === keepFilter) ? keepFilter : '';
+  updateChantierHint();
+}
+
+function updateChantierHint() {
+  const value = $<HTMLSelectElement>('p-chantier').value;
+  const hint = $('p-chantier-hint');
+  const d = value.startsWith(OCI_PREFIX) ? ociProjets.find(p => OCI_PREFIX + p.id === value) : null;
+  hint.hidden = !d;
+  if (d) hint.textContent = `Projet ERP ${d.num_dossier} : il sera ajouté à la gestion chantier au premier visuel enregistré.`;
+}
+
+// Id de chantier pour l'enregistrement : importe le projet ERP si besoin (idempotent).
+async function resolveChantierId(): Promise<string | null> {
+  const picker = $<HTMLSelectElement>('p-chantier');
+  const value = picker.value;
+  if (!value.startsWith(OCI_PREFIX)) return value || null;
+
+  const { id } = await importOciDossier(value.slice(OCI_PREFIX.length));
+  await loadChantiers();
+  picker.value = id;
+  updateChantierHint();
+  return id;
 }
 
 // ── Import d'image ──────────────────────────────────────
@@ -456,6 +507,11 @@ async function refineCard(card: Card, instruction: string) {
     const img = card.el.querySelector<HTMLImageElement>('.result-img')!;
     img.src = `data:image/png;base64,${card.stampedB64}`;
     card.el.querySelector<HTMLInputElement>('.refine-input')!.value = '';
+    // Le rendu a changé : on réactive l'enregistrement (sinon on reste bloqué
+    // sur « ✓ Enregistré » du rendu précédent et on ne peut pas sauver l'affiné)
+    const saveBtn = card.el.querySelector<HTMLButtonElement>('.btn-save')!;
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Enregistrer';
     setStatus(card, '✓ Affiné');
   } catch (err) {
     setStatus(card, `⚠️ ${(err as Error).message}`);
@@ -477,10 +533,10 @@ function downloadCard(card: Card) {
 
 async function saveCard(card: Card) {
   const btn = card.el.querySelector<HTMLButtonElement>('.btn-save')!;
-  const chantierId = $<HTMLSelectElement>('p-chantier').value || null;
   btn.disabled = true;
   setStatus(card, 'Enregistrement…', true);
   try {
+    const chantierId = await resolveChantierId();
     await saveRender({
       imageB64: card.upscaledB64 || card.stampedB64 || card.imageB64,
       kind: card.kind,
@@ -507,8 +563,8 @@ function setStatus(card: Card, msg: string, busy = false) {
 // ── Historique enregistré ───────────────────────────────
 
 function chantierName(id: string | null): string {
-  if (!id) return 'Sans chantier';
-  return chantiers.find(c => c.id === id)?.name || 'Chantier supprimé';
+  if (!id) return 'Sans projet';
+  return chantiers.find(c => c.id === id)?.name || 'Projet supprimé';
 }
 
 async function renderHistory(chantierId: string | null) {
@@ -543,6 +599,7 @@ async function renderHistory(chantierId: string | null) {
           <span class="history-res">${escapeHtml(r.resolution)}</span>
         </span>
         <span class="history-chantier">${escapeHtml(chantierName(r.chantier_id))}</span>
+        <button type="button" class="history-dl" title="Télécharger">⬇ Télécharger</button>
         <button type="button" class="history-del" title="Supprimer">×</button>
       </figcaption>
     </figure>
@@ -557,6 +614,23 @@ async function renderHistory(chantierId: string | null) {
       thumb.style.cursor = 'zoom-in';
       thumb.addEventListener('click', () => openLightboxUrl(url));
     }).catch(() => { thumb.innerHTML = '<span class="result-error">⚠︎</span>'; });
+
+    item.querySelector<HTMLButtonElement>('.history-dl')!.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const name = `rendu_${r.kind}_${r.resolution}_${r.id}.png`;
+      try {
+        // URL signée avec en-tête de téléchargement (force le download + nom de fichier)
+        const url = await signedUrl(r.storage_path, 120, name);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch (err) {
+        alert(`Erreur : ${(err as Error).message}`);
+      }
+    });
 
     item.querySelector<HTMLButtonElement>('.history-del')!.addEventListener('click', async (e) => {
       e.stopPropagation();

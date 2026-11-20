@@ -83,6 +83,8 @@
   font-size: 12px; font-weight: 600; color: #475569; padding: 0; margin-bottom: 6px; display: block;
 }
 .preset-field > span small { font-weight: 400; color: #94a3b8; }
+.preset-field .field-hint { display: block; margin-top: 6px; font-size: 12px; line-height: 1.4; color: #4f46e5; }
+.preset-field .field-hint[hidden] { display: none; }
 .preset-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .preset-field { display: block; }
 .preset-field select, .preset-field input, .preset-field textarea {
@@ -230,6 +232,12 @@
   color: #94a3b8; font-size: 18px; line-height: 1; padding: 0;
 }
 .history-del:hover { color: #dc2626; }
+.history-dl {
+  margin-top: 4px; align-self: flex-start; border: 1px solid #e2e8f0; background: #fff;
+  color: #334155; border-radius: 6px; padding: 4px 9px; font-size: 12px; font-weight: 500;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+}
+.history-dl:hover { background: #f1f5f9; border-color: #cbd5e1; }
 
 /* ── Lightbox ────────────────────────────────────────── */
 .lightbox {

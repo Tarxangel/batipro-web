@@ -3,6 +3,10 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
+// Résumé court et factuel d'un historique : flash-lite est exactement calibré
+// pour ça (et 3x moins cher que le flash).
+const GEMINI_MODEL = 'gemini-3.5-flash-lite'
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -54,7 +58,7 @@ Résume en 2-3 paragraphes concis l'historique de ce chantier :
 
     // Appeler Gemini
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -62,7 +66,11 @@ Résume en 2-3 paragraphes concis l'historique de ce chantier :
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.3,
-            maxOutputTokens: 500
+            // ⚠️ Les tokens de raisonnement sont décomptés de maxOutputTokens.
+            // À 500 le budget partait entièrement dans le "thinking" et le
+            // résumé ressortait vide ou coupé. 'minimal' + marge confortable.
+            maxOutputTokens: 2000,
+            thinkingConfig: { thinkingLevel: 'minimal' }
           }
         })
       }

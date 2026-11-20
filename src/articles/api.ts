@@ -1,7 +1,7 @@
 // Module API pour n8n
 
 import heic2any from 'heic2any';
-import { N8N_ARTICLE_WEBHOOK, N8N_PUBLISH_WEBHOOK, SUMMARIZE_HISTORY_URL, LINKEDIN_POST_URL, LINKEDIN_URL, NOTIFY_REVIEW_URL, GENERATE_TIMEOUT, PUBLISH_TIMEOUT, MAX_IMAGE_DIMENSION, IMAGE_COMPRESSION_QUALITY } from './config';
+import { N8N_ARTICLE_WEBHOOK, PUBLISH_WEBHOOK, SUMMARIZE_HISTORY_URL, LINKEDIN_POST_URL, LINKEDIN_URL, NOTIFY_REVIEW_URL, GENERATE_TIMEOUT, PUBLISH_TIMEOUT, MAX_IMAGE_DIMENSION, IMAGE_COMPRESSION_QUALITY } from './config';
 import { SUPABASE_ANON_KEY } from '../config';
 import { getAuthClient } from '../auth/client';
 
@@ -35,9 +35,15 @@ export async function linkedinStart(): Promise<string> {
   return r.authorizeUrl as string;
 }
 
-export async function linkedinPublish(post: string, articleUrl: string): Promise<string> {
-  const r = await linkedinCall({ action: 'publish', post, articleUrl });
-  return r.url as string;
+// draftId permet a l'Edge Function de retrouver la photo du chantier en base
+// et de la joindre au post en image native. Sans lui, le post part en texte seul.
+export async function linkedinPublish(
+  post: string,
+  articleUrl: string,
+  draftId?: string
+): Promise<{ url: string; imageAttached: boolean }> {
+  const r = await linkedinCall({ action: 'publish', post, articleUrl, draftId });
+  return { url: r.url as string, imageAttached: Boolean(r.imageAttached) };
 }
 
 export async function linkedinDisconnect(): Promise<void> {
@@ -213,7 +219,7 @@ export async function publishArticle(
   content: string
 ): Promise<PublishArticleResponse> {
   const response = await fetchWithTimeout(
-    N8N_PUBLISH_WEBHOOK,
+    PUBLISH_WEBHOOK,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -117,8 +117,12 @@ async function onLongPress(map: L.Map, latlng: L.LatLng): Promise<void> {
       console.log('✅ Analyse sauvegardée:', savedAnalysis.id);
     } catch (dbError) {
       console.error('⚠️ Erreur sauvegarde DB (non bloquant):', dbError);
-      // Ne pas bloquer l'UX si la DB échoue
-      showResultsCard(resultat);
+      // Ne pas bloquer l'UX si la DB échoue. On réinjecte les coordonnées du clic :
+      // sans elles la card ne peut pas proposer la fiche Géorisques.
+      showResultsCard({
+        ...resultat,
+        data: { ...resultat.data, latitude: latlng.lat, longitude: latlng.lng },
+      });
       if (currentMarker) {
         currentMarker.bindPopup(`✅ Analyse terminée<br>${resultat.data.parcelle.commune}`).openPopup();
       }

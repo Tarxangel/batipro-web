@@ -8,6 +8,8 @@ export interface Chantier {
   id: string;
   name: string;
   city?: string | null;
+  oci_dossier_id?: string | null;
+  oci?: { num_dossier: string } | null;
 }
 
 export interface RenderRecord {
@@ -26,10 +28,10 @@ export async function listChantiers(): Promise<Chantier[]> {
   const sb = getAuthClient();
   const { data, error } = await sb
     .from('chantiers')
-    .select('id, name, city')
+    .select('id, name, city, oci_dossier_id, oci:oci_dossiers(num_dossier)')
     .order('name', { ascending: true });
   if (error) throw new Error(error.message);
-  return (data as Chantier[]) || [];
+  return (data as unknown as Chantier[]) || []; // jointure many-to-one : objet à l'exécution
 }
 
 function base64ToBlob(b64: string, mime = 'image/png'): Blob {
@@ -90,9 +92,10 @@ export async function listRenders(chantierId?: string | null): Promise<RenderRec
   return (data as RenderRecord[]) || [];
 }
 
-export async function signedUrl(path: string, expiresIn = 3600): Promise<string> {
+export async function signedUrl(path: string, expiresIn = 3600, download?: string): Promise<string> {
   const sb = getAuthClient();
-  const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(path, expiresIn);
+  const opts = download ? { download } : undefined;
+  const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(path, expiresIn, opts);
   if (error) throw new Error(error.message);
   return data.signedUrl;
 }
