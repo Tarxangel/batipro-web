@@ -30,6 +30,9 @@ export interface EnhancePayload {
   presets?: RenderPresets;
   instructions?: string;
   size?: '1K' | '2K' | '4K';
+  /** Paysage de référence : rendu déjà validé dont on reprend l'aménagement paysager (base64 sans préfixe). */
+  reference?: string;
+  referenceMime?: string;
 }
 
 export interface EnhanceResult {

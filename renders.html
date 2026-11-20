@@ -57,6 +57,20 @@
             <small id="p-chantier-hint" class="field-hint" hidden></small>
           </label>
 
+          <!-- Paysage de référence : reprendre l'aménagement paysager d'un rendu
+               déjà validé (cohérence d'un APS à l'autre). -->
+          <div class="preset-field" id="ref-field">
+            <span>Paysage de référence <small>(optionnel — même aménagement paysager d'un APS à l'autre)</small></span>
+            <div id="ref-empty" class="ref-empty">Aucun. Cliquez « 🌿 Paysage » sur un visuel de l'historique ou sur un résultat pour reprendre son aménagement paysager.</div>
+            <div id="ref-current" class="ref-current" hidden>
+              <img id="ref-thumb" alt="Rendu de référence">
+              <div class="ref-info">
+                <span id="ref-label"></span>
+                <button type="button" id="btn-ref-clear" class="btn-ghost">Retirer</button>
+              </div>
+            </div>
+          </div>
+
           <fieldset class="preset-group">
             <legend>Livrables à générer</legend>
             <div class="seg-options">
@@ -101,6 +115,7 @@
               <select id="p-ambiance">
                 <option value="sobre">Sobre</option>
                 <option value="chaleureuse" selected>Chaleureuse</option>
+                <option value="chaleureuse mesurée">Chaleureuse mesurée (impression)</option>
                 <option value="premium">Premium</option>
               </select>
             </label>

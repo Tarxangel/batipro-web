@@ -16,6 +16,10 @@
 //   - upscale   : régénère en 4K (optionnel — la base est déjà HD)
 //   - detect    : liste les matériaux visibles, un item par poste (vision → JSON)
 //
+// Options (2026-11-20, retours Coline) : `reference` = 2e image servant de
+// paysage de référence ; ambiance « chaleureuse mesurée » = colorimétrie neutre
+// pour l'impression. Sans elles, le prompt est identique à la version précédente.
+//
 // Accès : ADMIN UNIQUEMENT (vérifié via app_profiles.is_admin).
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
@@ -263,7 +267,42 @@ géométrie ni aux ouvertures) :
   « shadées » sans grain.`
 }
 
-function buildPhotorealPrompt(p: Presets): string {
+// Ambiance « chaleureuse mesurée » (retour Coline, 21/10/2026 : « les
+// perspectives sortent vraiment jaunes à l'impression »). Option explicite :
+// les autres ambiances produisent exactement le même prompt qu'avant.
+const AMBIANCE_MESUREE = 'chaleureuse mesurée'
+
+function colorimetryRules(p: Presets): string {
+  if (p.ambiance !== AMBIANCE_MESUREE) return ''
+  return `\n\nCONSTRAINTS — COLORIMÉTRIE « CHALEUR MESURÉE » (rendu destiné à l'impression papier) :
+- Balance des blancs NEUTRE de lumière du jour : les blancs, gris, bétons et
+  bardages clairs de la façade restent NEUTRES, sans dominante jaune, orange ni sépia.
+- La chaleur n'est portée QUE par la lumière elle-même (soleil rasant, éclairage
+  intérieur des vitrages en blanc chaud ~3000 K) — jamais par un filtre ou un
+  étalonnage global de l'image.
+- Ciel aux bleus naturels, végétation aux verts naturels (pas de verts jaunis
+  ou olive), saturation modérée, aucun voile doré ni halo orangé sur l'image.
+- Une impression papier accentue toute dominante chaude : vise un rendu qui
+  paraîtrait même légèrement neutre à l'écran.`
+}
+
+// Paysage de référence : 2e image d'entrée = rendu déjà validé du même projet
+// (retour Coline : garder l'aménagement paysager cohérent d'un APS à l'autre).
+function referenceRules(hasReference: boolean): string {
+  if (!hasReference) return ''
+  return `\n\nPAYSAGE DE RÉFÉRENCE — DEUX IMAGES SONT FOURNIES :
+- IMAGE 1 = le rendu à transformer. Elle reste la référence géométrique UNIQUE
+  (bâtiment, volumes, ouvertures, cadrage, point de vue).
+- IMAGE 2 = rendu DÉJÀ VALIDÉ du même projet (version précédente ou autre point
+  de vue). Reprends fidèlement SON AMÉNAGEMENT PAYSAGER : mêmes essences et même
+  palette végétale, même type de massifs, haies, pelouses et arbres, mêmes
+  revêtements de sols extérieurs (enrobé, pavés, stabilisé…), mêmes bordures et
+  clôtures paysagères — adaptés à l'emprise réellement visible dans l'image 1.
+- L'image 2 ne sert QUE de référence paysagère : n'en reprends ni le bâtiment,
+  ni le cadrage, ni les véhicules, ni l'heure ou l'ambiance lumineuse.`
+}
+
+function buildPhotorealPrompt(p: Presets, hasReference = false): string {
   const heure = p.heure || 'tombée du jour'
   const ambiance = p.ambiance || 'chaleureuse'
   const vegetation = p.vegetation || 'paysagisme haut de gamme'
@@ -282,16 +321,16 @@ CHANGE — les SEULS éléments à retravailler :
 
 ${geometryLock(p.details)}${materialsRules(p)}${realismRules(p)}
 
-${lightingRules(p)}
+${lightingRules(p)}${colorimetryRules(p)}
 
-${vegetationRules(p)}
+${vegetationRules(p)}${referenceRules(hasReference)}
 
 RAPPEL FINAL : la fidélité architecturale prime sur l'esthétique — mêmes volumes,
 mêmes ouvertures, même cadrage, même logo véhicule que la source ; filigrane
 bas-gauche retiré. Sortie : une image unique, plein cadre.`
 }
 
-function buildSketchPrompt(p: Presets): string {
+function buildSketchPrompt(p: Presets, hasReference = false): string {
   const vegetation = p.vegetation || 'paysagisme haut de gamme'
   return `Produis UNE SEULE esquisse architecturale couleur à partir de cette image :
 croquis d'architecte professionnel dessiné à la main, encre noire fine + aquarelle
@@ -305,7 +344,7 @@ transparents et légers, bords de l'image qui s'estompent vers le blanc (effet
 vignette carnet de croquis, papier visible aux marges), ciel suggéré en quelques
 traits légers. Caractère « croquis pris sur le vif », pas un trait propre et figé.
 Même géométrie, même cadrage, mêmes ouvertures et proportions que la source.
-Végétation cohérente : ${vegetation}. ${p.localisation ? 'Localisation : ' + p.localisation + '.' : ''}
+Végétation cohérente : ${vegetation}. ${p.localisation ? 'Localisation : ' + p.localisation + '.' : ''}${referenceRules(hasReference)}
 Sortie : une image unique, plein cadre, sans cartouche ni légende.`
 }
 
@@ -330,10 +369,10 @@ lumineuse. Tu n'augmentes QUE la finesse des détails et la netteté (textures,
 feuillages, reflets). Aucun ajout, aucune suppression, aucun recadrage. Image unique
 plein cadre, sans cartouche ni légende.`
 
-function buildPrompt(mode: Mode, presets: Presets, instructions?: string): string {
+function buildPrompt(mode: Mode, presets: Presets, instructions?: string, hasReference = false): string {
   switch (mode) {
-    case 'photoreal': return buildPhotorealPrompt(presets)
-    case 'sketch':    return buildSketchPrompt(presets)
+    case 'photoreal': return buildPhotorealPrompt(presets, hasReference)
+    case 'sketch':    return buildSketchPrompt(presets, hasReference)
     case 'refine':    return buildRefinePrompt(instructions || 'améliore légèrement le réalisme', presets.details)
     case 'upscale':   return UPSCALE_PROMPT
   }
@@ -348,10 +387,17 @@ async function generateImage(
   mime: string,
   sizeToken: string,
   quality: string,
+  reference?: { b64: string; mime: string },
 ): Promise<{ image: string; mime: string; model: string }> {
   const form = new FormData()
   form.append('model', OPENAI_IMAGE_MODEL)
-  form.append('image', new Blob([b64ToBytes(imageB64)], { type: mime }), 'source.png')
+  if (reference) {
+    // Plusieurs images d'entrée : champ image[] répété, dans l'ordre du prompt
+    form.append('image[]', new Blob([b64ToBytes(imageB64)], { type: mime }), 'source.png')
+    form.append('image[]', new Blob([b64ToBytes(reference.b64)], { type: reference.mime }), 'reference.jpg')
+  } else {
+    form.append('image', new Blob([b64ToBytes(imageB64)], { type: mime }), 'source.png')
+  }
   form.append('prompt', prompt)
   form.append('size', sizePx(sizeToken))
   form.append('quality', quality)
@@ -429,6 +475,9 @@ interface RequestBody {
   presets?: Presets
   instructions?: string
   size?: '1K' | '2K' | '4K'
+  /** Paysage de référence (base64 sans préfixe) — photoreal / sketch uniquement. */
+  reference?: string
+  referenceMime?: string
 }
 
 serve(async (req) => {
@@ -503,10 +552,13 @@ serve(async (req) => {
   const size = body.size || (mode === 'upscale' ? '4K' : '2K')
   const quality = 'high'
   const mime = body.mime || 'image/png'
-  const prompt = buildPrompt(mode, body.presets || {}, body.instructions)
+  const reference = (body.reference && (mode === 'photoreal' || mode === 'sketch'))
+    ? { b64: body.reference, mime: body.referenceMime || 'image/jpeg' }
+    : undefined
+  const prompt = buildPrompt(mode, body.presets || {}, body.instructions, !!reference)
 
   try {
-    const out = await generateImage(prompt, body.image, mime, size, quality)
+    const out = await generateImage(prompt, body.image, mime, size, quality, reference)
     return jsonResponse({ success: true, ...out })
   } catch (e) {
     return jsonResponse({

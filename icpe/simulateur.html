@@ -788,6 +788,15 @@
     }
     .btn-chat-send:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(59,130,246,0.4); }
 
+    /* Référence d'article et lexique (contexte des prescriptions) */
+    .presc-ref { display: inline-block; margin-left: 4px; font-size: 11px; color: var(--gray-500); white-space: nowrap; }
+    .glossary-box { margin-top: 16px; padding: 14px 16px; background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); }
+    .glossary-box h4 { font-size: 13px; color: var(--primary); margin-bottom: 8px; }
+    .glossary-box dl { display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: 4px 14px; font-size: 12.5px; line-height: 1.5; }
+    .glossary-box dt { font-weight: 700; color: var(--gray-700); }
+    .glossary-box dd { margin: 0; color: var(--gray-600, #4b5563); }
+    @media (max-width: 768px) { .glossary-box dl { grid-template-columns: 1fr; } .glossary-box dd { margin-bottom: 6px; } }
+
     /* Print styles */
     @media print {
       body { background: white; padding: 0; }
@@ -922,6 +931,8 @@
           </table>
         </div>
 
+        <div id="glossaryStep3"></div>
+
         <div class="anticipation-box" id="anticipationBox">
           <h4>Anticipation extension</h4>
           <p id="anticipationText"></p>
@@ -968,7 +979,9 @@
         <div class="documents-grid" id="documentsGrid"></div>
 
         <div class="export-buttons">
-          <button class="btn-export primary" onclick="printReport()">Imprimer / PDF</button>
+          <button class="btn-export primary" onclick="exporterPDF(this)">Télécharger PDF</button>
+          <button class="btn-export primary" onclick="exporterExcel(this)">Télécharger Excel</button>
+          <button class="btn-export secondary" onclick="printReport()">Imprimer la page</button>
           <button class="btn-export secondary" onclick="copierTableau()">Copier pour Excel</button>
           <button class="btn-export secondary" onclick="exporterCSV()">Exporter CSV</button>
         </div>
@@ -1718,6 +1731,7 @@ function renderPrescriptionsTable() {
   headerRow.innerHTML = '<th style="min-width:180px;">Theme</th>';
   tableBody.innerHTML = '';
   noPrescContainer.innerHTML = '';
+  renderGlossary('glossaryStep3', []);
 
   const rubriques = Array.from(state.selectedRubriques);
 
@@ -1785,14 +1799,14 @@ function renderPrescriptionsTable() {
         const info = getRegimeInfo(code);
         const regime = info.regime;
         const val = getPrescription(code, regime, cat.id, item);
-        row += `<td class="${val === '-' ? 'empty' : ''}">${val}</td>`;
+        row += `<td class="${val === '-' ? 'empty' : ''}">${formatPresc(val)}</td>`;
 
         if (state.comparisonMode) {
           const nextRegime = getNextRegime(code);
           if (nextRegime) {
             const nextVal = getPrescription(code, nextRegime, cat.id, item);
             const isDiff = nextVal !== val && nextVal !== '-';
-            row += `<td class="${isDiff ? 'diff' : ''} ${nextVal === '-' ? 'empty' : ''}">${nextVal}</td>`;
+            row += `<td class="${isDiff ? 'diff' : ''} ${nextVal === '-' ? 'empty' : ''}">${formatPresc(nextVal)}</td>`;
           }
         }
       });
@@ -1801,6 +1815,8 @@ function renderPrescriptionsTable() {
       tableBody.innerHTML += row;
     });
   });
+
+  renderGlossary('glossaryStep3', withPresc);
 }
 
 function getColSpan(rubriques) {
@@ -1992,13 +2008,13 @@ function renderStep4() {
         withPresc.forEach(code => {
           const info = getRegimeInfo(code);
           const val = getPrescription(code, info.regime, cat.id, item);
-          html += `<td class="${val === '-' ? 'empty' : ''}">${val}</td>`;
+          html += `<td class="${val === '-' ? 'empty' : ''}">${formatPresc(val)}</td>`;
         });
         html += '</tr>';
       });
     });
 
-    html += '</tbody></table></div></div>';
+    html += '</tbody></table></div><div id="glossaryStep4"></div></div>';
   }
 
   // Note for rubriques without prescriptions
@@ -2019,6 +2035,7 @@ function renderStep4() {
   }
 
   container.innerHTML = html;
+  if (withPresc.length > 0) renderGlossary('glossaryStep4', withPresc);
 
   // Documents
   renderDocuments();
@@ -2228,6 +2245,79 @@ function exporterCSV() {
   link.click();
 }
 
+// Exports PDF / Excel au visuel Batipro (module src/icpe/exports.ts, chargé
+// à part : il expose window.icpeTools). Les données viennent de l'état courant.
+function buildIcpeExportPayload() {
+  const rubriques = Array.from(state.selectedRubriques);
+  const withPresc = rubriques.filter(code => {
+    const data = ICPE_DATA[code];
+    const info = getRegimeInfo(code);
+    return data.prescriptions && info.regime && data.prescriptions[info.regime];
+  });
+  const dateVal = document.getElementById('dateAnalyse').value;
+  const date = dateVal ? dateVal.split('-').reverse().join('/') : new Date().toLocaleDateString('fr-FR');
+  return {
+    projet: {
+      nom: document.getElementById('nomProjet').value.trim(),
+      client: document.getElementById('client').value.trim(),
+      localisation: document.getElementById('localisation').value.trim(),
+      date
+    },
+    colonnes: withPresc.map(code => ({ code, regime: getRegimeInfo(code).label || 'Non ICPE', intitule: ICPE_DATA[code]?.intitule || '' })),
+    categories: PRESCRIPTION_CATEGORIES.map(cat => ({
+      label: cat.label,
+      rows: cat.items.map(item => ({
+        item,
+        values: withPresc.map(code => getPrescription(code, getRegimeInfo(code).regime, cat.id, item))
+      }))
+    })),
+    sansPrescriptions: rubriques.filter(code => !withPresc.includes(code)).map(code => ({
+      code, intitule: ICPE_DATA[code]?.intitule || '', regime: getRegimeInfo(code).label || 'Non ICPE'
+    }))
+  };
+}
+
+function exporterPDF(btn) {
+  if (!window.icpeTools) { alert('Module d\'export pas encore chargé, réessayez dans un instant.'); return; }
+  window.icpeTools.exportPdf(buildIcpeExportPayload(), btn);
+}
+
+function exporterExcel(btn) {
+  if (!window.icpeTools) { alert('Module d\'export pas encore chargé, réessayez dans un instant.'); return; }
+  window.icpeTools.exportXlsx(buildIcpeExportPayload(), btn);
+}
+
+// Affichage d'une prescription : texte échappé, référence d'article finale
+// « [Art. 6] » / « [Annexe II, point 3] » mise en retrait visuel.
+function escapeHtmlIcpe(str) {
+  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function formatPresc(val) {
+  if (val == null || val === '-') return '-';
+  const text = String(val);
+  const m = text.match(/^([\s\S]*?)\s*\[((?:R[ée]f\.?\s*:?\s*)?[^\[\]]{2,80})\]\s*\.?\s*$/);
+  if (!m) return escapeHtmlIcpe(text);
+  const ref = m[2].replace(/^R[ée]f\.?\s*:?\s*/i, '');
+  return `${escapeHtmlIcpe(m[1])} <span class="presc-ref">[${escapeHtmlIcpe(ref)}]</span>`;
+}
+
+// Lexique des sigles présents dans le tableau (définitions fixes, module export).
+function renderGlossary(containerId, codes) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (!window.icpeTools || !codes || codes.length === 0) { el.innerHTML = ''; return; }
+  const texts = [];
+  codes.forEach(code => {
+    const regime = getRegimeInfo(code).regime;
+    PRESCRIPTION_CATEGORIES.forEach(cat => cat.items.forEach(item => texts.push(getPrescription(code, regime, cat.id, item))));
+  });
+  const entries = window.icpeTools.glossaryFor(texts);
+  if (entries.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="glossary-box"><h4>Lexique — pour lire les prescriptions</h4><dl>${
+    entries.map(([t, d]) => `<dt>${escapeHtmlIcpe(t)}</dt><dd>${escapeHtmlIcpe(d)}</dd>`).join('')
+  }</dl></div>`;
+}
+
 // ======================================================
 // UTILS
 // ======================================================
@@ -2238,6 +2328,7 @@ function formatNumber(n) {
 }
 
 </script>
+  <script type="module" src="/src/icpe/exports.ts"></script>
   <script type="module" src="/src/widgets/user-menu.ts"></script>
 </body>
 </html>

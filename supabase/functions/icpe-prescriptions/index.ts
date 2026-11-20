@@ -645,7 +645,11 @@ serve(async (req: Request) => {
     const results = await Promise.all(geminiPromises)
     finalResult = {}
     for (const r of results) {
-      finalResult[r.code] = r.data[r.code] || r.data
+      const rub = rubriques.find((x: { code: string }) => x.code === r.code)
+      finalResult[r.code] = normalizeRubriqueResult(
+        (r.data[r.code] || r.data) as Record<string, unknown>,
+        rub?.regime || '',
+      )
     }
 
     return new Response(JSON.stringify(finalResult), {
@@ -709,8 +713,8 @@ RIGUEUR ET POSTURE D'EXPERT (important) :
 - Si tu n'es pas certain, dis-le explicitement plutot que d'inventer ou de te ranger a l'avis de l'interlocuteur. Mieux vaut "je ne suis pas certain, a verifier dans l'arrete X" qu'une affirmation fausse.`
 
 // Repli du prompt d'extraction, utilise si ai_prompts est injoignable.
-// ⚠️ Doit rester alignee avec le slot `icpe-tableau-prescriptions` (migration
-// 20260917100000). Si tu modifies ici, modifie aussi le seed.
+// ⚠️ Doit rester alignee avec le slot `icpe-tableau-prescriptions` (derniere
+// version : migration 20261120100000). Si tu modifies ici, ajoute une migration.
 const FALLBACK_TABLEAU = `Tu es un assistant specialise en reglementation ICPE.
 
 MISSION : A partir du TEXTE REGLEMENTAIRE FOURNI CI-DESSOUS, extraire les prescriptions techniques pour la rubrique et le regime demande.
@@ -727,7 +731,11 @@ REGLES :
 - Utilise la terminologie exacte du texte (REI, EI, R15, R30, R60, Broof t3, etc.)
 - Inclus les valeurs numeriques exactes telles qu'elles apparaissent dans l'arrete
 - Pour Autorisation sans arrete type, indique "Selon arrete prefectoral"
-- Sois CONCIS : donne les valeurs cles et exigences, pas de phrases de contexte inutiles. Ex: "REI 120, R15 structure" plutot que de recopier des paragraphes entiers
+REDACTION — les prescriptions sont lues par des architectes et projeteurs qui ne sont PAS specialistes ICPE :
+- Pour chaque theme, ecris 1 a 3 phrases completes et autoportantes : d'abord l'exigence avec ses valeurs exactes, puis A QUOI et QUAND elle s'applique (element concerne, seuil, condition d'application), puis les alternatives ou exceptions prevues par le texte (ex : "reductible a ... si extinction automatique").
+- Pas de style telegraphique : "REI 120" seul ne suffit pas. Ecris par exemple : "Murs separatifs entre cellules REI 120 (coupe-feu 2 h), depassant d'au moins 1 m la couverture."
+- Termine chaque valeur par la reference de l'article ou du point d'annexe entre crochets, par exemple [Annexe II, point 6] ou [Art. 11]. N'invente JAMAIS de reference : si tu ne peux pas la situer dans le texte fourni, n'en mets pas.
+- Synthetise fidelement sans recopier de paragraphes entiers, et sans commentaire ni conseil personnel.
 
 Reponds avec un objet JSON :
 {
@@ -830,7 +838,8 @@ REGLES :
 - Si un theme precis n'est pas aborde dans l'arrete : "Non precise dans l'arrete".
 - Si tu ne trouves vraiment aucun arrete type applicable : mets "Arrete type non trouve - consulter aida.ineris.fr" dans chaque champ.
 - Terminologie exacte (REI 120, R15, R30, R60, Broof t3, etc.) et valeurs numeriques exactes.
-- Sois CONCIS : valeurs cles et exigences, pas de paragraphes recopies.
+- REDACTION (lecteurs : architectes non specialistes ICPE) : pour chaque theme, 1 a 3 phrases completes — l'exigence avec ses valeurs exactes, a quoi et quand elle s'applique (element, seuil, condition), les alternatives ou exceptions prevues. Pas de style telegraphique.
+- Termine chaque valeur par la reference de l'article ou du point d'annexe entre crochets, ex : [Annexe II, point 6] ou [Art. 11]. N'invente jamais de reference : si tu ne peux pas la situer, n'en mets pas.
 
 Reponds UNIQUEMENT avec un objet JSON valide, sans aucun texte autour ni balise markdown :
 {
@@ -853,6 +862,78 @@ Reponds UNIQUEMENT avec un objet JSON valide, sans aucun texte autour ni balise 
     }
   }
 }`
+}
+
+// ─── Remise en ordre de la structure renvoyée par le modèle ───
+// Il arrive que le modèle referme l'objet du régime trop tôt : une partie des
+// thèmes se retrouve au niveau de la rubrique (à côté de "Declaration") ou un
+// item isolé atterrit directement dans le régime. Le simulateur ne lit que
+// rubrique → régime → thème → item : ces valeurs s'affichaient alors « - ».
+// On replace chaque thème / item à sa place, sans rien inventer ni perdre.
+
+const CATEGORY_ITEMS: Record<string, string[]> = {
+  reseaux: ['Eaux pluviales'],
+  dechets: ['Gestion des dechets'],
+  implantation: ['Distances limites', 'Distances inter-batiments'],
+  accessibilite: ['Acces au site', 'Voie engin', 'Echelles', 'Issues et quais', 'Locaux a risques'],
+  construction: ['Structure', 'Toiture', 'Facades', 'Portes et fermetures'],
+  cantonnement: ['Surface cellules', 'Murs separatifs', 'Ecrans de cantonnement'],
+  desenfumage: ['Surface utile', 'Commandes', 'Exutoires'],
+  stockage: ['Hauteur stockage', 'Allees de circulation', 'Distance aux parois'],
+  lutte_incendie: ['Extincteurs', 'RIA', 'Sprinkler', 'Colonnes seches'],
+  eau_incendie: ['Besoins en eau', 'Retention eaux extinction'],
+  ventilation: ['Dispositifs de ventilation'],
+  elec: ['Conformite', "Coupure d'urgence"],
+  chauffage: ['Type autorise', 'Implantation'],
+  exploitation: ["Consignes d'exploitation", 'Verifications periodiques'],
+}
+// "Implantation" est à la fois un item (chauffage) et proche du thème
+// "implantation" : la recherche d'item se fait donc en respectant la casse.
+const ITEM_TO_CATEGORY: Record<string, string> = Object.fromEntries(
+  Object.entries(CATEGORY_ITEMS).flatMap(([cat, items]) => items.map(i => [i, cat])),
+)
+
+const isObj = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v)
+
+function normalizeRubriqueResult(raw: Record<string, unknown>, regime: string): Record<string, unknown> {
+  if (!isObj(raw)) return raw
+  const keys = Object.keys(raw)
+  // Clé du régime : celle demandée, sinon la première qui n'est pas un thème
+  const regimeKey = (regime && isObj(raw[regime])) ? regime
+    : keys.find(k => !(k in CATEGORY_ITEMS) && isObj(raw[k]))
+  if (!regimeKey) return raw
+
+  const out: Record<string, Record<string, unknown>> = {}
+  const put = (cat: string, item: string, val: unknown) => {
+    out[cat] = out[cat] || {}
+    if (out[cat][item] === undefined) out[cat][item] = val
+  }
+  const absorb = (src: Record<string, unknown>) => {
+    for (const [k, v] of Object.entries(src)) {
+      if (k in CATEGORY_ITEMS && isObj(v)) {
+        for (const [item, val] of Object.entries(v)) put(k, item, val)
+      } else if (k in ITEM_TO_CATEGORY && !isObj(v)) {
+        put(ITEM_TO_CATEGORY[k], k, v)
+      }
+    }
+  }
+  absorb(raw[regimeKey] as Record<string, unknown>)
+  // Thèmes ou items égarés au niveau de la rubrique
+  const stray: Record<string, unknown> = {}
+  for (const k of keys) if (k !== regimeKey) stray[k] = raw[k]
+  absorb(stray)
+
+  const repaired = Object.keys(stray).some(k => k in CATEGORY_ITEMS || k in ITEM_TO_CATEGORY) ||
+    Object.keys(raw[regimeKey] as Record<string, unknown>).some(k => !(k in CATEGORY_ITEMS))
+  if (repaired) console.warn(`icpe-prescriptions : structure réparée pour le régime ${regimeKey}`)
+
+  // Les autres régimes éventuellement fournis (rares) sont conservés tels quels
+  const result: Record<string, unknown> = { [regimeKey]: out }
+  for (const k of keys) {
+    if (k !== regimeKey && !(k in CATEGORY_ITEMS) && !(k in ITEM_TO_CATEGORY) && isObj(raw[k])) result[k] = raw[k]
+  }
+  return result
 }
 
 // Fallback quand aucun arrêté n'a pu être trouvé/récupéré

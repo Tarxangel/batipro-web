@@ -3,7 +3,7 @@ import { deleteAnalysis, SavedAnalysis } from './database';
 import { showDetailedTableModal } from './detailedTable';
 import { showMonumentsHistoriques, showServitudesPatrimoine, clearMonumentsHistoriques } from './monumentsHistoriques';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config';
-import { georisquesReportUrl } from './georisques';
+import { georisquesReportUrl, fetchRisquesTerrain, sismiciteTexte, sismiciteConsequence, argilesTexte, radonTexte } from './georisques';
 
 // Extrait { insee, prefix, section } depuis l'URL Géoportail Urbanisme.
 // Format URL : https://www.geoportail-urbanisme.gouv.fr/map/parcel-info/{dep}_{com}_{com_abs}_{code_arr}_{section}_{numero}/
@@ -113,6 +113,10 @@ export function showResultsCard(data: AnalysePLUResponse): void {
         <span class="info-label">Type:</span>
         <span class="info-value">${zonage.type === 'NON_PUBLIE' ? 'Non publié - voir mairie' : zonage.type === 'RNU' ? 'RNU - Règlement National' : 'PLU - Plan Local'}</span>
       </div>
+      ${latitude != null && longitude != null ? `
+      <div class="terrain-risques" aria-live="polite">
+        <div class="terrain-risques-loading">Risques du terrain (sismique, argiles, radon)…</div>
+      </div>` : ''}
       <hr>
       <div class="analyse-content">
         <h4>📋 Analyse Urbanistique</h4>
@@ -199,10 +203,56 @@ export function showResultsCard(data: AnalysePLUResponse): void {
   const cadastreBtn = card.querySelector('.btn-download-cadastre') as HTMLButtonElement;
   cadastreBtn?.addEventListener('click', () => handleDownloadCadastre(data, cadastreBtn));
 
+  // Risques du terrain (Géorisques) : chargés après coup, la fiche ne les attend pas
+  if (latitude != null && longitude != null) {
+    fillRisquesTerrain(card, latitude, longitude, codes?.insee);
+  }
+
   // Animation d'entrée
   setTimeout(() => {
     card.classList.add('visible');
   }, 10);
+}
+
+// Sismicité réglementaire + argiles + radon, via l'API Géorisques. Silencieux en
+// cas d'échec (le bloc disparaît). Vérifie que la fiche est toujours affichée
+// avant d'écrire (l'utilisateur a pu en ouvrir une autre entre-temps).
+async function fillRisquesTerrain(card: HTMLElement, lat: number, lon: number, insee?: string | null): Promise<void> {
+  const slot = card.querySelector('.terrain-risques') as HTMLElement | null;
+  if (!slot) return;
+  const r = await fetchRisquesTerrain(lat, lon, insee);
+  if (!card.isConnected) return;
+  if (!r) { slot.remove(); return; }
+
+  const rows: string[] = [];
+  const sis = sismiciteTexte(r);
+  if (sis) {
+    const cons = sismiciteConsequence(r.sismiciteCode);
+    rows.push(`
+      <div class="info-row terrain-row">
+        <span class="info-label">〰️ Sismicité</span>
+        <span class="info-value sismicite-z${escapeMhHtml(r.sismiciteCode || '')}">${escapeMhHtml(sis)}</span>
+      </div>
+      ${cons ? `<div class="terrain-hint">${escapeMhHtml(cons)}</div>` : ''}`);
+  }
+  const arg = argilesTexte(r);
+  if (arg) {
+    rows.push(`
+      <div class="info-row terrain-row">
+        <span class="info-label">🧱 Argiles</span>
+        <span class="info-value">${escapeMhHtml(arg)}</span>
+      </div>`);
+  }
+  const rad = radonTexte(r);
+  if (rad) {
+    rows.push(`
+      <div class="info-row terrain-row">
+        <span class="info-label">☢️ Radon</span>
+        <span class="info-value">${escapeMhHtml(rad)}</span>
+      </div>`);
+  }
+  if (!rows.length) { slot.remove(); return; }
+  slot.innerHTML = rows.join('') + '<div class="terrain-source">Source : Géorisques (zonage réglementaire)</div>';
 }
 
 function formatAnalyseText(text: string): string {
