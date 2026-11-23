@@ -14,6 +14,7 @@ import {
   listChantiers, saveRender, listRenders, signedUrl, deleteRender,
   Chantier, RenderRecord,
 } from './history';
+import { listOciDossiers, importOciDossier, prettyCity, OciDossier } from '../oci';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -22,7 +23,16 @@ let sourceB64 = '';            // rendu source, base64 sans préfixe
 let sourceMime = 'image/jpeg';
 let cardSeq = 0;
 let chantiers: Chantier[] = [];
+let ociProjets: OciDossier[] = [];  // projets ERP pas encore dans l'app (préfixe « oci: » dans le select)
+const OCI_PREFIX = 'oci:';
 let detectedMaterials: MaterialItem[] = []; // postes détectés (lignes structurées)
+
+// Paysage de référence : rendu déjà validé dont on reprend l'aménagement
+// paysager (retour Coline, 21/10/2026). `refAuto` = posé automatiquement depuis
+// le projet sélectionné (remplacé si on change de projet).
+let refB64 = '';
+let refMime = 'image/jpeg';
+let refAuto = false;
 
 interface Card {
   id: number;
@@ -123,25 +133,77 @@ async function applyWatermark(imageB64: string, mime: string): Promise<string> {
   $<HTMLButtonElement>('btn-detect-materials').addEventListener('click', handleDetectMaterials);
 
   await loadChantiers();
+  $<HTMLSelectElement>('p-chantier').addEventListener('change', () => {
+    updateChantierHint();
+    suggestProjectReference();
+  });
+  $<HTMLButtonElement>('btn-ref-clear').addEventListener('click', clearReference);
   $<HTMLSelectElement>('history-filter').addEventListener('change', () => {
     renderHistory($<HTMLSelectElement>('history-filter').value || null);
   });
   await renderHistory(null);
 })();
 
+// Sélecteur de projet : projets déjà dans l'app + projets ERP (phase « Projet »)
+// pas encore importés. Un projet ERP n'est créé dans la gestion chantier qu'au
+// premier visuel enregistré (cf. resolveChantierId), pas à la simple sélection.
 async function loadChantiers() {
-  try {
-    chantiers = await listChantiers();
-  } catch {
-    chantiers = [];
-  }
-  const optionsHtml = chantiers
-    .map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.city ? ' — ' + escapeHtml(c.city) : ''}</option>`)
-    .join('');
+  const [chs, oci] = await Promise.all([
+    listChantiers().catch(() => [] as Chantier[]),
+    listOciDossiers(['Projet']).catch(() => [] as OciDossier[]),
+  ]);
+  chantiers = chs;
+  const linked = new Set(chantiers.map(c => c.oci_dossier_id).filter(Boolean));
+  ociProjets = oci.filter(d => !linked.has(d.id));
+  renderChantierPickers();
+}
+
+function chantierLabel(c: Chantier): string {
+  return `${c.oci ? c.oci.num_dossier + ' · ' : ''}${c.name}${c.city ? ' — ' + prettyCity(c.city) : ''}`;
+}
+
+function renderChantierPickers() {
   const picker = $<HTMLSelectElement>('p-chantier');
-  picker.insertAdjacentHTML('beforeend', optionsHtml);
   const filter = $<HTMLSelectElement>('history-filter');
-  filter.insertAdjacentHTML('beforeend', optionsHtml);
+  const keepPicker = picker.value;
+  const keepFilter = filter.value;
+
+  const appOptions = chantiers
+    .map(c => `<option value="${c.id}">${escapeHtml(chantierLabel(c))}</option>`)
+    .join('');
+  const ociOptions = ociProjets
+    .map(d => `<option value="${OCI_PREFIX}${escapeHtml(d.id)}">${escapeHtml(`${d.num_dossier} · ${d.nom}${d.ville ? ' — ' + prettyCity(d.ville) : ''}`)}</option>`)
+    .join('');
+
+  picker.innerHTML = '<option value="">— Sans projet —</option>'
+    + (appOptions ? `<optgroup label="Dans l'app">${appOptions}</optgroup>` : '')
+    + (ociOptions ? `<optgroup label="Projets de l'ERP (ajoutés au 1er enregistrement)">${ociOptions}</optgroup>` : '');
+  filter.innerHTML = '<option value="">Tous les projets</option>' + appOptions;
+
+  picker.value = [...picker.options].some(o => o.value === keepPicker) ? keepPicker : '';
+  filter.value = [...filter.options].some(o => o.value === keepFilter) ? keepFilter : '';
+  updateChantierHint();
+}
+
+function updateChantierHint() {
+  const value = $<HTMLSelectElement>('p-chantier').value;
+  const hint = $('p-chantier-hint');
+  const d = value.startsWith(OCI_PREFIX) ? ociProjets.find(p => OCI_PREFIX + p.id === value) : null;
+  hint.hidden = !d;
+  if (d) hint.textContent = `Projet ERP ${d.num_dossier} : il sera ajouté à la gestion chantier au premier visuel enregistré.`;
+}
+
+// Id de chantier pour l'enregistrement : importe le projet ERP si besoin (idempotent).
+async function resolveChantierId(): Promise<string | null> {
+  const picker = $<HTMLSelectElement>('p-chantier');
+  const value = picker.value;
+  if (!value.startsWith(OCI_PREFIX)) return value || null;
+
+  const { id } = await importOciDossier(value.slice(OCI_PREFIX.length));
+  await loadChantiers();
+  picker.value = id;
+  updateChantierHint();
+  return id;
 }
 
 // ── Import d'image ──────────────────────────────────────
@@ -328,6 +390,7 @@ async function handleGenerate(e: Event) {
     try {
       const res = await enhanceRender({
         image: sourceB64, mime: sourceMime, mode: kind, presets,
+        ...(refB64 ? { reference: refB64, referenceMime: refMime } : {}),
       });
       await fillCard(card, res.image, res.mime);
     } catch (err) {
@@ -363,6 +426,7 @@ function createCard(kind: 'photoreal' | 'sketch'): Card {
         </div>
         <div class="result-buttons">
           ${kind === 'photoreal' ? '<button type="button" class="btn-ghost btn-sketch-from">🎨 Esquisse de ce rendu</button>' : ''}
+          ${kind === 'photoreal' ? '<button type="button" class="btn-ghost btn-ref" title="Reprendre l\'aménagement paysager de ce rendu pour les prochaines générations">🌿 Paysage</button>' : ''}
           <button type="button" class="btn-ghost btn-save">Enregistrer</button>
           <button type="button" class="btn-primary btn-download">Télécharger</button>
         </div>
@@ -389,6 +453,10 @@ function createCard(kind: 'photoreal' | 'sketch'): Card {
   el.querySelector<HTMLButtonElement>('.btn-save')!.addEventListener('click', () => saveCard(card));
   el.querySelector<HTMLButtonElement>('.btn-download')!.addEventListener('click', () => downloadCard(card));
   el.querySelector<HTMLButtonElement>('.btn-sketch-from')?.addEventListener('click', () => sketchFromCard(card));
+  el.querySelector<HTMLButtonElement>('.btn-ref')?.addEventListener('click', () => {
+    // Sortie IA brute (sans le bandeau/logo Batipro incrusté) : rien à rogner
+    if (card.imageB64) setReference(`data:${card.mime};base64,${card.imageB64}`, `Résultat n°${card.id} de cette session`, false);
+  });
 
   return card;
 }
@@ -456,6 +524,11 @@ async function refineCard(card: Card, instruction: string) {
     const img = card.el.querySelector<HTMLImageElement>('.result-img')!;
     img.src = `data:image/png;base64,${card.stampedB64}`;
     card.el.querySelector<HTMLInputElement>('.refine-input')!.value = '';
+    // Le rendu a changé : on réactive l'enregistrement (sinon on reste bloqué
+    // sur « ✓ Enregistré » du rendu précédent et on ne peut pas sauver l'affiné)
+    const saveBtn = card.el.querySelector<HTMLButtonElement>('.btn-save')!;
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Enregistrer';
     setStatus(card, '✓ Affiné');
   } catch (err) {
     setStatus(card, `⚠️ ${(err as Error).message}`);
@@ -477,10 +550,10 @@ function downloadCard(card: Card) {
 
 async function saveCard(card: Card) {
   const btn = card.el.querySelector<HTMLButtonElement>('.btn-save')!;
-  const chantierId = $<HTMLSelectElement>('p-chantier').value || null;
   btn.disabled = true;
   setStatus(card, 'Enregistrement…', true);
   try {
+    const chantierId = await resolveChantierId();
     await saveRender({
       imageB64: card.upscaledB64 || card.stampedB64 || card.imageB64,
       kind: card.kind,
@@ -507,8 +580,8 @@ function setStatus(card: Card, msg: string, busy = false) {
 // ── Historique enregistré ───────────────────────────────
 
 function chantierName(id: string | null): string {
-  if (!id) return 'Sans chantier';
-  return chantiers.find(c => c.id === id)?.name || 'Chantier supprimé';
+  if (!id) return 'Sans projet';
+  return chantiers.find(c => c.id === id)?.name || 'Projet supprimé';
 }
 
 async function renderHistory(chantierId: string | null) {
@@ -543,6 +616,8 @@ async function renderHistory(chantierId: string | null) {
           <span class="history-res">${escapeHtml(r.resolution)}</span>
         </span>
         <span class="history-chantier">${escapeHtml(chantierName(r.chantier_id))}</span>
+        ${r.kind === 'photoreal' ? '<button type="button" class="history-ref" title="Reprendre l\'aménagement paysager de ce visuel">🌿 Paysage</button>' : ''}
+        <button type="button" class="history-dl" title="Télécharger">⬇ Télécharger</button>
         <button type="button" class="history-del" title="Supprimer">×</button>
       </figcaption>
     </figure>
@@ -558,6 +633,33 @@ async function renderHistory(chantierId: string | null) {
       thumb.addEventListener('click', () => openLightboxUrl(url));
     }).catch(() => { thumb.innerHTML = '<span class="result-error">⚠︎</span>'; });
 
+    item.querySelector<HTMLButtonElement>('.history-ref')?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      try {
+        const url = await signedUrl(r.storage_path, 300);
+        await setReference(url, `${chantierName(r.chantier_id)} — ${new Date(r.created_at).toLocaleDateString('fr-FR')}`, false, STAMP_CROP);
+      } catch (err) {
+        alert(`Erreur : ${(err as Error).message}`);
+      }
+    });
+
+    item.querySelector<HTMLButtonElement>('.history-dl')!.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const name = `rendu_${r.kind}_${r.resolution}_${r.id}.png`;
+      try {
+        // URL signée avec en-tête de téléchargement (force le download + nom de fichier)
+        const url = await signedUrl(r.storage_path, 120, name);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch (err) {
+        alert(`Erreur : ${(err as Error).message}`);
+      }
+    });
+
     item.querySelector<HTMLButtonElement>('.history-del')!.addEventListener('click', async (e) => {
       e.stopPropagation();
       if (!confirm('Supprimer ce visuel enregistré ?')) return;
@@ -568,6 +670,66 @@ async function renderHistory(chantierId: string | null) {
         alert(`Erreur : ${(err as Error).message}`);
       }
     });
+  }
+}
+
+// ── Paysage de référence ────────────────────────────────
+
+// Les visuels enregistrés portent le filigrane Batipro (bandeau ~2,6 % H + logo
+// ~9 % H en bas à gauche, cf. applyWatermark) : on rogne le bas de l'image pour
+// que le modèle ne reproduise ni le bandeau ni le logo dans le nouveau rendu.
+const STAMP_CROP = 0.11;
+
+// Charge l'image (URL signée même origine ou data URL), rogne éventuellement le
+// bas (filigrane), la réduit à 1024 px (référence de style : pas besoin de la
+// pleine définition, payload léger) et l'affiche dans le formulaire.
+async function setReference(src: string, label: string, auto: boolean, cropBottom = 0): Promise<void> {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error('Image de référence illisible'));
+    img.src = src;
+  });
+  const srcH = Math.round(img.height * (1 - cropBottom));
+  const MAX = 1024;
+  const scale = Math.min(1, MAX / Math.max(img.width, srcH));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(img.width * scale);
+  canvas.height = Math.round(srcH * scale);
+  canvas.getContext('2d')!.drawImage(img, 0, 0, img.width, srcH, 0, 0, canvas.width, canvas.height);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+  refB64 = dataUrl.split(',')[1];
+  refMime = 'image/jpeg';
+  refAuto = auto;
+  $<HTMLImageElement>('ref-thumb').src = dataUrl;
+  $('ref-label').textContent = `🌿 ${label}`;
+  $('ref-current').hidden = false;
+  $('ref-empty').hidden = true;
+}
+
+function clearReference(): void {
+  refB64 = '';
+  refAuto = false;
+  $('ref-current').hidden = true;
+  $('ref-empty').hidden = false;
+}
+
+// Projet sélectionné : si un rendu photo est déjà enregistré pour ce projet,
+// on le propose d'office comme paysage de référence (retirable). Ne remplace
+// jamais une référence choisie à la main.
+async function suggestProjectReference(): Promise<void> {
+  const value = $<HTMLSelectElement>('p-chantier').value;
+  if (refB64 && !refAuto) return;
+  if (!value || value.startsWith(OCI_PREFIX)) { if (refAuto) clearReference(); return; }
+  try {
+    const recs = (await listRenders(value)).filter(r => r.kind === 'photoreal');
+    if ($<HTMLSelectElement>('p-chantier').value !== value) return; // a changé entre-temps
+    if (!recs.length) { if (refAuto) clearReference(); return; }
+    const url = await signedUrl(recs[0].storage_path, 300);
+    await setReference(url, `Dernier rendu du projet (${new Date(recs[0].created_at).toLocaleDateString('fr-FR')})`, true, STAMP_CROP);
+  } catch {
+    /* silencieux : la référence reste optionnelle */
   }
 }
 

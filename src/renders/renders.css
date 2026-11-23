@@ -83,6 +83,8 @@
   font-size: 12px; font-weight: 600; color: #475569; padding: 0; margin-bottom: 6px; display: block;
 }
 .preset-field > span small { font-weight: 400; color: #94a3b8; }
+.preset-field .field-hint { display: block; margin-top: 6px; font-size: 12px; line-height: 1.4; color: #4f46e5; }
+.preset-field .field-hint[hidden] { display: none; }
 .preset-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .preset-field { display: block; }
 .preset-field select, .preset-field input, .preset-field textarea {
@@ -201,8 +203,9 @@
   border: 1px solid #cbd5e1; border-radius: 8px;
 }
 .refine-input:focus { outline: none; border-color: #6366f1; }
-.result-buttons { display: flex; gap: 8px; }
-.result-buttons .btn-download { flex: 1; }
+.result-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.result-buttons > button { white-space: nowrap; }
+.result-buttons .btn-download { flex: 1 1 auto; }
 
 /* ── Historique ──────────────────────────────────────── */
 .history-block { margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 24px; }
@@ -230,6 +233,12 @@
   color: #94a3b8; font-size: 18px; line-height: 1; padding: 0;
 }
 .history-del:hover { color: #dc2626; }
+.history-dl {
+  margin-top: 4px; align-self: flex-start; border: 1px solid #e2e8f0; background: #fff;
+  color: #334155; border-radius: 6px; padding: 4px 9px; font-size: 12px; font-weight: 500;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+}
+.history-dl:hover { background: #f1f5f9; border-color: #cbd5e1; }
 
 /* ── Lightbox ────────────────────────────────────────── */
 .lightbox {
@@ -241,3 +250,13 @@
   position: absolute; top: 18px; right: 24px; font-size: 34px; line-height: 1;
   color: #fff; background: none; border: none; cursor: pointer;
 }
+
+/* ── Paysage de référence ── */
+.ref-empty { font-size: 12px; color: #8a8f98; line-height: 1.45; padding: 8px 10px; border: 1px dashed #d5d9e0; border-radius: 8px; }
+.ref-current { display: flex; gap: 10px; align-items: center; padding: 6px; border: 1px solid #cfe3d3; background: #f3faf4; border-radius: 8px; }
+.ref-current img { width: 96px; height: 54px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+.ref-info { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #2f5d3a; min-width: 0; }
+.ref-info .btn-ghost { align-self: flex-start; padding: 2px 10px; font-size: 12px; }
+.btn-ref { white-space: nowrap; }
+.history-ref { font-size: 11px; padding: 2px 6px; border: 1px solid #cfe3d3; background: #f3faf4; color: #2f5d3a; border-radius: 6px; cursor: pointer; }
+.history-ref:hover { background: #e3f3e6; }

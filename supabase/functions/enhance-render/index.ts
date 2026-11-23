@@ -4,9 +4,10 @@
 // strictement la géométrie du bâtiment — seuls l'ambiance lumineuse, les
 // matériaux, la végétation et le paysagisme sont retravaillés.
 //
-// Moteur : OpenAI gpt-image-2 en édition d'image (/v1/images/edits). 16:9 natif
+// Moteur : OpenAI gpt-image-2.5 en édition d'image (/v1/images/edits). 16:9 natif
 // jusqu'à 3840px (4K UHD), sort directement une version HD imprimable — pas
-// d'étape d'upscale séparée. (Bascule depuis Gemini Nano Banana le 2026-06-05.)
+// d'étape d'upscale séparée. (Bascule depuis Gemini Nano Banana le 2026-06-05,
+// puis de gpt-image-2 vers gpt-image-2.5 le 2026-09-17.)
 //
 // Modes :
 //   - photoreal : rendu photoréaliste HD imprimable depuis la source
@@ -14,6 +15,10 @@
 //   - refine    : applique une instruction libre sur une image déjà générée
 //   - upscale   : régénère en 4K (optionnel — la base est déjà HD)
 //   - detect    : liste les matériaux visibles, un item par poste (vision → JSON)
+//
+// Options (2026-11-20, retours Coline) : `reference` = 2e image servant de
+// paysage de référence ; ambiance « chaleureuse mesurée » = colorimétrie neutre
+// pour l'impression. Sans elles, le prompt est identique à la version précédente.
 //
 // Accès : ADMIN UNIQUEMENT (vérifié via app_profiles.is_admin).
 
@@ -28,12 +33,25 @@ const corsHeaders = {
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
 
-// Moteur image OpenAI (le dernier modèle dispo) + modèle vision pour la détection.
-const OPENAI_IMAGE_MODEL = 'gpt-image-2'
-const OPENAI_VISION_MODEL = 'gpt-4o-mini'
+// Moteur image OpenAI + modèle vision pour la détection.
+//
+// gpt-image-2.5 se décline en "flare" (rapide, tout-venant) et "sunburst"
+// (précision et tenue des éditions successives). Ici on ÉDITE un rendu dont la
+// géométrie doit être strictement préservée, et l'utilisateur enchaîne les
+// passes de refine : c'est exactement ce que vise sunburst. Le tarif au token
+// est identique aux deux variantes et identique à gpt-image-2 — seule la
+// latence augmente.
+const OPENAI_IMAGE_MODEL = 'gpt-image-2.5-sunburst'
 
-// Token de taille (1K/2K/4K) → dimension pixel 16:9 valide pour gpt-image-2
-// (côté le plus long ≤ 3840, dimensions multiples de 16).
+// Remplace gpt-4o-mini. ⚠️ Les modèles GPT-5.x refusent `max_tokens` :
+// il faut `max_completion_tokens`, et ils n'acceptent pas un `temperature`
+// arbitraire — on s'en remet au défaut.
+const OPENAI_VISION_MODEL = 'gpt-5.6-luna'
+
+// Token de taille (1K/2K/4K) → dimension pixel 16:9 valide pour gpt-image-2.5
+// (côtés multiples de 16, ratio entre 1:3 et 3:1, aucun côté > 3840,
+// surface totale entre 655 360 et 8 294 400 px — les trois valeurs ci-dessous
+// respectent ces bornes, 4K étant pile au plafond).
 function sizePx(token?: string): string {
   switch (token) {
     case '4K': return '3840x2160'
@@ -249,7 +267,42 @@ géométrie ni aux ouvertures) :
   « shadées » sans grain.`
 }
 
-function buildPhotorealPrompt(p: Presets): string {
+// Ambiance « chaleureuse mesurée » (retour Coline, 21/10/2026 : « les
+// perspectives sortent vraiment jaunes à l'impression »). Option explicite :
+// les autres ambiances produisent exactement le même prompt qu'avant.
+const AMBIANCE_MESUREE = 'chaleureuse mesurée'
+
+function colorimetryRules(p: Presets): string {
+  if (p.ambiance !== AMBIANCE_MESUREE) return ''
+  return `\n\nCONSTRAINTS — COLORIMÉTRIE « CHALEUR MESURÉE » (rendu destiné à l'impression papier) :
+- Balance des blancs NEUTRE de lumière du jour : les blancs, gris, bétons et
+  bardages clairs de la façade restent NEUTRES, sans dominante jaune, orange ni sépia.
+- La chaleur n'est portée QUE par la lumière elle-même (soleil rasant, éclairage
+  intérieur des vitrages en blanc chaud ~3000 K) — jamais par un filtre ou un
+  étalonnage global de l'image.
+- Ciel aux bleus naturels, végétation aux verts naturels (pas de verts jaunis
+  ou olive), saturation modérée, aucun voile doré ni halo orangé sur l'image.
+- Une impression papier accentue toute dominante chaude : vise un rendu qui
+  paraîtrait même légèrement neutre à l'écran.`
+}
+
+// Paysage de référence : 2e image d'entrée = rendu déjà validé du même projet
+// (retour Coline : garder l'aménagement paysager cohérent d'un APS à l'autre).
+function referenceRules(hasReference: boolean): string {
+  if (!hasReference) return ''
+  return `\n\nPAYSAGE DE RÉFÉRENCE — DEUX IMAGES SONT FOURNIES :
+- IMAGE 1 = le rendu à transformer. Elle reste la référence géométrique UNIQUE
+  (bâtiment, volumes, ouvertures, cadrage, point de vue).
+- IMAGE 2 = rendu DÉJÀ VALIDÉ du même projet (version précédente ou autre point
+  de vue). Reprends fidèlement SON AMÉNAGEMENT PAYSAGER : mêmes essences et même
+  palette végétale, même type de massifs, haies, pelouses et arbres, mêmes
+  revêtements de sols extérieurs (enrobé, pavés, stabilisé…), mêmes bordures et
+  clôtures paysagères — adaptés à l'emprise réellement visible dans l'image 1.
+- L'image 2 ne sert QUE de référence paysagère : n'en reprends ni le bâtiment,
+  ni le cadrage, ni les véhicules, ni l'heure ou l'ambiance lumineuse.`
+}
+
+function buildPhotorealPrompt(p: Presets, hasReference = false): string {
   const heure = p.heure || 'tombée du jour'
   const ambiance = p.ambiance || 'chaleureuse'
   const vegetation = p.vegetation || 'paysagisme haut de gamme'
@@ -268,16 +321,16 @@ CHANGE — les SEULS éléments à retravailler :
 
 ${geometryLock(p.details)}${materialsRules(p)}${realismRules(p)}
 
-${lightingRules(p)}
+${lightingRules(p)}${colorimetryRules(p)}
 
-${vegetationRules(p)}
+${vegetationRules(p)}${referenceRules(hasReference)}
 
 RAPPEL FINAL : la fidélité architecturale prime sur l'esthétique — mêmes volumes,
 mêmes ouvertures, même cadrage, même logo véhicule que la source ; filigrane
 bas-gauche retiré. Sortie : une image unique, plein cadre.`
 }
 
-function buildSketchPrompt(p: Presets): string {
+function buildSketchPrompt(p: Presets, hasReference = false): string {
   const vegetation = p.vegetation || 'paysagisme haut de gamme'
   return `Produis UNE SEULE esquisse architecturale couleur à partir de cette image :
 croquis d'architecte professionnel dessiné à la main, encre noire fine + aquarelle
@@ -291,7 +344,7 @@ transparents et légers, bords de l'image qui s'estompent vers le blanc (effet
 vignette carnet de croquis, papier visible aux marges), ciel suggéré en quelques
 traits légers. Caractère « croquis pris sur le vif », pas un trait propre et figé.
 Même géométrie, même cadrage, mêmes ouvertures et proportions que la source.
-Végétation cohérente : ${vegetation}. ${p.localisation ? 'Localisation : ' + p.localisation + '.' : ''}
+Végétation cohérente : ${vegetation}. ${p.localisation ? 'Localisation : ' + p.localisation + '.' : ''}${referenceRules(hasReference)}
 Sortie : une image unique, plein cadre, sans cartouche ni légende.`
 }
 
@@ -316,16 +369,16 @@ lumineuse. Tu n'augmentes QUE la finesse des détails et la netteté (textures,
 feuillages, reflets). Aucun ajout, aucune suppression, aucun recadrage. Image unique
 plein cadre, sans cartouche ni légende.`
 
-function buildPrompt(mode: Mode, presets: Presets, instructions?: string): string {
+function buildPrompt(mode: Mode, presets: Presets, instructions?: string, hasReference = false): string {
   switch (mode) {
-    case 'photoreal': return buildPhotorealPrompt(presets)
-    case 'sketch':    return buildSketchPrompt(presets)
+    case 'photoreal': return buildPhotorealPrompt(presets, hasReference)
+    case 'sketch':    return buildSketchPrompt(presets, hasReference)
     case 'refine':    return buildRefinePrompt(instructions || 'améliore légèrement le réalisme', presets.details)
     case 'upscale':   return UPSCALE_PROMPT
   }
 }
 
-// ── Génération image via OpenAI gpt-image-2 (édition d'image) ──
+// ── Génération image via OpenAI gpt-image-2.5 (édition d'image) ──
 // /v1/images/edits en multipart : la source sert de référence géométrique, le
 // modèle réinterprète l'ambiance/matériaux/végétation en gardant la composition.
 async function generateImage(
@@ -334,10 +387,17 @@ async function generateImage(
   mime: string,
   sizeToken: string,
   quality: string,
+  reference?: { b64: string; mime: string },
 ): Promise<{ image: string; mime: string; model: string }> {
   const form = new FormData()
   form.append('model', OPENAI_IMAGE_MODEL)
-  form.append('image', new Blob([b64ToBytes(imageB64)], { type: mime }), 'source.png')
+  if (reference) {
+    // Plusieurs images d'entrée : champ image[] répété, dans l'ordre du prompt
+    form.append('image[]', new Blob([b64ToBytes(imageB64)], { type: mime }), 'source.png')
+    form.append('image[]', new Blob([b64ToBytes(reference.b64)], { type: reference.mime }), 'reference.jpg')
+  } else {
+    form.append('image', new Blob([b64ToBytes(imageB64)], { type: mime }), 'source.png')
+  }
   form.append('prompt', prompt)
   form.append('size', sizePx(sizeToken))
   form.append('quality', quality)
@@ -349,16 +409,16 @@ async function generateImage(
     body: form,
   })
   if (!resp.ok) {
-    throw new Error(`gpt-image-2 → HTTP ${resp.status}: ${(await resp.text()).slice(0, 300)}`)
+    throw new Error(`${OPENAI_IMAGE_MODEL} → HTTP ${resp.status}: ${(await resp.text()).slice(0, 300)}`)
   }
   const data = await resp.json()
   const b64 = data?.data?.[0]?.b64_json
-  if (!b64) throw new Error('gpt-image-2 → pas d\'image dans la réponse')
+  if (!b64) throw new Error(`${OPENAI_IMAGE_MODEL} → pas d'image dans la réponse`)
   return { image: b64, mime: 'image/png', model: OPENAI_IMAGE_MODEL }
 }
 
 // ── Détection des matériaux (vision → liste structurée) ───
-// OpenAI gpt-4o-mini vision, sortie JSON : un item par poste visible. Le front
+// Vision OpenAI, sortie JSON : un item par poste visible. Le front
 // affiche un poste par ligne avec un champ de remplacement en face.
 interface MaterialItem { poste: string; materiau: string }
 
@@ -385,8 +445,7 @@ Postes à utiliser (uniquement ceux réellement visibles, dans cet ordre) :
           { type: 'image_url', image_url: { url: `data:${mime};base64,${imageB64}` } },
         ],
       }],
-      max_tokens: 500,
-      temperature: 0.2,
+      max_completion_tokens: 1000,
     }),
   })
   if (!resp.ok) {
@@ -416,6 +475,9 @@ interface RequestBody {
   presets?: Presets
   instructions?: string
   size?: '1K' | '2K' | '4K'
+  /** Paysage de référence (base64 sans préfixe) — photoreal / sketch uniquement. */
+  reference?: string
+  referenceMime?: string
 }
 
 serve(async (req) => {
@@ -485,15 +547,18 @@ serve(async (req) => {
       return jsonResponse({ success: false, error: e instanceof Error ? e.message : 'Échec détection' }, 502)
     }
   }
-  // gpt-image-2 sort directement une version HD imprimable : photo/esquisse/refine
+  // gpt-image-2.5 sort directement une version HD imprimable : photo/esquisse/refine
   // en 2K (2560x1440), upscale optionnel en 4K. Qualité high (~110s @ 2K).
   const size = body.size || (mode === 'upscale' ? '4K' : '2K')
   const quality = 'high'
   const mime = body.mime || 'image/png'
-  const prompt = buildPrompt(mode, body.presets || {}, body.instructions)
+  const reference = (body.reference && (mode === 'photoreal' || mode === 'sketch'))
+    ? { b64: body.reference, mime: body.referenceMime || 'image/jpeg' }
+    : undefined
+  const prompt = buildPrompt(mode, body.presets || {}, body.instructions, !!reference)
 
   try {
-    const out = await generateImage(prompt, body.image, mime, size, quality)
+    const out = await generateImage(prompt, body.image, mime, size, quality, reference)
     return jsonResponse({ success: true, ...out })
   } catch (e) {
     return jsonResponse({

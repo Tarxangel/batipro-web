@@ -4,9 +4,8 @@
 import { fetchDetailedTable, DetailedTable } from './api';
 import type { SavedAnalysis } from './database';
 import { renderPluChatSection, attachPluChatHandlers } from './pluChat';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import { exportSpecPdf, exportSpecXlsx, TableSpec, SpecRow } from './exports/styledTable';
+import { fetchRisquesTerrain, sismiciteTexte, argilesTexte } from './georisques';
 
 // ─── SCHEMA du tableau (14 rubriques + sous-rubriques) ─────
 // L'ordre et les libellés sont calqués sur l'onglet "Urbanisme" du fichier
@@ -61,6 +60,10 @@ interface Cartouche {
   zone: string;
   zonageType: 'PLU' | 'RNU' | 'NON_PUBLIE';
   generatedAt: string;
+  /** Zone de sismicité (Géorisques), si disponible. */
+  sismicite?: string | null;
+  /** Exposition argiles (Géorisques), si disponible. */
+  argiles?: string | null;
 }
 
 function buildCartouche(analysis: SavedAnalysis): Cartouche {
@@ -148,13 +151,24 @@ export async function showDetailedTableModal(analysis: SavedAnalysis): Promise<v
   body.innerHTML = renderTableHTML(cartouche, table) + renderPluChatSection();
   modal.classList.remove('loading');
 
-  // Wire-up boutons export
-  body.querySelector('.btn-export-pdf')?.addEventListener('click', () => {
-    exportPDF(cartouche, table);
-  });
-  body.querySelector('.btn-export-excel')?.addEventListener('click', () => {
-    exportExcel(cartouche, table);
-  });
+  // Sismicité / argiles dans le cartouche (écran + exports). Chargé après coup
+  // et sans bloquer : en cas d'échec Géorisques, le cartouche reste tel quel.
+  const { latitude, longitude } = analysis.data;
+  if (latitude != null && longitude != null) {
+    fetchRisquesTerrain(latitude, longitude).then(r => {
+      if (!r) return;
+      cartouche.sismicite = sismiciteTexte(r);
+      cartouche.argiles = argilesTexte(r);
+      const grid = body.querySelector('.cartouche-grid');
+      if (grid && cartouche.sismicite) {
+        grid.insertAdjacentHTML('beforeend', `<div><strong>Sismicité :</strong> ${escapeHtml(cartouche.sismicite)}</div>`);
+      }
+    });
+  }
+
+  // Wire-up boutons export (librairies chargées au clic)
+  wireExportButton(body.querySelector('.btn-export-pdf'), () => exportSpecPdf(buildSpec(cartouche, table)));
+  wireExportButton(body.querySelector('.btn-export-excel'), () => exportSpecXlsx(buildSpec(cartouche, table)));
 
   // Wire-up chat IA (l'historique vit dans data-attributes du panneau, vidé à chaque ouverture)
   attachPluChatHandlers(body, analysis.id);
@@ -218,131 +232,65 @@ function escapeHtml(text: string): string {
   return div.innerHTML.replace(/\n/g, '<br>');
 }
 
-// ─── EXPORT PDF ─────────────────────────────────────────────
+// ─── EXPORTS PDF / EXCEL (visuel commun) ─────────────────────
 
-function exportPDF(cartouche: Cartouche, table: DetailedTable): void {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const pageWidth = doc.internal.pageSize.getWidth();
-
-  // Titre
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text("ANALYSE RÈGLEMENT D'URBANISME", pageWidth / 2, 18, { align: 'center' });
-
-  // Cartouche
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  const cartoucheY = 28;
-  doc.text(`Adresse : ${cartouche.commune} — Section ${cartouche.section} N° ${cartouche.numero}`, 14, cartoucheY);
-  doc.text(`Type règlement : ${cartouche.zonageType}`, 14, cartoucheY + 6);
-  doc.text(`Zone : ${cartouche.zone}`, 120, cartoucheY + 6);
-  doc.text(`Date : ${cartouche.generatedAt}`, 14, cartoucheY + 12);
-
-  // Tableau avec fusion de cellules par catégorie
-  const rows: (string | { content: string; rowSpan: number; styles?: Record<string, unknown> })[][] = [];
-  let i = 0;
-  while (i < TABLE_ROWS.length) {
-    const row = TABLE_ROWS[i];
-    const span = countRowsInCategory(i);
-
-    // Première ligne du groupe : on ajoute la cellule catégorie avec rowSpan
-    rows.push([
-      { content: row.category, rowSpan: span, styles: { fontStyle: 'bold', valign: 'middle', fillColor: [240, 240, 240] } },
-      row.subCategory,
-      row.value(table) || '—',
-    ]);
-
-    // Lignes suivantes du même groupe : on n'ajoute que les 2 cellules restantes
-    for (let j = 1; j < span; j++) {
-      const sub = TABLE_ROWS[i + j];
-      rows.push([sub.subCategory, sub.value(table) || '—'] as never);
+// Bouton d'export : état « en cours » pendant le chargement de la librairie et
+// la génération, message clair en cas d'échec.
+function wireExportButton(btn: Element | null, run: () => Promise<void>): void {
+  if (!btn) return;
+  const b = btn as HTMLButtonElement;
+  b.addEventListener('click', async () => {
+    const label = b.textContent;
+    b.disabled = true;
+    b.textContent = '⏳ Préparation…';
+    try {
+      await run();
+    } catch (err) {
+      console.error('Export échoué:', err);
+      alert(`Export impossible : ${(err as Error).message}`);
+    } finally {
+      b.disabled = false;
+      b.textContent = label;
     }
-
-    i += span;
-  }
-
-  autoTable(doc, {
-    startY: cartoucheY + 18,
-    head: [['Catégorie', 'Sous-rubrique', 'Règlement PLU']],
-    body: rows as never,
-    styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak', valign: 'top' },
-    headStyles: { fillColor: [45, 85, 155], textColor: 255, fontStyle: 'bold' },
-    columnStyles: {
-      0: { cellWidth: 38 },
-      1: { cellWidth: 40 },
-      2: { cellWidth: 'auto' },
-    },
-    margin: { left: 10, right: 10 },
   });
-
-  const filename = `PLU_${cartouche.commune}_${cartouche.section}-${cartouche.numero}_${cartouche.generatedAt.replace(/\//g, '-')}.pdf`;
-  doc.save(filename);
 }
 
-// ─── EXPORT EXCEL ───────────────────────────────────────────
-
-function exportExcel(cartouche: Cartouche, table: DetailedTable): void {
-  const wb = XLSX.utils.book_new();
-
-  // Lignes brutes : cartouche puis tableau
-  const aoa: (string | number)[][] = [];
-
-  // En-tête
-  aoa.push(["ANALYSE RÈGLEMENT D'URBANISME"]);
-  aoa.push([]);
-  aoa.push(['Adresse :', `${cartouche.commune} — Section ${cartouche.section} N° ${cartouche.numero}`]);
-  aoa.push(['Type règlement :', cartouche.zonageType, 'Zone :', cartouche.zone]);
-  aoa.push(['Date :', cartouche.generatedAt]);
-  aoa.push([]);
-
-  // Ligne d'en-tête du tableau
-  aoa.push(['Catégorie', 'Sous-rubrique', 'Règlement PLU']);
-
-  // Corps du tableau — on répète la catégorie sur chaque ligne (Excel gère moins bien les merges programmatiques).
-  for (const row of TABLE_ROWS) {
-    aoa.push([row.category, row.subCategory, row.value(table) || '']);
-  }
-
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-
-  // Largeurs de colonnes et wrap text
-  ws['!cols'] = [
-    { wch: 35 }, // Catégorie
-    { wch: 40 }, // Sous-rubrique
-    { wch: 80 }, // Règlement PLU
-  ];
-
-  // Merges pour le cartouche (titre sur 3 colonnes)
-  ws['!merges'] = ws['!merges'] || [];
-  ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } });
-
-  // Merges pour fusionner les lignes de la même catégorie (comme dans le xlsx de référence)
-  const headerRowCount = 7; // nombre de lignes avant les data (0-indexed → ligne 7 = 1ère data)
+function buildSpec(cartouche: Cartouche, table: DetailedTable): TableSpec {
+  const body: SpecRow[] = [];
   let i = 0;
   while (i < TABLE_ROWS.length) {
     const span = countRowsInCategory(i);
-    if (span > 1) {
-      ws['!merges'].push({
-        s: { r: headerRowCount + i, c: 0 },
-        e: { r: headerRowCount + i + span - 1, c: 0 },
+    for (let j = 0; j < span; j++) {
+      const row = TABLE_ROWS[i + j];
+      body.push({
+        kind: 'data',
+        cells: [
+          j === 0 ? { text: row.category, rowSpan: span, category: true } : null,
+          { text: row.subCategory },
+          { text: row.value(table) || '—' },
+        ],
       });
     }
     i += span;
   }
 
-  // Wrap text sur les cellules de contenu
-  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-  for (let r = range.s.r; r <= range.e.r; r++) {
-    for (let c = range.s.c; c <= range.e.c; c++) {
-      const cellRef = XLSX.utils.encode_cell({ r, c });
-      if (ws[cellRef]) {
-        ws[cellRef].s = { alignment: { wrapText: true, vertical: 'top' } };
-      }
-    }
-  }
+  const cart: Array<[string, string]> = [
+    ['Adresse :', `${cartouche.commune} — Section ${cartouche.section} N° ${cartouche.numero}`],
+    ['Zone :', cartouche.zone],
+    ['Type règlement :', cartouche.zonageType],
+    ['Date :', cartouche.generatedAt],
+  ];
+  if (cartouche.sismicite) cart.push(['Sismicité :', cartouche.sismicite]);
+  if (cartouche.argiles) cart.push(['Argiles :', cartouche.argiles]);
 
-  XLSX.utils.book_append_sheet(wb, ws, 'Urbanisme');
-
-  const filename = `PLU_${cartouche.commune}_${cartouche.section}-${cartouche.numero}_${cartouche.generatedAt.replace(/\//g, '-')}.xlsx`;
-  XLSX.writeFile(wb, filename);
+  return {
+    title: "ANALYSE RÈGLEMENT D'URBANISME",
+    cartouche: cart,
+    head: ['Catégorie', 'Sous-rubrique', 'Règlement PLU'],
+    weights: [3.4, 3.6, 10],
+    body,
+    note: 'Analyse générée par IA à partir du règlement — à vérifier sur le document d\'urbanisme opposable.',
+    orientation: 'portrait',
+    filename: `PLU_${cartouche.commune}_${cartouche.section}-${cartouche.numero}_${cartouche.generatedAt.replace(/\//g, '-')}`,
+  };
 }

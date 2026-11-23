@@ -41,6 +41,7 @@
         <h2 id="modal-title">Nouveau chantier</h2>
         <form id="chantier-form">
           <input type="hidden" id="form-id" />
+          <p id="form-erp-note" class="form-erp-note" hidden></p>
 
           <div class="form-group">
             <label for="form-name">Nom du chantier <span class="required">*</span></label>
@@ -53,8 +54,9 @@
               <input type="text" id="form-client-name" placeholder="Nom du client" />
             </div>
             <div class="form-group">
-              <label for="form-client-sector">Secteur <span class="required">*</span></label>
-              <select id="form-client-sector" required>
+              <label for="form-client-sector">Secteur</label>
+              <select id="form-client-sector">
+                <option value="">À préciser</option>
                 <option value="industriel">Industriel / Production</option>
                 <option value="logistique">Logistique / Stockage</option>
                 <option value="agroalimentaire">Agroalimentaire</option>
@@ -68,8 +70,9 @@
           </div>
 
           <div class="form-group">
-            <label for="form-project-type">Type de projet <span class="required">*</span></label>
-            <select id="form-project-type" required>
+            <label for="form-project-type">Type de projet</label>
+            <select id="form-project-type">
+              <option value="">À préciser</option>
               <option value="construction">Construction neuve</option>
               <option value="extension">Extension</option>
               <option value="renovation">Rénovation</option>
@@ -119,6 +122,23 @@
       </div>
     </div>
 
+    <!-- Modal Import ERP (OCI) -->
+    <div id="erp-modal" class="modal-overlay" hidden>
+      <div class="modal-card modal-card-wide" role="dialog" aria-labelledby="erp-modal-title">
+        <button id="erp-modal-close" class="modal-close" aria-label="Fermer">&times;</button>
+        <h2 id="erp-modal-title">Importer depuis l'ERP</h2>
+        <p class="erp-sub">Les dossiers de l'ERP Batipro arrivent avec leur nom, leur client et leur adresse. Il ne reste qu'à préciser le secteur et le type. <span id="erp-sync-age"></span></p>
+        <div class="erp-controls">
+          <input type="search" id="erp-search" placeholder="Rechercher un nom, une ville, un n° de dossier…" autocomplete="off" />
+          <div class="erp-phases" role="tablist">
+            <button type="button" class="filter-btn active" data-phase="Projet">Projets <span class="erp-count" data-count="Projet"></span></button>
+            <button type="button" class="filter-btn" data-phase="Chantier">Chantiers <span class="erp-count" data-count="Chantier"></span></button>
+          </div>
+        </div>
+        <div id="erp-list" class="erp-list"></div>
+      </div>
+    </div>
+
     <!-- Main Content -->
     <main class="app-main">
 
@@ -131,7 +151,13 @@
             <button class="filter-btn" data-filter="all">Tous</button>
             <span id="chantiers-count" class="badge">0</span>
           </div>
-          <button id="btn-new-chantier" class="btn-new">+ Nouveau</button>
+          <div class="toolbar-actions">
+            <button id="btn-import-erp" class="btn-import" title="Reprendre un projet de l'ERP Batipro (OCI) sans le ressaisir">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Importer de l'ERP
+            </button>
+            <button id="btn-new-chantier" class="btn-new">+ Nouveau</button>
+          </div>
         </div>
         <div id="chantiers-list" class="chantiers-grid">
           <!-- Populated dynamically -->
@@ -152,6 +178,10 @@
 
         <div class="detail-card">
           <div class="detail-grid">
+            <div class="detail-field" id="detail-erp-field" hidden>
+              <span class="detail-label">Dossier ERP</span>
+              <span class="detail-value" id="detail-erp">—</span>
+            </div>
             <div class="detail-field">
               <span class="detail-label">Client</span>
               <span class="detail-value" id="detail-client">—</span>

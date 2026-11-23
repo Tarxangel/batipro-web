@@ -50,11 +50,26 @@
         <!-- Presets -->
         <form id="presets-form" class="presets-form">
           <label class="preset-field">
-            <span>Chantier <small>(pour ranger les visuels enregistrés)</small></span>
+            <span>Projet <small>(pour ranger les visuels enregistrés)</small></span>
             <select id="p-chantier">
-              <option value="">— Sans chantier —</option>
+              <option value="">— Sans projet —</option>
             </select>
+            <small id="p-chantier-hint" class="field-hint" hidden></small>
           </label>
+
+          <!-- Paysage de référence : reprendre l'aménagement paysager d'un rendu
+               déjà validé (cohérence d'un APS à l'autre). -->
+          <div class="preset-field" id="ref-field">
+            <span>Paysage de référence <small>(optionnel — même aménagement paysager d'un APS à l'autre)</small></span>
+            <div id="ref-empty" class="ref-empty">Aucun. Cliquez « 🌿 Paysage » sur un visuel de l'historique ou sur un résultat pour reprendre son aménagement paysager.</div>
+            <div id="ref-current" class="ref-current" hidden>
+              <img id="ref-thumb" alt="Rendu de référence">
+              <div class="ref-info">
+                <span id="ref-label"></span>
+                <button type="button" id="btn-ref-clear" class="btn-ghost">Retirer</button>
+              </div>
+            </div>
+          </div>
 
           <fieldset class="preset-group">
             <legend>Livrables à générer</legend>
@@ -100,6 +115,7 @@
               <select id="p-ambiance">
                 <option value="sobre">Sobre</option>
                 <option value="chaleureuse" selected>Chaleureuse</option>
+                <option value="chaleureuse mesurée">Chaleureuse mesurée (impression)</option>
                 <option value="premium">Premium</option>
               </select>
             </label>
@@ -173,7 +189,7 @@
           <div class="history-head">
             <h2>Historique enregistré</h2>
             <select id="history-filter" class="history-filter">
-              <option value="">Tous les chantiers</option>
+              <option value="">Tous les projets</option>
             </select>
           </div>
           <div id="history-empty" class="history-empty">Aucun visuel enregistré pour l'instant.</div>

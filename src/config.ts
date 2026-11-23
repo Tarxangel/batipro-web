@@ -31,6 +31,10 @@ export const MAINTENANCE_MESSAGE = {
 };
 
 // Configuration Supabase
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://awhbjbuxbcxszlxcbpjb.supabase.co';
-export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3aGJqYnV4YmN4c3pseGNicGpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzOTM5NTgsImV4cCI6MjA4Mzk2OTk1OH0.za0Cg7EbcPYGlVckQf_8CNmRY9FbaDB-20OCLFZzSV0';
+// Fallback = self-host VM (prod). Le Cloud awhbjbuxbcxszlxcbpjb est DORMANT depuis
+// la bascule — ne plus jamais l'utiliser par défaut. Le build VM injecte de toute
+// façon VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY ; ce fallback ne sert qu'aux
+// builds sans env (ex. dev local) et doit donc viser la VM, pas le Cloud mort.
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://app.plu.batiproconcept.fr';
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzc5Nzk2MzUzLCJleHAiOjE5Mzc0NzYzNTN9.AjoXN-ixza0_NW_a-fgT7KQFfvWXaFtahnDoKmER5Dw';
 export const ENABLE_DATABASE = SUPABASE_URL && SUPABASE_ANON_KEY;

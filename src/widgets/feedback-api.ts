@@ -55,8 +55,11 @@ export async function submitFeedback(message: string): Promise<void> {
   }
 
   // Fire-and-forget: notif email à l'admin. Ne doit jamais casser l'insert.
+  // keepalive : la requête part même si la page est fermée ou quittée juste
+  // après l'envoi du ticket (sinon le navigateur peut l'annuler en silence).
   fetch(NOTIFY_FEEDBACK_URL, {
     method: 'POST',
+    keepalive: true,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,

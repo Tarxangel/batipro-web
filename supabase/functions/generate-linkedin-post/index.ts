@@ -8,6 +8,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.90.1"
 
+// Rédaction d'un post destiné à être publié tel quel sous le nom de
+// l'entreprise : on prend le meilleur modèle. Le post fait ~200 mots, le
+// surcoût par rapport au flash se compte en fractions de centime.
+// (preview — en cas de retrait, replier sur gemini-3.8-flash)
+const GEMINI_MODEL = 'gemini-3.1-pro-preview'
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -114,7 +120,7 @@ serve(async (req) => {
     }
 
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -122,10 +128,10 @@ serve(async (req) => {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 2048,
-            thinkingConfig: {
-              thinkingBudget: 0
-            }
+            maxOutputTokens: 4096,
+            // Rédaction : on laisse le modèle réfléchir. Ces tokens sont
+            // décomptés de maxOutputTokens, d'où le budget doublé.
+            thinkingConfig: { thinkingLevel: 'high' }
           }
         })
       }

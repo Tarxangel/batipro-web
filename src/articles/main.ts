@@ -5,6 +5,7 @@ import { generateArticle, fileToBase64, publishArticle, compressImage, convertHe
 
 // Contexte de l'article courant (pour la publication / régénération LinkedIn)
 let currentLinkedInUrl = '';
+let currentLinkedInDraftId = '';   // draft de l'article publie -> photo jointe au post
 let currentLinkedInTitle = '';
 let currentLinkedInContent = '';
 import { createDraft, updateDraft, getDrafts, getDraftsByChantier, deleteDraft, markAsPublished, ArticleDraft } from './database';
@@ -165,6 +166,15 @@ const elements = {
   seoKeywords: document.getElementById('seo-keywords') as HTMLInputElement
 };
 
+// Origine du site WordPress qui a publié l'article, lue sur le permalien qu'il
+// renvoie. Repli sur WP_SITE_URL si le permalien est absent ou illisible.
+function wpOrigin(link?: string): string {
+  try {
+    if (link) return new URL(link).origin;
+  } catch { /* permalien inexploitable → repli */ }
+  return WP_SITE_URL;
+}
+
 // --- LINKEDIN : état connexion / boutons ---
 
 async function refreshLinkedInButtons() {
@@ -220,7 +230,7 @@ async function setupLinkedInTestPanel() {
     elements.liTestPublish.disabled = true;
     elements.liTestPublish.textContent = 'Publication…';
     try {
-      const url = await linkedinPublish(text, '');
+      const { url } = await linkedinPublish(text, '');
       elements.liTestPublish.textContent = '✓ Publié';
       showToast('Post de test publié 🎉', 'success');
       window.open(url, '_blank');
@@ -1094,14 +1104,18 @@ async function handleChantierChange() {
     state.selectedChantier = chantier;
 
     // Auto-fill SEO fields
-    elements.seoSector.value = chantier.client_sector;
-    elements.seoProjectType.value = chantier.project_type;
+    // Projet importé de l'ERP : secteur / type « à préciser » → on garde la valeur du formulaire
+    if (chantier.client_sector) elements.seoSector.value = chantier.client_sector;
+    if (chantier.project_type) elements.seoProjectType.value = chantier.project_type;
     elements.seoCity.value = chantier.city;
     elements.seoDepartment.value = chantier.department;
     if (chantier.surface) elements.seoSurface.value = chantier.surface.toString();
     if (chantier.seo_keywords) elements.seoKeywords.value = chantier.seo_keywords;
 
     setSeoFieldsLocked(true);
+    // …et on laisse choisir ce que la fiche chantier ne précise pas
+    if (!chantier.client_sector) setFieldLocked(elements.seoSector, false);
+    if (!chantier.project_type) setFieldLocked(elements.seoProjectType, false);
 
     // Show article count badge
     const existingArticles = await getDraftsByChantier(chantierId);
@@ -1115,17 +1129,19 @@ async function handleChantierChange() {
   }
 }
 
+function setFieldLocked(field: HTMLElement, locked: boolean) {
+  if (locked) {
+    field.setAttribute('disabled', 'true');
+    field.style.opacity = '0.7';
+  } else {
+    field.removeAttribute('disabled');
+    field.style.opacity = '1';
+  }
+}
+
 function setSeoFieldsLocked(locked: boolean) {
   const fields = [elements.seoSector, elements.seoProjectType, elements.seoCity, elements.seoDepartment, elements.seoSurface];
-  fields.forEach(field => {
-    if (locked) {
-      field.setAttribute('disabled', 'true');
-      field.style.opacity = '0.7';
-    } else {
-      field.removeAttribute('disabled');
-      field.style.opacity = '1';
-    }
-  });
+  fields.forEach(field => setFieldLocked(field, locked));
 }
 
 // Collecter le contexte SEO depuis le formulaire
@@ -1342,8 +1358,10 @@ async function handlePublish() {
     loadDrafts();
 
     // Générer le post LinkedIn en async (ne bloque pas l'écran de succès)
-    // Utiliser le shortlink WordPress pour une URL propre dans le post
-    const shortArticleUrl = `${WP_SITE_URL}/?p=${result.id}`;
+    // Shortlink WordPress pour une URL propre dans le post. Le domaine est repris
+    // du permalien renvoyé par WordPress : le post LinkedIn cite ainsi toujours le
+    // site qui a réellement publié, quel que soit le WP_SITE_URL de l'Edge Function.
+    const shortArticleUrl = `${wpOrigin(result.link)}/?p=${result.id}`;
     generateLinkedInPost(currentTitle, currentContent, shortArticleUrl)
       .then(post => {
         elements.linkedinLoading.hidden = true;
@@ -1353,6 +1371,7 @@ async function handlePublish() {
           const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(result.link)}`;
           elements.btnShareLinkedin.href = shareUrl;
           currentLinkedInUrl = result.link;
+          currentLinkedInDraftId = state.currentDraft?.id || '';
           currentLinkedInTitle = currentTitle;
           currentLinkedInContent = currentContent;
           refreshLinkedInButtons();
@@ -1638,9 +1657,12 @@ async function init() {
     elements.btnPublishLinkedin.disabled = true;
     elements.btnPublishLinkedin.textContent = 'Publication…';
     try {
-      const url = await linkedinPublish(post, currentLinkedInUrl);
+      const { url, imageAttached } = await linkedinPublish(post, currentLinkedInUrl, currentLinkedInDraftId);
       elements.btnPublishLinkedin.textContent = '✓ Publié';
-      showToast('Post publié sur LinkedIn 🎉', 'success');
+      showToast(
+        imageAttached ? 'Post publié sur LinkedIn 🎉' : 'Post publié, mais sans la photo',
+        imageAttached ? 'success' : 'info'
+      );
       window.open(url, '_blank');
     } catch (err) {
       elements.btnPublishLinkedin.disabled = false;

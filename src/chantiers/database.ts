@@ -8,8 +8,8 @@ export interface Chantier {
   id: string;
   name: string;
   client_name: string | null;
-  client_sector: string;
-  project_type: string;
+  client_sector: string | null;   // null = « à préciser » (projet importé de l'ERP)
+  project_type: string | null;
   address: string | null;
   city: string;
   department: string;
@@ -21,9 +21,14 @@ export interface Chantier {
   end_date: string | null;
   created_at: string;
   updated_at: string;
+  oci_dossier_id: string | null;
+  oci?: { num_dossier: string; phase: string | null } | null;  // jointure oci_dossiers
 }
 
-export type NewChantier = Omit<Chantier, 'id' | 'created_at' | 'updated_at' | 'status'>;
+export type NewChantier = Omit<Chantier, 'id' | 'created_at' | 'updated_at' | 'status' | 'oci_dossier_id' | 'oci'>;
+
+// Chantier + n° et phase du dossier ERP lié
+const CHANTIER_SELECT = '*, oci:oci_dossiers(num_dossier, phase)';
 
 // Client Supabase partagé (auth-aware: envoie le JWT utilisateur quand connecté)
 function getSupabaseClient(): SupabaseClient {
@@ -64,11 +69,12 @@ export async function createChantier(chantier: NewChantier): Promise<Chantier> {
 // Mettre à jour un chantier
 export async function updateChantier(id: string, updates: Partial<Chantier>): Promise<Chantier> {
   const supabase = getSupabaseClient();
+  const { oci: _oci, ...fields } = updates;
 
   const { data, error } = await supabase
     .from('chantiers')
     .update({
-      ...updates,
+      ...fields,
       updated_at: new Date().toISOString()
     })
     .eq('id', id)
@@ -89,7 +95,7 @@ export async function getChantiers(statusFilter?: string): Promise<Chantier[]> {
 
   let query = supabase
     .from('chantiers')
-    .select('*')
+    .select(CHANTIER_SELECT)
     .order('updated_at', { ascending: false });
 
   if (statusFilter && statusFilter !== 'all') {
@@ -112,7 +118,7 @@ export async function getChantier(id: string): Promise<Chantier | null> {
 
   const { data, error } = await supabase
     .from('chantiers')
-    .select('*')
+    .select(CHANTIER_SELECT)
     .eq('id', id)
     .single();
 

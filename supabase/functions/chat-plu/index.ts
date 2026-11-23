@@ -17,7 +17,8 @@ const corsHeaders = {
 }
 
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!
-const GEMINI_MODEL = 'gemini-3-flash-preview'
+// Stable depuis septembre 2026 (l'ancien gemini-3-flash-preview était une preview).
+const GEMINI_MODEL = 'gemini-3.8-flash'
 const MAX_HISTORY = 10  // sliding window: 10 derniers messages user/assistant (5 paires environ)
 const MAX_OUTPUT_TOKENS = 800
 
@@ -201,7 +202,9 @@ Réponds en max 6 phrases, factuel.`
         temperature: 0.3,
         topP: 0.9,
         maxOutputTokens: MAX_OUTPUT_TOKENS,
-        thinkingConfig: { thinkingBudget: 0 },  // pas de "thinking" pour économiser
+        // Gemini 3.x se règle par thinkingLevel ; 'low' est le plancher
+        // sur 3.8-flash. Même intention qu'avant : réponse rapide et peu chère.
+        thinkingConfig: { thinkingLevel: 'low' },
       }
     })
   })

@@ -213,6 +213,27 @@ export function initializeMap(): L.Map {
     attribution: '© Géorisques'
   });
 
+  // ─── Couches Géorisques orientées ICPE / implantation industrielle ───
+  // Même service WMS que PPRi/EAIP ci-dessus. Toutes masquées par défaut : ce
+  // sont des couches de vérification ponctuelle, pas du contexte permanent.
+  const georisques = (layers: string, zIndex: number) =>
+    L.tileLayer.wms('https://www.georisques.gouv.fr/services', {
+      layers,
+      format: 'image/png',
+      transparent: true,
+      zIndex,
+      attribution: '© Géorisques'
+    });
+
+  const icpeOverlay = georisques('INSTALLATIONS_CLASSEES_SIMPLIFIE', 10);
+  const pprtOverlay = georisques('PPRT_ZONE_RISQIND', 11);
+  const canalisationsOverlay = georisques('CANALISATIONS', 12);
+  // Établissements SSP (ex-BASOL/BASIAS) + secteurs d'information sur les sols.
+  // Les deux dans une seule requête WMS : c'est la même info pour l'utilisateur.
+  const sspOverlay = georisques('SSP_ETABLISSEMENT,SSP_CLASSIFICATION_SIS', 13);
+  const argilesOverlay = georisques('ALEARG', 14);
+  const seismeOverlay = georisques('risq_zonage_sismique', 15);
+
   // ─── Panneau de couches custom (radios fonds + checkbox/slider par couche) ───
 
   const container = L.DomUtil.create('div', 'bp-layers-control leaflet-control');
@@ -266,6 +287,12 @@ export function initializeMap(): L.Map {
     ['🏛️ Monuments historiques', mhOverlay, 0.80, false],
     ['🌊 PPR inondation', ppriOverlay, 0.60, false],
     ['💧 Zones inondables (EAIP)', eaipOverlay, 0.45, false],
+    ['🏭 ICPE existantes', icpeOverlay, 0.85, false],
+    ['⚠️ PPR technologique (PPRT)', pprtOverlay, 0.55, false],
+    ['🛢️ Canalisations TMD', canalisationsOverlay, 0.80, false],
+    ['☣️ Sites et sols pollués', sspOverlay, 0.85, false],
+    ['🧱 Retrait-gonflement argiles', argilesOverlay, 0.45, false],
+    ['〰️ Zonage sismique', seismeOverlay, 0.35, false],
   ];
   for (const [label, layer, opacity, visible] of wmsEntries) {
     registerOverlayLayer(label, layer, opacity, (o) => layer.setOpacity(o), { visible });

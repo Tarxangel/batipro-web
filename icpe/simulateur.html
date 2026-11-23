@@ -788,6 +788,15 @@
     }
     .btn-chat-send:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(59,130,246,0.4); }
 
+    /* Référence d'article et lexique (contexte des prescriptions) */
+    .presc-ref { display: inline-block; margin-left: 4px; font-size: 11px; color: var(--gray-500); white-space: nowrap; }
+    .glossary-box { margin-top: 16px; padding: 14px 16px; background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); }
+    .glossary-box h4 { font-size: 13px; color: var(--primary); margin-bottom: 8px; }
+    .glossary-box dl { display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: 4px 14px; font-size: 12.5px; line-height: 1.5; }
+    .glossary-box dt { font-weight: 700; color: var(--gray-700); }
+    .glossary-box dd { margin: 0; color: var(--gray-600, #4b5563); }
+    @media (max-width: 768px) { .glossary-box dl { grid-template-columns: 1fr; } .glossary-box dd { margin-bottom: 6px; } }
+
     /* Print styles */
     @media print {
       body { background: white; padding: 0; }
@@ -846,7 +855,7 @@
       <div class="card">
         <div class="card-title">Etape 1 — Identification des rubriques ICPE</div>
 
-        <a href="https://aida.ineris.fr/sites/default/files/2023-03/BrochureNom_v53public.pdf" target="_blank" class="pdf-link">
+        <a href="https://aida.ineris.fr/sites/default/files/2026-07/BrochureNom_v58.pdf" target="_blank" class="pdf-link">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           <div>
             <strong>Consulter la nomenclature officielle (PDF)</strong>
@@ -922,6 +931,8 @@
           </table>
         </div>
 
+        <div id="glossaryStep3"></div>
+
         <div class="anticipation-box" id="anticipationBox">
           <h4>Anticipation extension</h4>
           <p id="anticipationText"></p>
@@ -968,7 +979,9 @@
         <div class="documents-grid" id="documentsGrid"></div>
 
         <div class="export-buttons">
-          <button class="btn-export primary" onclick="printReport()">Imprimer / PDF</button>
+          <button class="btn-export primary" onclick="exporterPDF(this)">Télécharger PDF</button>
+          <button class="btn-export primary" onclick="exporterExcel(this)">Télécharger Excel</button>
+          <button class="btn-export secondary" onclick="printReport()">Imprimer la page</button>
           <button class="btn-export secondary" onclick="copierTableau()">Copier pour Excel</button>
           <button class="btn-export secondary" onclick="exporterCSV()">Exporter CSV</button>
         </div>
@@ -999,443 +1012,105 @@
 // ======================================================
 
 const ICPE_DATA = {
-  '1185': {
-    intitule: 'Ammoniac (emploi ou stockage)',
-    variable: 'quantite',
-    unite: 't',
-    description: 'Emploi ou stockage d\'ammoniac sous forme gazeuse ou liquide.',
-    seuils: [
-      { max: 0.15, regime: null, label: 'Non ICPE' },
-      { max: 1.5, regime: 'Declaration', label: 'Declaration' },
-      { max: 200, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '1435': {
-    intitule: 'Stations-service: distribution de carburants',
-    variable: 'debit',
-    unite: 'm\u00B3/an',
-    description: 'Stations-service: installations ouvertes au public pour le ravitaillement en carburants de vehicules a moteur.',
-    seuils: [
-      { max: 100, regime: null, label: 'Non ICPE' },
-      { max: 3500, regime: 'Declaration', label: 'Declaration avec controle' },
-      { max: 20000, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '1436': {
-    intitule: 'Stockage de liquides inflammables',
-    variable: 'quantite',
-    unite: 't',
-    description: 'Stockage de liquides inflammables en recipients mobiles ou en reservoirs fixes.',
-    seuils: [
-      { max: 10, regime: null, label: 'Non ICPE' },
-      { max: 100, regime: 'Declaration', label: 'Declaration' },
-      { max: 1000, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '1450': {
-    intitule: 'Solides facilement inflammables',
-    variable: 'volume',
-    unite: 'm\u00B3',
-    description: 'Stockage ou emploi de solides facilement inflammables.',
-    seuils: [
-      { max: 50, regime: null, label: 'Non ICPE' },
-      { max: 200, regime: 'Declaration', label: 'Declaration' },
-      { max: 500, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '1510': {
-    intitule: 'Entrepots couverts (matieres combustibles)',
-    variable: 'volume',
-    unite: 'm\u00B3',
-    description: 'Stockage de matieres, produits ou substances combustibles en entrepots couverts',
-    seuils: [
-      { max: 5000, regime: null, label: 'Non ICPE' },
-      { max: 50000, regime: 'Declaration', label: 'Declaration' },
-      { max: 900000, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '1511': {
-    intitule: 'Entrepots frigorifiques',
-    variable: 'volume',
-    unite: 'm\u00B3',
-    description: 'Entrepots frigorifiques, a l\'exception des depots utilises au stade de la production.',
-    seuils: [
-      { max: 5000, regime: null, label: 'Non ICPE' },
-      { max: 50000, regime: 'Declaration', label: 'Declaration' },
-      { max: 300000, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '1520': {
-    intitule: 'Houille, coke, lignite, charbon de bois, goudron',
-    variable: 'volume',
-    unite: 'm\u00B3',
-    description: 'Depots de houille, coke, lignite, charbon de bois, goudron, asphalte, brais et matieres bitumineuses.',
-    seuils: [
-      { max: 500, regime: null, label: 'Non ICPE' },
-      { max: 5000, regime: 'Declaration', label: 'Declaration' },
-      { max: 50000, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '1530': {
-    intitule: 'Depots de papier, carton et materiaux analogues',
-    variable: 'volume',
-    unite: 'm\u00B3',
-    description: 'Depots de papier, carton ou materiaux combustibles analogues',
-    seuils: [
-      { max: 1000, regime: null, label: 'Non ICPE' },
-      { max: 20000, regime: 'Declaration', label: 'Declaration' },
-      { max: 50000, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '1532': {
-    intitule: 'Stockage de bois et materiaux analogues',
-    variable: 'volume',
-    unite: 'm\u00B3',
-    description: 'Stockage de bois ou materiaux combustibles analogues y compris les produits finis',
-    seuils: [
-      { max: 1000, regime: null, label: 'Non ICPE' },
-      { max: 20000, regime: 'Declaration', label: 'Declaration' },
-      { max: 50000, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '2160': {
-    intitule: 'Silos et installations de stockage en vrac de cereales',
-    variable: 'volume',
-    unite: 'm\u00B3',
-    description: 'Silos et installations de stockage en vrac de cereales, grains, produits alimentaires ou tout produit organique degageant des poussieres inflammables.',
-    seuils: [
-      { max: 5000, regime: null, label: 'Non ICPE' },
-      { max: 15000, regime: 'Declaration', label: 'Declaration avec controle' },
-      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
-    ]
-  },
-  '2515': {
-    intitule: 'Broyage, concassage, criblage de mineraux',
-    variable: 'puissance',
-    unite: 'kW',
-    description: 'Broyage, concassage, criblage, ensachage, pulverisation, nettoyage, tamisage, melange de pierres, cailloux, minerais et autres produits mineraux naturels ou artificiels ou de dechets non dangereux inertes.',
-    seuils: [
-      { max: 40, regime: null, label: 'Non ICPE' },
-      { max: 200, regime: 'Declaration', label: 'Declaration' },
-      { max: 550, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '2516': {
-    intitule: 'Station de transit de produits mineraux',
-    variable: 'surface',
-    unite: 'm\u00B2',
-    description: 'Station de transit de produits mineraux ou de dechets non dangereux inertes autres que ceux vises par d\'autres rubriques.',
-    seuils: [
-      { max: 10000, regime: null, label: 'Non ICPE' },
-      { max: 25000, regime: 'Declaration', label: 'Declaration' },
-      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
-    ]
-  },
-  '2517': {
-    intitule: 'Station de transit de dechets non dangereux non inertes',
-    variable: 'volume',
-    unite: 'm\u00B3',
-    description: 'Station de transit, regroupement ou tri de dechets non dangereux non inertes.',
-    seuils: [
-      { max: 100, regime: null, label: 'Non ICPE' },
-      { max: 1000, regime: 'Declaration', label: 'Declaration' },
-      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
-    ]
-  },
-  '2518': {
-    intitule: 'Tri, transit de dechets menagers et assimiles',
-    variable: 'quantite',
-    unite: 't/j',
-    description: 'Installation de tri, transit, regroupement de dechets menagers et assimiles en melange.',
-    seuils: [
-      { max: 10, regime: null, label: 'Non ICPE' },
-      { max: 40, regime: 'Declaration', label: 'Declaration' },
-      { max: 100, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '2560': {
-    intitule: 'Travail mecanique des metaux et alliages',
-    variable: 'puissance',
-    unite: 'kW',
-    description: 'Travail mecanique des metaux et alliages (emploi de machines-outils).',
-    seuils: [
-      { max: 50, regime: null, label: 'Non ICPE' },
-      { max: 150, regime: 'Declaration', label: 'Declaration' },
-      { max: 1000, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '2660': {
-    intitule: 'Fabrication de matieres plastiques et caoutchouc',
-    variable: 'quantite',
-    unite: 't/j',
-    description: 'Fabrication, transformation de matieres plastiques et caoutchouc par des procedes exigeant des conditions particulieres de temperature ou de pression.',
-    seuils: [
-      { max: 1, regime: null, label: 'Non ICPE' },
-      { max: 10, regime: 'Declaration', label: 'Declaration' },
-      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
-    ]
-  },
-  '2662': {
-    intitule: 'Stockage de polymeres (matieres plastiques, etc.)',
-    variable: 'volume',
-    unite: 'm\u00B3',
-    description: 'Stockage de polymeres (matieres plastiques, caoutchouc, elastomeres, resines et adhesifs synthetiques)',
-    seuils: [
-      { max: 100, regime: null, label: 'Non ICPE' },
-      { max: 1000, regime: 'Declaration', label: 'Declaration' },
-      { max: 10000, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '2663': {
-    intitule: 'Stockage de pneumatiques et produits en caoutchouc',
-    variable: 'volume',
-    unite: 'm\u00B3',
-    description: 'Stockage de pneumatiques et produits dont 50% au moins de la masse est composee de polymeres',
-    seuils: [
-      { max: 200, regime: null, label: 'Non ICPE' },
-      { max: 5000, regime: 'Declaration', label: 'Declaration' },
-      { max: 50000, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '2710': {
-    intitule: 'Collecte de dechets apportes par le producteur',
-    variable: 'volume',
-    unite: 'm\u00B3',
-    description: 'Installations de collecte de dechets apportes par le producteur initial de ces dechets (decheteries).',
-    seuils: [
-      { max: 100, regime: null, label: 'Non ICPE' },
-      { max: 300, regime: 'Declaration', label: 'Declaration' },
-      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
-    ]
-  },
-  '2714': {
-    intitule: 'Transit de dechets non dangereux inertes',
-    variable: 'surface',
-    unite: 'm\u00B2',
-    description: 'Installation de transit, regroupement de dechets non dangereux de materiaux, produits ou equipements contenant de l\'amiante lie a des materiaux inertes.',
-    seuils: [
-      { max: 1000, regime: null, label: 'Non ICPE' },
-      { max: 10000, regime: 'Declaration', label: 'Declaration' },
-      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
-    ]
-  },
-  '2716': {
-    intitule: 'Transit de dechets non dangereux non inertes',
-    variable: 'volume',
-    unite: 'm\u00B3',
-    description: 'Installation de transit, regroupement ou tri de dechets non dangereux non inertes a l\'exclusion des installations visees aux rubriques 2710 et 2719.',
-    seuils: [
-      { max: 100, regime: null, label: 'Non ICPE' },
-      { max: 1000, regime: 'Declaration', label: 'Declaration' },
-      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
-    ]
-  },
-  '2718': {
-    intitule: 'Transit de dechets dangereux',
-    variable: 'quantite',
-    unite: 't',
-    description: 'Installation de transit, regroupement ou tri de dechets dangereux ou de dechets contenant des polluants organiques persistants.',
-    seuils: [
-      { max: 1, regime: null, label: 'Non ICPE' },
-      { max: 7, regime: 'Declaration', label: 'Declaration' },
-      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
-    ]
-  },
-  '2760': {
-    intitule: 'Stockage de dechets non dangereux',
-    variable: 'quantite',
-    unite: 't/an',
-    description: 'Installation de stockage de dechets non dangereux (ISDND). Toujours soumise a autorisation.',
-    seuils: [
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '2910': {
-    intitule: 'Installations de combustion',
-    variable: 'puissance',
-    unite: 'MW',
-    description: 'Installations de combustion a l\'exclusion des installations visees par les rubriques 2770 et 2771 (chaudieres, turbines, moteurs).',
-    seuils: [
-      { max: 1, regime: null, label: 'Non ICPE' },
-      { max: 20, regime: 'Declaration', label: 'Declaration' },
-      { max: 50, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '2921': {
-    intitule: 'Tours aerorefrigerantes',
-    variable: 'puissance',
-    unite: 'kW',
-    description: 'Installation de refroidissement par dispersion d\'eau dans un flux d\'air (tours aerorefrigerantes, condenseurs evaporatifs).',
-    seuils: [
-      { max: 300, regime: null, label: 'Non ICPE' },
-      { max: 3000, regime: 'Declaration', label: 'Declaration' },
-      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
-    ]
-  },
-  '2925': {
-    intitule: 'Ateliers de charge d\'accumulateurs',
-    variable: 'puissance',
-    unite: 'kW',
-    description: 'Ateliers de charge d\'accumulateurs (plomb, NiCd, lithium, etc.).',
-    seuils: [
-      { max: 10, regime: null, label: 'Non ICPE' },
-      { max: 50, regime: 'Declaration', label: 'Declaration' },
-      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
-    ]
-  },
-  '2930': {
-    intitule: 'Ateliers de reparation de vehicules',
-    variable: 'surface',
-    unite: 'm\u00B2',
-    description: 'Ateliers de reparation et d\'entretien de vehicules et engins a moteur, y compris les activites de carrosserie et de tolerie.',
-    seuils: [
-      { max: 100, regime: null, label: 'Non ICPE' },
-      { max: 2000, regime: 'Declaration', label: 'Declaration' },
-      { max: 5000, regime: 'Enregistrement', label: 'Enregistrement' },
-      { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }
-    ]
-  },
-  '2935': {
-    intitule: 'Parcs de stationnement couverts',
-    variable: 'surface',
-    unite: 'm\u00B2',
-    description: 'Parcs de stationnement couverts et garages. Soumis a enregistrement au-dela de 6 000 m\u00B2.',
-    seuils: [
-      { max: 6000, regime: null, label: 'Non ICPE' },
-      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
-    ]
-  },
-  '2940': {
-    intitule: 'Application de peintures, vernis, colles',
-    variable: 'quantite',
-    unite: 'kg/j',
-    description: 'Application, cuisson, sechage de peintures, vernis, colles, encres, aprets et autres produits a base de solvants organiques ou aqueux.',
-    seuils: [
-      { max: 10, regime: null, label: 'Non ICPE' },
-      { max: 100, regime: 'Declaration', label: 'Declaration' },
-      { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }
-    ]
-  },
-  // ─── SERIE 1xxx — SUBSTANCES ───
-  '1110': { intitule: 'Fabrication industrielle de substances tres toxiques', variable: 'quantite', unite: 't', description: 'Fabrication industrielle de substances et melanges tres toxiques.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '1111': { intitule: 'Emploi/stockage de substances tres toxiques', variable: 'quantite', unite: 't', description: 'Emploi ou stockage de substances et melanges tres toxiques.', seuils: [{ max: 0.02, regime: null, label: 'Non ICPE' }, { max: 1, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '1116': { intitule: 'Stockage de substances et melanges toxiques', variable: 'quantite', unite: 't', description: 'Stockage de substances et melanges toxiques pour l\'environnement aquatique.', seuils: [{ max: 20, regime: null, label: 'Non ICPE' }, { max: 100, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '1136': { intitule: 'Fabrication de substances comburantes', variable: 'quantite', unite: 't', description: 'Fabrication industrielle de substances et melanges comburants.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '1138': { intitule: 'Emploi/stockage de substances comburantes', variable: 'quantite', unite: 't', description: 'Emploi ou stockage de substances et melanges comburants.', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '1155': { intitule: 'Depot d\'explosifs', variable: 'quantite', unite: 'kg', description: 'Depot d\'explosifs ou d\'articles pyrotechniques.', seuils: [{ max: 100, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '1172': { intitule: 'Stockage/emploi de gaz inflammables', variable: 'quantite', unite: 't', description: 'Stockage ou emploi de gaz inflammables liquefies.', seuils: [{ max: 6, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '1173': { intitule: 'Stockage de gaz inflammables en reservoirs', variable: 'quantite', unite: 't', description: 'Stockage de gaz inflammables liquefies en reservoirs manufactures.', seuils: [{ max: 6, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '1200': { intitule: 'Stockage ou emploi de comburants (oxygene)', variable: 'quantite', unite: 't', description: 'Stockage ou emploi d\'oxygene.', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
-  '1310': { intitule: 'Stockage de produits explosifs', variable: 'quantite', unite: 'kg', description: 'Stockage de produits explosifs et pyrotechniques.', seuils: [{ max: 500, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '1410': { intitule: 'Stockage de gaz industriels', variable: 'quantite', unite: 't', description: 'Fabrication et stockage de gaz industriels (azote, argon, CO2, etc.).', seuils: [{ max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '1412': { intitule: 'Stockage en reservoirs de gaz inflammables liquefies', variable: 'quantite', unite: 't', description: 'Stockage en reservoirs manufactures de gaz inflammables liquefies.', seuils: [{ max: 6, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '1414': { intitule: 'GPL: installations de remplissage ou distribution', variable: 'quantite', unite: 't', description: 'Installations de remplissage ou de distribution de gaz de petrole liquefies (GPL).', seuils: [{ max: 2.5, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '1416': { intitule: 'Stockage de liquides inflammables en reservoirs aeriens', variable: 'quantite', unite: 't', description: 'Stockage de liquides inflammables en reservoirs aeriens manufactures.', seuils: [{ max: 10, regime: null, label: 'Non ICPE' }, { max: 100, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
-  '1432': { intitule: 'Stockage en reservoirs de liquides inflammables', variable: 'quantite', unite: 'm\u00B3', description: 'Stockage en reservoirs manufactures de liquides inflammables.', seuils: [{ max: 10, regime: null, label: 'Non ICPE' }, { max: 100, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '1434': { intitule: 'Remplissage/distribution de liquides inflammables', variable: 'debit', unite: 'm\u00B3/an', description: 'Installation de remplissage ou de distribution de liquides inflammables.', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: 1000, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '1455': { intitule: 'Stockage de carbure de calcium', variable: 'quantite', unite: 't', description: 'Stockage de carbure de calcium.', seuils: [{ max: 0.5, regime: null, label: 'Non ICPE' }, { max: 5, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '1510a': { intitule: 'Entrepots couverts (matieres ou produits combustibles)', variable: 'volume', unite: 'm\u00B3', description: 'Entrepots couverts hors installations classees au titre d\'un autre rubrique.', seuils: [{ max: 5000, regime: null, label: 'Non ICPE' }, { max: 50000, regime: 'Declaration', label: 'Declaration' }, { max: 300000, regime: 'Enregistrement', label: 'Enregistrement' }, { max: 600000, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '1521': { intitule: 'Stockage de bois, papier, carton (exterieur)', variable: 'volume', unite: 'm\u00B3', description: 'Depot en plein air de bois, papier, carton ou materiaux analogues.', seuils: [{ max: 1000, regime: null, label: 'Non ICPE' }, { max: 20000, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
-  // ─── SERIE 2xxx — ACTIVITES ───
-  '2101': { intitule: 'Elevage de bovins', variable: 'quantite', unite: 'animaux', description: 'Elevage de bovins (vaches laitieres, vaches allaitantes, veaux de boucherie, etc.).', seuils: [{ max: 50, regime: null, label: 'Non ICPE' }, { max: 200, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
-  '2102': { intitule: 'Elevage de porcs', variable: 'quantite', unite: 'animaux', description: 'Elevage de porcs, verrats, truies et porcelets.', seuils: [{ max: 50, regime: null, label: 'Non ICPE' }, { max: 450, regime: 'Declaration', label: 'Declaration' }, { max: 2000, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2110': { intitule: 'Elevage de volailles/gibier a plumes', variable: 'quantite', unite: 'animaux', description: 'Elevage, vente, etc. de volailles, gibier a plumes.', seuils: [{ max: 5000, regime: null, label: 'Non ICPE' }, { max: 20000, regime: 'Declaration', label: 'Declaration' }, { max: 30000, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2111': { intitule: 'Elevage de chiens', variable: 'quantite', unite: 'animaux', description: 'Chenil, elevage, fourriere, transit de chiens.', seuils: [{ max: 10, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2170': { intitule: 'Fabrication d\'engrais et supports de culture', variable: 'quantite', unite: 't/j', description: 'Fabrication de composts, engrais et supports de culture.', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: 75, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2210': { intitule: 'Abattoirs', variable: 'quantite', unite: 't/j', description: 'Abattage d\'animaux.', seuils: [{ max: 0.5, regime: null, label: 'Non ICPE' }, { max: 5, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2220': { intitule: 'Preparation de produits alimentaires d\'origine vegetale', variable: 'quantite', unite: 't/j', description: 'Preparation ou conservation de produits alimentaires d\'origine vegetale.', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2230': { intitule: 'Preparation de produits alimentaires d\'origine animale', variable: 'quantite', unite: 't/j', description: 'Preparation ou conservation de produits alimentaires d\'origine animale.', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
-  '2240': { intitule: 'Extraction d\'huiles, graisses', variable: 'quantite', unite: 't/j', description: 'Extraction d\'huiles, graisses, cires, colorants naturels.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
-  '2250': { intitule: 'Distilleries', variable: 'quantite', unite: 'm\u00B3/j', description: 'Distillation d\'alcools d\'origine agricole et fabrication de levure.', seuils: [{ max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2260': { intitule: 'Broyage/trituration de substances vegetales', variable: 'puissance', unite: 'kW', description: 'Broyage, concassage, trituration, etc. de substances vegetales.', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: 500, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2340': { intitule: 'Transformation du bois (scierie)', variable: 'puissance', unite: 'kW', description: 'Transformation du bois : sciage, rabotage, profilage, etc.', seuils: [{ max: 200, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
-  '2345': { intitule: 'Nettoyage, degraissage, decapage de surfaces', variable: 'surface', unite: 'm\u00B2', description: 'Utilisation de solvants organiques pour nettoyage, degraissage, decapage.', seuils: [{ max: 500, regime: null, label: 'Non ICPE' }, { max: 1500, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2350': { intitule: 'Teinturerie, blanchisserie', variable: 'puissance', unite: 'kW', description: 'Teinture, impression, appret, enduction, blanchiment de matieres textiles.', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
-  '2410': { intitule: 'Ateliers de traitement de surface', variable: 'volume', unite: 'l', description: 'Traitement de surfaces (degraissage, decapage, revetement metallique, etc.) par voie electrolytique ou chimique.', seuils: [{ max: 500, regime: null, label: 'Non ICPE' }, { max: 1500, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2415': { intitule: 'Mise en oeuvre de produits de preservation du bois', variable: 'volume', unite: 'l', description: 'Mise en oeuvre de produits de preservation du bois et derives.', seuils: [{ max: 1000, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2420': { intitule: 'Fabrication de ciment, chaux, platre', variable: 'quantite', unite: 't/j', description: 'Fabrication de ciment, chaux, platre et produits en pletre.', seuils: [{ max: 5, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2430': { intitule: 'Verrerie, cristallerie, fabrication de fibres minerales', variable: 'quantite', unite: 't/j', description: 'Verrerie, cristallerie, fabrication de fibres de verre ou minerales.', seuils: [{ max: 5, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2440': { intitule: 'Fabrication de produits ceramiques, briques, tuiles', variable: 'quantite', unite: 't/j', description: 'Fabrication de produits ceramiques et refractaires par cuisson.', seuils: [{ max: 5, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2445': { intitule: 'Transformation de matieres plastiques', variable: 'quantite', unite: 't/j', description: 'Transformation de matieres plastiques et caoutchouc.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2450': { intitule: 'Imprimeries, reprographie', variable: 'quantite', unite: 'kg/j', description: 'Imprimeries ou ateliers de reproduction graphique sur tout support.', seuils: [{ max: 50, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
-  '2510': { intitule: 'Exploitation de carrieres', variable: 'surface', unite: 'm\u00B2', description: 'Exploitation de carrieres (extraction de mineraux).', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2521': { intitule: 'Station de transit de produits mineraux non dangereux', variable: 'surface', unite: 'm\u00B2', description: 'Station de transit de produits mineraux ou de dechets non dangereux inertes (hors 2516/2517).', seuils: [{ max: 10000, regime: null, label: 'Non ICPE' }, { max: 30000, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
-  '2550': { intitule: 'Fonderie de metaux et alliages', variable: 'quantite', unite: 't/j', description: 'Fonderie (fabrication de produits moules) de metaux et alliages ferreux et non ferreux.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2551': { intitule: 'Forgeage, estampage, matriçage', variable: 'puissance', unite: 'kW', description: 'Forge, estampage, matriçage, decoupage des metaux.', seuils: [{ max: 150, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
-  '2564': { intitule: 'Nettoyage-degraissage de pieces metalliques', variable: 'volume', unite: 'l', description: 'Nettoyage, degraissage, decapage de surfaces metalliques par des procedes utilisant des liquides organohalogenes ou solvants organiques.', seuils: [{ max: 200, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
-  '2565': { intitule: 'Revetements metalliques (galvanisation, etamage)', variable: 'surface', unite: 'm\u00B2/j', description: 'Revetement metallique ou traitement de metaux par immersion (galvanisation, etamage, etc.).', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
-  '2570': { intitule: 'Email sur metaux', variable: 'surface', unite: 'm\u00B2', description: 'Fabrication d\'email et emaillage.', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
-  '2575': { intitule: 'Emploi de fluor et derives', variable: 'quantite', unite: 'kg/j', description: 'Emploi de fluor, d\'acide fluorhydrique et de derives.', seuils: [{ max: 5, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
-  '2630': { intitule: 'Fabrication de caoutchouc synthetique', variable: 'quantite', unite: 't/j', description: 'Fabrication et traitement du caoutchouc synthetique.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2640': { intitule: 'Colorants et pigments mineraux', variable: 'quantite', unite: 't/j', description: 'Fabrication de colorants et pigments mineraux et organiques.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2661': { intitule: 'Transformation de polymeres', variable: 'quantite', unite: 't/j', description: 'Transformation de polymeres (matieres plastiques, caoutchouc, etc.).', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
-  '2680': { intitule: 'Fabrication d\'engrais chimiques', variable: 'quantite', unite: 't/j', description: 'Fabrication d\'engrais et d\'acides phosphoriques.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2712': { intitule: 'Installation de stockage de dechets inertes', variable: 'quantite', unite: 't/an', description: 'Installation de stockage de dechets inertes (ISDI).', seuils: [{ max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
-  '2720': { intitule: 'Installation de stockage de dechets non dangereux', variable: 'quantite', unite: 't/an', description: 'Installation de stockage de dechets non dangereux non inertes (ISDND).', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2731': { intitule: 'Depot de ferrailles, casses automobiles', variable: 'surface', unite: 'm\u00B2', description: 'Depot de ferrailles, de casses de vehicules, d\'equipements hors d\'usage.', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: 2500, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
-  '2740': { intitule: 'Incineration de dechets non dangereux', variable: 'quantite', unite: 't/h', description: 'Incineration de dechets non dangereux.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2750': { intitule: 'Station d\'epuration collective', variable: 'quantite', unite: 'kg DBO5/j', description: 'Station d\'epuration collective d\'eaux usees.', seuils: [{ max: 12, regime: null, label: 'Non ICPE' }, { max: 120, regime: 'Declaration', label: 'Declaration' }, { max: 600, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2770': { intitule: 'Fabrication de produits pharmaceutiques', variable: 'quantite', unite: 't/an', description: 'Fabrication de produits pharmaceutiques ou de produits biocides.', seuils: [{ max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2790': { intitule: 'Traitement et elimination de DEEE', variable: 'volume', unite: 'm\u00B3', description: 'Installations de traitement de dechets d\'equipements electriques et electroniques (DEEE).', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: 1000, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
-  '2791': { intitule: 'Traitement de vehicules hors d\'usage (VHU)', variable: 'quantite', unite: 'vehicules', description: 'Installation de traitement de vehicules hors d\'usage (VHU).', seuils: [{ max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
-  '2792': { intitule: 'Tri/transit/traitement de dechets d\'emballages', variable: 'quantite', unite: 't/j', description: 'Installation de tri, transit ou traitement de dechets d\'emballages.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Enregistrement', label: 'Enregistrement' }] },
-  '2795': { intitule: 'Installation de lavage de futs, conteneurs', variable: 'quantite', unite: 'futs/j', description: 'Installation de lavage de futs, conteneurs et citernes de transport de matieres alimentaires, chimiques ou industrielles.', seuils: [{ max: 20, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
-  '2910a': { intitule: 'Combustion (biomasse)', variable: 'puissance', unite: 'MW', description: 'Installations de combustion utilisant de la biomasse.', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: 20, regime: 'Declaration', label: 'Declaration' }, { max: 50, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2915': { intitule: 'Chaufferies urbaines', variable: 'puissance', unite: 'MW', description: 'Installations de production de chaleur a usage collectif (chaufferies urbaines).', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: 20, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2920': { intitule: 'Installations de refrigeration ou compression', variable: 'puissance', unite: 'kW', description: 'Installations de refrigeration ou de compression (groupes frigorifiques).', seuils: [{ max: 50, regime: null, label: 'Non ICPE' }, { max: 500, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2950': { intitule: 'Traitement et developpement de surfaces photosensibles', variable: 'volume', unite: 'l', description: 'Ateliers de traitement et developpement de surfaces photosensibles.', seuils: [{ max: 500, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
-  '2960': { intitule: 'Eoliennes', variable: 'puissance', unite: 'MW', description: 'Installation terrestre de production d\'electricite a partir de l\'energie eolienne (parc eolien).', seuils: [{ max: 20, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '2971': { intitule: 'Installations photovoltaiques au sol', variable: 'puissance', unite: 'kW', description: 'Installations de production d\'electricite a partir de l\'energie solaire photovoltaique.', seuils: [{ max: 250, regime: null, label: 'Non ICPE' }, { max: Infinity, regime: 'Declaration', label: 'Declaration' }] },
-  '2980': { intitule: 'Installation de methanisation', variable: 'quantite', unite: 't/j', description: 'Installation de methanisation de dechets non dangereux ou de matiere vegetale brute.', seuils: [{ max: 30, regime: null, label: 'Non ICPE' }, { max: 60, regime: 'Declaration', label: 'Declaration' }, { max: 100, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  // ─── SERIE 3xxx — IED ───
-  '3110': { intitule: 'Combustion (puissance >= 50 MW)', variable: 'puissance', unite: 'MW', description: 'Combustion de combustibles dans des installations d\'une puissance thermique nominale >= 50 MW.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
-  '3210': { intitule: 'Traitement de minerais metalliques', variable: 'quantite', unite: 't/j', description: 'Grillage ou frittage de minerais metalliques, y compris minerai sulfure.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
-  '3230': { intitule: 'Fonderie de metaux ferreux (>= 20 t/j)', variable: 'quantite', unite: 't/j', description: 'Fonderie de metaux ferreux pour une capacite >= 20 tonnes par jour.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
-  '3250': { intitule: 'Traitement de surface avec solvants (>= 150 kg/h)', variable: 'quantite', unite: 'kg/h', description: 'Traitement de surface de metaux et matieres plastiques avec des solvants organiques >= 150 kg/h.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
-  '3260': { intitule: 'Fabrication de ciment (>= 500 t/j)', variable: 'quantite', unite: 't/j', description: 'Fabrication de clinker (ciment) pour une capacite >= 500 tonnes par jour.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
-  '3410': { intitule: 'Fabrication de produits chimiques organiques', variable: 'quantite', unite: 't/j', description: 'Fabrication de produits chimiques organiques de base.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
-  '3510': { intitule: 'Elimination de dechets dangereux (>= 10 t/j)', variable: 'quantite', unite: 't/j', description: 'Elimination ou valorisation de dechets dangereux >= 10 t/j.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
-  '3520': { intitule: 'Incineration de dechets non dangereux (>= 3 t/h)', variable: 'quantite', unite: 't/h', description: 'Incineration de dechets non dangereux >= 3 tonnes par heure.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
-  '3531': { intitule: 'ISDND (>= 10 t/j)', variable: 'quantite', unite: 't/j', description: 'Installation de stockage de dechets non dangereux recevant >= 10 tonnes par jour.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
-  '3540': { intitule: 'Stockage temporaire de dechets dangereux', variable: 'quantite', unite: 't', description: 'Stockage temporaire de dechets dangereux (capacite > 50 tonnes).', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
-  '3550': { intitule: 'Stockage souterrain de dechets dangereux', variable: 'quantite', unite: 't', description: 'Stockage souterrain de dechets dangereux.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
-  '3560': { intitule: 'Traitement biologique de dechets', variable: 'quantite', unite: 't/j', description: 'Traitement biologique de dechets non dangereux.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
-  '3610': { intitule: 'Fabrication de pate a papier', variable: 'quantite', unite: 't/j', description: 'Fabrication de pate a papier a partir de bois ou d\'autres matieres fibreuses.', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
-  '3700': { intitule: 'Elevage intensif de volailles/porcs (IED)', variable: 'quantite', unite: 'animaux', description: 'Elevage intensif de volailles (>= 40 000) ou de porcs (>= 2 000 de > 30 kg ou >= 750 truies).', seuils: [{ max: Infinity, regime: 'Autorisation', label: 'Autorisation (IED)' }] },
-  // ─── SERIE 4xxx — CLP (principales) ───
-  '4110': { intitule: 'Toxicite aigue categorie 1 (substances/melanges)', variable: 'quantite', unite: 't', description: 'Substances et melanges de toxicite aigue categorie 1 (voie orale, cutanee, inhalation).', seuils: [{ max: 0.001, regime: null, label: 'Non ICPE' }, { max: 5, regime: 'Declaration', label: 'Declaration' }, { max: 20, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '4120': { intitule: 'Toxicite aigue categorie 2 (substances/melanges)', variable: 'quantite', unite: 't', description: 'Substances et melanges de toxicite aigue categorie 2.', seuils: [{ max: 0.1, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: 200, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '4130': { intitule: 'Toxicite aigue categorie 3 (substances/melanges)', variable: 'quantite', unite: 't', description: 'Substances et melanges de toxicite aigue categorie 3.', seuils: [{ max: 0.5, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: 200, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '4210': { intitule: 'Gaz inflammables categorie 1 et 2', variable: 'quantite', unite: 't', description: 'Gaz inflammables de categorie 1 et 2.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: 50, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '4220': { intitule: 'Aerosols extremement inflammables ou inflammables', variable: 'quantite', unite: 't', description: 'Aerosols extremement inflammables ou inflammables de categorie 1 ou 2.', seuils: [{ max: 0.15, regime: null, label: 'Non ICPE' }, { max: 5, regime: 'Declaration', label: 'Declaration' }, { max: 150, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '4310': { intitule: 'Liquides inflammables categorie 1', variable: 'quantite', unite: 't', description: 'Liquides inflammables de categorie 1 (point eclair < 23°C et point ebullition <= 35°C).', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Declaration', label: 'Declaration' }, { max: 50, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '4320': { intitule: 'Liquides inflammables categorie 2', variable: 'quantite', unite: 't', description: 'Liquides inflammables de categorie 2 (point eclair < 23°C et point ebullition > 35°C).', seuils: [{ max: 10, regime: null, label: 'Non ICPE' }, { max: 100, regime: 'Declaration', label: 'Declaration' }, { max: 1000, regime: 'Enregistrement', label: 'Enregistrement' }, { max: 5000, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '4330': { intitule: 'Liquides inflammables categorie 3', variable: 'quantite', unite: 't', description: 'Liquides inflammables de categorie 3 (point eclair >= 23°C et <= 60°C).', seuils: [{ max: 50, regime: null, label: 'Non ICPE' }, { max: 500, regime: 'Declaration', label: 'Declaration' }, { max: 5000, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '4331': { intitule: 'Liquides inflammables categorie 3 (non vises par 4330)', variable: 'quantite', unite: 't', description: 'Liquides inflammables maintenus a une temperature > point eclair.', seuils: [{ max: 50, regime: null, label: 'Non ICPE' }, { max: 500, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '4440': { intitule: 'Solides comburants categorie 1, 2, 3', variable: 'quantite', unite: 't', description: 'Solides comburants de categorie 1, 2 ou 3.', seuils: [{ max: 2, regime: null, label: 'Non ICPE' }, { max: 50, regime: 'Declaration', label: 'Declaration' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] },
-  '4510': { intitule: 'Peroxides organiques type A, B', variable: 'quantite', unite: 't', description: 'Peroxides organiques de type A et B.', seuils: [{ max: 0.5, regime: null, label: 'Non ICPE' }, { max: 5, regime: 'Declaration', label: 'Declaration' }, { max: 50, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '4718': { intitule: 'Gaz a effet de serre fluores (HFC, PFC, SF6)', variable: 'quantite', unite: 't', description: 'Emploi ou stockage de gaz a effet de serre fluores (HFC, PFC, SF6) ou substances appauvrissant la couche d\'ozone.', seuils: [{ max: 0.3, regime: null, label: 'Non ICPE' }, { max: 30, regime: 'Declaration', label: 'Declaration' }, { max: 300, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '4734': { intitule: 'Produits petroliers et carburants de substitution', variable: 'quantite', unite: 't', description: 'Produits petroliers specifiques et carburants de substitution : essences, naphtas.', seuils: [{ max: 10, regime: null, label: 'Non ICPE' }, { max: 100, regime: 'Declaration', label: 'Declaration' }, { max: 1000, regime: 'Enregistrement', label: 'Enregistrement' }, { max: 2500, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '4735': { intitule: 'Alcools de categorie 2 (methanol, ethanol)', variable: 'quantite', unite: 't', description: 'Alcools de categorie 2 de liquide inflammable (methanol, ethanol).', seuils: [{ max: 10, regime: null, label: 'Non ICPE' }, { max: 100, regime: 'Declaration', label: 'Declaration' }, { max: 1000, regime: 'Enregistrement', label: 'Enregistrement' }, { max: 5000, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '4741': { intitule: 'Ammoniac (stockage)', variable: 'quantite', unite: 't', description: 'Stockage d\'ammoniac anhydre ou en solution (>= 50 % d\'ammoniac).', seuils: [{ max: 0.15, regime: null, label: 'Non ICPE' }, { max: 1.5, regime: 'Declaration', label: 'Declaration' }, { max: 200, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '4747': { intitule: 'Chlore (emploi ou stockage)', variable: 'quantite', unite: 't', description: 'Emploi ou stockage de chlore.', seuils: [{ max: 0.1, regime: null, label: 'Non ICPE' }, { max: 10, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '4755': { intitule: 'Hydrogene (stockage)', variable: 'quantite', unite: 'kg', description: 'Stockage d\'hydrogene gazeux ou liquide.', seuils: [{ max: 100, regime: null, label: 'Non ICPE' }, { max: 1000, regime: 'Declaration', label: 'Declaration' }, { max: 5000, regime: 'Autorisation', label: 'Autorisation' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation (Seveso)' }] },
-  '4801': { intitule: 'Batteries lithium-ion (stockage)', variable: 'quantite', unite: 't', description: 'Stockage de batteries lithium-ion.', seuils: [{ max: 1, regime: null, label: 'Non ICPE' }, { max: 5, regime: 'Declaration', label: 'Declaration' }, { max: 20, regime: 'Enregistrement', label: 'Enregistrement' }, { max: Infinity, regime: 'Autorisation', label: 'Autorisation' }] }
+  "1185": { intitule: "Gaz à effet de serre fluorés / substances appauvrissant l'ozone", variable: "quantite", unite: "kg", description: "Rubrique multi-critères (HFC/PFC/SF6, PAS l'ammoniac) : emploi en équipements frigo/clim quantité cumulée ≥300 kg = DC ; SF6 >150 kg ou stockage de fluides >1 t = D ; seule la fabrication/emploi de fluides en volume >800 L relève de l'Autorisation (ex-rubrique 4802, en vigueur depuis le 25/10/2018).", fiche: "https://aida.ineris.fr/reglementation/1185-gaz-a-effet-serre-fluores-vises-a-lannexe-i-reglement-ue-ndeg-5172014-relatif", seuils: [{ max: 300, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Declaration", label: "Declaration avec controle" }] },
+  "1434": { intitule: "Liquides inflammables (remplissage ou distribution, hors stations-service)", variable: "debit", unite: "m³/h", description: "Critère = débit maximum équivalent (sous-rubrique 1434-1 : chargement citernes / remplissage récipients). Pas de régime Enregistrement. Le chargement/déchargement desservant un stockage soumis à autorisation (1434-2) relève d'office de l'Autorisation.", fiche: "https://aida.ineris.fr/reglementation/1434-liquides-inflammables-liquides-point-eclair-compris-entre-60deg-93deg-fiouls", seuils: [{ max: 5, regime: null, label: "Non ICPE" }, { max: 100, regime: "Declaration", label: "Declaration avec controle" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "1435": { intitule: "Stations-service (transfert de carburants vers réservoirs de véhicules)", variable: "volume", unite: "m³/an", description: "Critère = volume annuel de carburant liquide distribué (essence/gazole). Le régime Autorisation a été supprimé par le décret du 19/05/2016 : le régime le plus élevé est désormais l'Enregistrement.", fiche: "https://aida.ineris.fr/reglementation/1435-stations-service-installations-ouvertes-non-public-carburants-sont-transferes", seuils: [{ max: 500, regime: null, label: "Non ICPE" }, { max: 20000, regime: "Declaration", label: "Declaration avec controle" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "1436": { intitule: "Liquides de point éclair entre 60 et 93 °C (stockage ou emploi)", variable: "quantite", unite: "t", description: "Liquides combustibles (hors boissons alcoolisées). Quantité susceptible d'être présente : DC à partir de 100 t, A à partir de 1 000 t. Aucun régime Enregistrement pour cette rubrique.", fiche: "https://aida.ineris.fr/reglementation/1436-liquides-point-eclair-compris-entre-60deg-93deg-a-lexception-boissons", seuils: [{ max: 100, regime: null, label: "Non ICPE" }, { max: 1000, regime: "Declaration", label: "Declaration avec controle" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "1450": { intitule: "Solides facilement inflammables (emploi ou stockage)", variable: "quantite", unite: "t", description: "Quantité totale susceptible d'être présente : D de 50 kg à 1 t, A à partir de 1 t (50 kg = 0,05 t). Pas de régime Enregistrement. Rubrique en vigueur.", fiche: "https://aida.ineris.fr/reglementation/1450-solides-inflammables", seuils: [{ max: 0.05, regime: null, label: "Non ICPE" }, { max: 1, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "1510": { intitule: "Entrepôts couverts de matières ou produits combustibles", variable: "volume", unite: "m³", description: "Ne s'applique que si la quantité de matières combustibles stockées dépasse 500 t. Seuils volume confirmés : DC 5 000–50 000, E 50 000–900 000, A ≥ 900 000 m³.", fiche: "https://aida.ineris.fr/reglementation/1510-stockage-matieres-produits-substances-combustibles-entrepots-couverts", seuils: [{ max: 5000, regime: null, label: "Non ICPE" }, { max: 50000, regime: "Declaration", label: "Declaration avec controle" }, { max: 900000, regime: "Enregistrement", label: "Enregistrement" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "1511": { intitule: "Entrepôts frigorifiques", variable: "volume", unite: "m³", description: "Entrepôts exclusivement frigorifiques (combustibles autres ≤ 500 t). Version en vigueur (décret 2020-1169) : DC 5 000–50 000 m³, E ≥ 50 000 m³. Pas de régime Autorisation (supprimé).", fiche: "https://aida.ineris.fr/reglementation/1511-entrepots-frigorifiques-a-lexception-depots-utilises-stockage-categories", seuils: [{ max: 5000, regime: null, label: "Non ICPE" }, { max: 50000, regime: "Declaration", label: "Declaration avec controle" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "1530": { intitule: "Dépôts de papiers, cartons ou matériaux combustibles analogues", variable: "volume", unite: "m³", description: "Papiers/cartons y compris produits finis conditionnés (hors rubrique 1510 et ERP). 3 régimes en vigueur : DC de 1 000 à 20 000 m³, Enregistrement de 20 000 à 50 000 m³ (arrêté PG du 15/04/2010), Autorisation au-delà de 50 000 m³.", fiche: "https://aida.ineris.fr/reglementation/1530-depots-papiers-cartons-materiaux-combustibles-analogues", seuils: [{ max: 1000, regime: null, label: "Non ICPE" }, { max: 20000, regime: "Declaration", label: "Declaration avec controle" }, { max: 50000, regime: "Enregistrement", label: "Enregistrement" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "1532": { intitule: "Stockage de bois ou matériaux combustibles analogues", variable: "volume", unite: "m³", description: "Bois ou matériaux combustibles analogues, y compris produits finis conditionnés et biomasse (rubrique 2910-A), ne relevant pas de la 1531. Trois régimes : D 1 000–20 000 (AM 05/12/2016), E 20 000–50 000 (AM 11/09/2013), A au-delà de 50 000 m³ (installations dégageant des poussières inflammables).", fiche: "https://aida.ineris.fr/reglementation/1532-stockage-bois-materiaux-combustibles-analogues", seuils: [{ max: 1000, regime: null, label: "Non ICPE" }, { max: 20000, regime: "Declaration", label: "Declaration" }, { max: 50000, regime: "Enregistrement", label: "Enregistrement" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2101": { intitule: "Bovins (activité d'élevage, transit, vente, etc. de)", variable: "quantite", unite: "animaux", description: "Cascade = sous-rubrique 2101-1 (veaux de boucherie/bovins à l'engraissement + transit-vente >24h) post-décret 2026-46 (loi Duplomb, 02/02/2026): D 50-500, E 501-800 (plancher E relevé de 401 à 501), A >800. Autres sous-rubriques: 2101-2 vaches laitières D 50-200/E 201-400 (plancher E relevé de 151 à 201)/A >400; 2101-3 vaches allaitantes D à partir de 100; transit-vente <24h D dès 50 places.", fiche: "https://aida.ineris.fr/reglementation/2101-bovins-activite-delevage-transit-vente-etc", seuils: [{ max: 50, regime: null, label: "Non ICPE" }, { max: 500, regime: "Declaration", label: "Declaration" }, { max: 800, regime: "Enregistrement", label: "Enregistrement" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2102": { intitule: "Porcs (élevage, vente, transit, etc.)", variable: "quantite", unite: "animaux-équivalents", description: "Régime Autorisation supprimé le 31/10/2019 (les grands élevages intensifs basculent en rubrique IED 3660). Reste D 50-450 AE et E >450 AE; en dessous de 50 animaux-équivalents non classé. Barème AE: porc engrais=1, reproducteur/truie=3, porcelet <30kg=0,2.", fiche: "https://aida.ineris.fr/reglementation/2102-elevage-vente-transit-etc-porcs", seuils: [{ max: 50, regime: null, label: "Non ICPE" }, { max: 450, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2110": { intitule: "Lapins (élevage, transit, vente, etc.)", variable: "quantite", unite: "animaux sevrés", description: "Seuils vérifiés sur AIDA : D de 3000 à 20000 animaux sevrés (arrêté 30/10/06), A au-delà de 20000 (arrêté 31/10/06). Pas de régime Enregistrement. En dessous de 3000 non classé. Comptage en animaux réels sevrés, PAS en animaux-équivalents. Réforme proposée (projet d'arrêté abrogeant celui du 31/10/06) visant à supprimer l'Autorisation : non encore actée à ce jour.", fiche: "https://aida.ineris.fr/reglementation/2110-elevage-transit-vente-etcde-lapins", seuils: [{ max: 3000, regime: null, label: "Non ICPE" }, { max: 20000, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2111": { intitule: "Volailles, gibier à plumes (élevage, vente, etc.)", variable: "quantite", unite: "animaux-équivalents", description: "Régime Autorisation supprimé le 31/10/2019 (gros élevages → IED 3660). D pour >5000 AE; E pour >30000 emplacements (1 animal = 1 emplacement). En dessous de 5000 AE non classé. Barème AE: caille 0,125, pigeon/perdrix 0,25, poulet 1, canard 2, dinde 3,5, palmipède gras en gavage 7.", fiche: "https://aida.ineris.fr/reglementation/2111-volailles-gibier-a-plumes-activite-delevage-vente-etc-a-lexclusion-dactivites", seuils: [{ max: 5000, regime: null, label: "Non ICPE" }, { max: 30000, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2120": { intitule: "Chiens (élevage, vente, transit, garde, refuge, etc.)", variable: "quantite", unite: "chiens", description: "Régime Enregistrement créé en 2018 (arrêté 22/10/18): D 10-50, E 51-250, A >250. Chiens de 4 mois ou moins exclus du décompte; chiens de protection de troupeau exclus (nota modifié par décret 2026-46). En dessous de 10 chiens non classé.", fiche: "https://aida.ineris.fr/reglementation/2120-elevage-vente-transit-garde-detention-refuge-fourriere-etc-chiens", seuils: [{ max: 10, regime: null, label: "Non ICPE" }, { max: 50, regime: "Declaration", label: "Declaration" }, { max: 250, regime: "Enregistrement", label: "Enregistrement" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2160": { intitule: "Silos et stockage en vrac de céréales, grains, produits organiques", variable: "volume", unite: "m³", description: "Seuils donnés pour les 'autres installations' (silos verticaux): D 5000-15000 m³, A >15000 m³. Pour les silos plats: D 5000-15000 m³ mais Enregistrement (et non Autorisation) au-delà de 15000 m³. En dessous de 5000 m³ non classé.", fiche: "https://aida.ineris.fr/reglementation/2160-silos-installations-stockage-vrac-cereales-grains-produits-alimentaires-tout", seuils: [{ max: 5000, regime: null, label: "Non ICPE" }, { max: 15000, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2170": { intitule: "Engrais, amendements et supports de culture (fabrication à partir de matières organiques)", variable: "debit", unite: "t/j", description: "Pas de régime Enregistrement: D pour capacité >1 et <10 t/j, A à partir de 10 t/j. En dessous de 1 t/j non classé. Exclut le compostage relevant des rubriques 2780 et 2781.", fiche: "https://aida.ineris.fr/reglementation/2170-engrais-amendements-supports-culture-fabrication-a-partir-matieres-organiques-a", seuils: [{ max: 1, regime: null, label: "Non ICPE" }, { max: 10, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2210": { intitule: "Abattage d'animaux", variable: "debit", unite: "t/j", description: "Masse de carcasses en activité de pointe; pas de régime Enregistrement: D >500 kg/j et ≤5 t/j, A >5 t/j. En dessous de 500 kg/j non classé. Abattoirs mobiles (2210-3): D jusqu'à 30 t/j. Exclut la rubrique IED 3641.", fiche: "https://aida.ineris.fr/reglementation/2210-abattage-danimaux-a-lexclusion-activites-classees-titre-rubrique-3641", seuils: [{ max: 0.5, regime: null, label: "Non ICPE" }, { max: 5, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2220": { intitule: "Produits alimentaires d'origine végétale (préparation/conservation)", variable: "debit", unite: "t/j", description: "Quantité de produits entrant; pas de régime Autorisation: D >2 et ≤10 t/j, E >10 t/j. En dessous de 2 t/j non classé. Installations saisonnières (≤90 j consécutifs/an): D 2-20 t/j, E >20 t/j. Exclut sucre, fécule, malt, huiles et aliments pour bétail.", fiche: "https://aida.ineris.fr/reglementation/2220-preparation-conservation-produits-alimentaires-dorigine-vegetale", seuils: [{ max: 2, regime: null, label: "Non ICPE" }, { max: 10, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2221": { intitule: "Produits alimentaires d'origine animale (préparation/conservation)", variable: "debit", unite: "t/j", description: "Quantité de produits entrant; pas de régime Autorisation: D (contrôle périodique) >500 kg/j et ≤4 t/j, E >4 t/j. En dessous de 500 kg/j non classé. Exclut les produits issus du lait (rubrique 2230) et les corps gras (rubrique 2240).", fiche: "https://aida.ineris.fr/reglementation/2221-preparation-conservation-produits-alimentaires-dorigine-animale", seuils: [{ max: 0.5, regime: null, label: "Non ICPE" }, { max: 4, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2230": { intitule: "Traitement et transformation du lait ou des produits issus du lait", variable: "debit", unite: "l/j", description: "Capacité journalière exprimée en litres d'équivalent-lait; pas de régime Autorisation propre (les très grosses installations relèvent de l'IED 3642/3643): D >7000 et ≤70000 l/j (avec contrôle périodique), E >70000 l/j. En dessous de 7000 l/j non classé. Exclut le seul conditionnement.", fiche: "https://aida.ineris.fr/reglementation/2230-traitement-transformation-lait-produits-issus-lait", seuils: [{ max: 7000, regime: null, label: "Non ICPE" }, { max: 70000, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2240": { intitule: "Huiles et corps gras d'origine animale ou végétale (extraction/traitement)", variable: "debit", unite: "t/j", description: "Seuils pour 'autres installations' (>90 j/an): D >200 kg/j et ≤10 t/j, E >10 t/j; en dessous de 200 kg/j non classé. Installations saisonnières (≤90 j/an): D 200 kg/j-20 t/j, E >20 t/j. Toute installation avec extraction par solvants inflammables = Autorisation. Régime E créé par décret 2017-594 du 21/04/2017.", fiche: "https://aida.ineris.fr/reglementation/2240-extraction-traitement-huiles-corps-gras-dorigine-animale-vegetale", seuils: [{ max: 0.2, regime: null, label: "Non ICPE" }, { max: 10, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2250": { intitule: "Production par distillation d'alcools de bouche d'origine agricole", variable: "debit", unite: "hl/j", description: "Capacité de production exprimée en équivalent alcool pur (hl AP/jour): D >0,5 et ≤30, E >30 et ≤1300, A >1300. En dessous de 0,5 hl/j non classé. Pour les distillations discontinues, le seuil de 30 hl/j est remplacé par 50 hl de capacité totale de charge des alambics.", fiche: "https://aida.ineris.fr/reglementation/2250-production-distillation-dalcools-bouche-dorigine-agricole", seuils: [{ max: 0.5, regime: null, label: "Non ICPE" }, { max: 30, regime: "Declaration", label: "Declaration" }, { max: 1300, regime: "Enregistrement", label: "Enregistrement" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2260": { intitule: "Broyage, concassage, criblage de substances végétales et produits organiques", variable: "puissance", unite: "kW", description: "Seuils pour le travail mécanique (puissance installée des machines) : D >100 et ≤500 kW, E >500 kW (ancien régime Autorisation basculé en Enregistrement par l'arrêté/décret du 22/10/2018) ; en dessous de 100 kW non classé. Volet séchage par contact direct des gaz de combustion classé séparément en MW thermiques : D >1 et <20 MW, E ≥20 MW. Rubrique en vigueur, plus aucun régime Autorisation.", fiche: "https://aida.ineris.fr/reglementation/2260-broyage-concassage-criblage-substances-vegetales-tous-produits-organiques", seuils: [{ max: 100, regime: null, label: "Non ICPE" }, { max: 500, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2340": { intitule: "Blanchisserie, laverie de linge", variable: "debit", unite: "t/j", description: "Capacité de lavage de linge : non classé <500 kg/j, Déclaration (DC) 500 kg/j–5 t/j, Enregistrement >5 t/j (hors nettoyage à sec visé par la 2345).", fiche: "https://aida.ineris.fr/thematiques/2340-blanchisserie-laverie-linge-a-lexclusion-nettoyage-a-sec-vise-rubrique-2345", seuils: [{ max: 0.5, regime: null, label: "Non ICPE" }, { max: 5, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2345": { intitule: "Nettoyage à sec, utilisation de solvants (textiles/vêtements)", variable: "quantite", unite: "kg", description: "Capacité maximale nominale totale des machines présentes. > 0,5 kg et ≤ 50 kg = Déclaration soumise au contrôle périodique (DC) ; > 50 kg = Autorisation. Pas de régime Enregistrement. Rubrique en vigueur (arrêté du 31/08/09 modifié).", fiche: "https://aida.ineris.fr/thematiques/2345-utilisation-solvants-nettoyage-a-sec-traitement-textiles-vetements", seuils: [{ max: 0.5, regime: null, label: "Non ICPE" }, { max: 50, regime: "Declaration", label: "Declaration avec controle" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2350": { intitule: "Tanneries, mégisseries et préparation des cuirs et peaux", variable: "quantite", unite: "t/j", description: "Capacité de production : Déclaration (DC) 100 kg/j–5 t/j, Autorisation >5 t/j ; refonte par décret 2017-1595 du 21/11/2017 (hors activités relevant de la rubrique IED 3630).", fiche: "https://aida.ineris.fr/reglementation/2350-tannerie-megisseries", seuils: [{ max: 0.1, regime: null, label: "Non ICPE" }, { max: 5, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2410": { intitule: "Ateliers où l'on travaille le bois ou matériaux combustibles analogues", variable: "puissance", unite: "kW", description: "Puissance max de l'ensemble des machines fixes : Déclaration (DC) 50–250 kW, Enregistrement >250 kW. Pas de régime Autorisation : l'Enregistrement a remplacé l'ancienne Autorisation via le décret n° 2014-996 du 2 sept. 2014.", fiche: "https://aida.ineris.fr/reglementation/2410-travail-bois-materiaux-combustibles-analogues", seuils: [{ max: 50, regime: null, label: "Non ICPE" }, { max: 250, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2415": { intitule: "Mise en œuvre de produit de préservation au bois et matériaux dérivés", variable: "volume", unite: "l", description: "Quantité de produits susceptible d'être présente : Déclaration (DC) 200–1000 L, Enregistrement >1000 L ; régime Enregistrement créé par décret 2023-151 du 02/03/2023 en remplacement de l'ancienne Autorisation.", fiche: "https://aida.ineris.fr/reglementation/2415-mise-oeuvre-produit-preservation-bois-materiaux-derives", seuils: [{ max: 200, regime: null, label: "Non ICPE" }, { max: 1000, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2450": { intitule: "Imprimeries ou ateliers de reproduction graphique sur tout support", variable: "debit", unite: "kg/j", description: "Quantité de produits (encres/solvants) consommée par jour. Procédés b (offset feuille…) : D 100–400 kg/j, A >400. Procédés a (offset séchage thermique, héliogravure, flexographie) : D 50–200, A >200. Produits <10% solvants organiques : quantité retenue divisée par 2. Pas de régime Enregistrement (D + A uniquement). En vigueur (décrets 2017-1595 et 2018-900).", fiche: "https://aida.ineris.fr/reglementation/2450-imprimerie-ateliers-reproduction-graphique-tout-support", seuils: [{ max: 100, regime: null, label: "Non ICPE" }, { max: 400, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2510": { intitule: "Carrière ou autre extraction de matériaux (exploitation de)", variable: "quantite", unite: "t/an", description: "L'exploitation de carrière (2510-1°) est soumise à Autorisation quelle que soit la production ; aucun régime Enregistrement. Seuls cas en Déclaration : 5° extraction de marne/craie/arène granitique à usage agricole (<250 t/an, <1000 t total) et 6° matériaux pour restauration du patrimoine/bâti ancien (<100 m³/an, <500 m³).", fiche: "https://aida.ineris.fr/reglementation/2510-exploitation-carriere-autre-extraction-materiaux", seuils: [{ max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2515": { intitule: "Broyage, concassage, criblage de minéraux ou déchets non dangereux inertes", variable: "puissance", unite: "kW", description: "Seuils 2515-1 (installations fixes) confirmés sur fiche AIDA en vigueur : Déclaration 40–200 kW, Enregistrement >200 kW. Régime Autorisation supprimé par le décret 2018-900 (25/10/2018). Installations temporaires <6 mois (2515-2) : D 40–350 kW, E >350 kW.", fiche: "https://aida.ineris.fr/reglementation/2515-broyage-concassage-criblage-ensachage-pulverisation-nettoyage-tamisage-melange", seuils: [{ max: 40, regime: null, label: "Non ICPE" }, { max: 200, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2516": { intitule: "Station de transit de produits minéraux pulvérulents non ensachés", variable: "volume", unite: "m³", description: "Capacité de stockage de produits minéraux pulvérulents (ciments, plâtres, chaux, sables fillérisés…) ou déchets non dangereux inertes pulvérulents : Déclaration 5000–25000 m³, Enregistrement >25000 m³. Pas de régime Autorisation. Rubrique en vigueur (non abrogée).", fiche: "https://aida.ineris.fr/reglementation/2516-station-transit-produits-mineraux-pulverulents-non-ensaches-tels-ciments", seuils: [{ max: 5000, regime: null, label: "Non ICPE" }, { max: 25000, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2517": { intitule: "Transit, regroupement ou tri de produits minéraux ou déchets inertes", variable: "surface", unite: "m²", description: "Superficie de l'aire de transit : Déclaration 5000–10000 m², Enregistrement >10000 m². Pas d'Autorisation ni de DC. Vise les produits minéraux/déchets inertes non couverts par d'autres rubriques.", fiche: "https://aida.ineris.fr/reglementation/2517-station-transit-regroupement-tri-produits-mineraux-dechets-non-dangereux", seuils: [{ max: 5000, regime: null, label: "Non ICPE" }, { max: 10000, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2518": { intitule: "Production de béton prêt à l'emploi (alim. mécanisée en liants, hors 2522)", variable: "volume", unite: "m³", description: "Rubrique en vigueur. Toute installation équipée d'un dispositif d'alimentation en liants hydrauliques mécanisé est classée (hors béton manufacturé 2522) : Déclaration si capacité de malaxage ≤ 3 m³, Enregistrement si > 3 m³. Pas d'Autorisation ni de seuil 'non classé'.", fiche: "https://aida.ineris.fr/reglementation/2518-installation-production-beton-pret-a-lemploi-equipee-dun-dispositif", seuils: [{ max: 3, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2521": { intitule: "Station d'enrobage au bitume de matériaux routiers", variable: "debit", unite: "t/j", description: "Rubrique en vigueur. À chaud (2521-1) : Enregistrement quelle que soit la capacité (l'Autorisation a été supprimée par le décret/arrêté du 9 avril 2019). À froid (2521-2) : Déclaration 100–1500 t/j, Enregistrement >1500 t/j. Sous 100 t/j en froid : non classé.", fiche: "https://aida.ineris.fr/reglementation/2521-station-denrobage-bitume-materiaux-routiers", seuils: [{ max: 100, regime: null, label: "Non ICPE" }, { max: 1500, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2530": { intitule: "Fabrication et travail du verre", variable: "quantite", unite: "t/j", description: "Capacité de production des fours de fusion/ramollissement. Verres sodocalciques : D 0,5-5 t/j, A >5 t/j (modélisé ici). Autres verres (spéciaux/cristal) : D >50 kg/j et ≤500 kg/j, A >500 kg/j. Aucun régime Enregistrement. Le travail CHIMIQUE du verre/cristal relève de la 2531. Rubrique confirmée EN VIGUEUR sur AIDA. (Brochure INERIS v57)", fiche: "https://aida.ineris.fr/reglementation/2530-fabrication-travail-verre", seuils: [{ max: 0.5, regime: null, label: "Non ICPE" }, { max: 5, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2560": { intitule: "Travail mécanique des métaux et alliages", variable: "puissance", unite: "kW", description: "Puissance maximale des machines fixes. Régime Autorisation SUPPRIMÉ (réforme 2014, confirmée déc. 2017) : D avec contrôle périodique 150-1000 kW, E >1000 kW. Exclut les activités IED 3230-a/b.", fiche: "https://aida.ineris.fr/reglementation/2560-travail-mecanique-metaux-alliages", seuils: [{ max: 150, regime: null, label: "Non ICPE" }, { max: 1000, regime: "Declaration", label: "Declaration avec controle" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2564": { intitule: "Nettoyage, dégraissage, décapage par liquides organohalogénés ou solvants organiques", variable: "volume", unite: "l", description: "Volume équivalent des cuves de traitement. Régime Autorisation supprimé (réforme 09/04/2019) : E >1500 l, DC 200-1500 l. Seuil DC abaissé à 20 l pour solvants CMR (H340/H350/H350i/H360D/H360F/H341/H351) et organohalogénés ; >200 l pour procédé sous vide.", fiche: "https://aida.ineris.fr/reglementation/2564-nettoyage-degraissage-decapage-surfaces-quelconques-procedes-utilisant-liquides", seuils: [{ max: 200, regime: null, label: "Non ICPE" }, { max: 1500, regime: "Declaration", label: "Declaration avec controle" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2565": { intitule: "Revêtement métallique ou traitement de surfaces par voie électrolytique ou chimique", variable: "volume", unite: "l", description: "Volume des cuves de traitement. E 200-1500 l, A >1500 l (réforme 09/04/2019). Autorisation également si mise en œuvre de cadmium, ou de cyanures pour un volume >200 l. Exclut rubriques 2563, 2564, 3260, 3670.", fiche: "https://aida.ineris.fr/reglementation/2565-revetement-metallique-traitement-surfaces-quelconques-voie-electrolytique", seuils: [{ max: 200, regime: null, label: "Non ICPE" }, { max: 1500, regime: "Enregistrement", label: "Enregistrement" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2570": { intitule: "Email (fabrication ou application d')", variable: "quantite", unite: "kg/j", description: "Quantité de matières mises en œuvre. Branche FABRICATION (modélisée) : D 50-500 kg/j, A >500 kg/j. Branche APPLICATION d'émail sur métaux : D si >100 kg/j (pas d'Autorisation). Aucun régime Enregistrement.", fiche: "https://aida.ineris.fr/reglementation/2570-email", seuils: [{ max: 50, regime: null, label: "Non ICPE" }, { max: 500, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2575": { intitule: "Emploi de matières abrasives (sablage, grenaillage)", variable: "puissance", unite: "kW", description: "Abrasives (emploi de matières) telles que sables, corindon, grenailles métalliques, etc., sur un matériau quelconque pour gravure, dépolissage, décapage, grainage. Régime unique Déclaration si puissance de l'ensemble des machines fixes > 20 kW. Ni Enregistrement ni Autorisation. Rubrique en vigueur (AP type arrêté du 30/06/1997).", fiche: "https://aida.ineris.fr/reglementation/2575-emploi-matieres-abrasives", seuils: [{ max: 20, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Declaration", label: "Declaration" }] },
+  "2630": { intitule: "Détergents et savons (fabrication de ou à base de)", variable: "quantite", unite: "t/j", description: "Capacité de production. D 1-50 t/j, E >50 t/j : passage du régime Autorisation à Enregistrement par l'arrêté du 11/10/2023. Détergents au sens du règlement (CE) n°648/2004. Exclut les activités IED rubrique 3410.", fiche: "https://aida.ineris.fr/reglementation/2630-detergents-savons-fabrication-a-base", seuils: [{ max: 1, regime: null, label: "Non ICPE" }, { max: 50, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2640": { intitule: "Fabrication industrielle de colorants et pigments organiques, minéraux et naturels", variable: "quantite", unite: "t/j", description: "Quantité de matière fabriquée. D ≥200 kg/j et <2 t/j, A ≥2 t/j. Aucun régime Enregistrement. L'ancien libellé « fabrication ou emploi » a été recentré sur la fabrication industrielle (Décret 2017-1595 du 21/11/2017). Exclut les activités IED rubrique 3410.", fiche: "https://aida.ineris.fr/reglementation/2640-fabrication-industrielle-colorants-pigments-organiques-mineraux-naturels", seuils: [{ max: 0.2, regime: null, label: "Non ICPE" }, { max: 2, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2661": { intitule: "Transformation de polymères", variable: "quantite", unite: "t/j", description: "Quantité de matières mises en œuvre. Procédés thermiques (extrusion/injection/moulage, modélisés ici) : D 1-10, E 10-70, A ≥70 t/j. Procédés exclusivement mécaniques (sciage/découpage/broyage) : D 2-20 t/j, E ≥20 t/j (pas d'Autorisation).", fiche: "https://aida.ineris.fr/reglementation/2661-transformation-polymeres", seuils: [{ max: 1, regime: null, label: "Non ICPE" }, { max: 10, regime: "Declaration", label: "Declaration" }, { max: 70, regime: "Enregistrement", label: "Enregistrement" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2662": { intitule: "Stockage de polymères (plastiques, caoutchoucs, élastomères, résines)", variable: "volume", unite: "m³", description: "Tableau actuel sans régime Autorisation : D de 100 à 1 000 m³, Enregistrement ≥ 1 000 m³ (sans plafond). Les très grands volumes en entrepôt couvert relèvent en plus de la rubrique 1510.", fiche: "https://aida.ineris.fr/reglementation/2662-stockage-polymeres", seuils: [{ max: 100, regime: null, label: "Non ICPE" }, { max: 1000, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2663": { intitule: "Stockage de pneumatiques et produits composés ≥ 50 % de polymères", variable: "volume", unite: "m³", description: "Seuils donnés pour le 2663-2 (pneumatiques et autres cas) : D 1 000–10 000, E 10 000–80 000, A ≥ 80 000 m³. Pour le 2663-1 (état alvéolaire/expansé : mousses latex, PU, polystyrène) : D 200–2 000, E 2 000–45 000, A ≥ 45 000 m³. La rubrique 1510 prime pour les grands entrepôts couverts. Régime A bien existant (contrairement à une lecture pré-réforme 2010).", fiche: "https://aida.ineris.fr/reglementation/2663-stockage-pneumatiques-produits-composes-dau-moins-50-polymeres", seuils: [{ max: 1000, regime: null, label: "Non ICPE" }, { max: 10000, regime: "Declaration", label: "Declaration" }, { max: 80000, regime: "Enregistrement", label: "Enregistrement" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2710": { intitule: "Collecte de déchets apportés par leur producteur initial (déchèterie)", variable: "volume", unite: "m³", description: "Branche 2710-2 déchets non dangereux (volume) : D 100-300 m³, E ≥300 m³ ; branche 2710-1 déchets dangereux distincte (quantité) : D 1-7 t, A ≥7 t.", fiche: "https://aida.ineris.fr/reglementation/2710-installation-collecte-dechets-apportes-producteur-initial-dechets-a-lexclusion", seuils: [{ max: 100, regime: null, label: "Non ICPE" }, { max: 300, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2712": { intitule: "Stockage, dépollution, démontage de véhicules hors d'usage (VHU)", variable: "surface", unite: "m²", description: "Branche 2712-1 véhicules terrestres : Enregistrement dès 100 m² (seuil unique, pas de Déclaration en dessous ni d'Autorisation au-dessus depuis le décret du 9 mai 2018) ; 2712-2 autres moyens de transport : Autorisation dès 50 m².", fiche: "https://aida.ineris.fr/reglementation/2712-installation-dentreposage-depollution-demontage-decoupage-vehicules-hors-dusage", seuils: [{ max: 100, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2714": { intitule: "Transit/tri de déchets non dangereux : papiers-cartons, plastiques, caoutchouc, textiles, bois", variable: "volume", unite: "m³", description: "En vigueur (décret 2018-458). D 100-1000 m³, E ≥1000 m³. Depuis 2018, le seuil haut est passé d'Autorisation à Enregistrement : pas de régime Autorisation. Exclut rubriques 2710, 2711, 2719.", fiche: "https://aida.ineris.fr/reglementation/2714-installation-transit-regroupement-tri-preparation-vue-reutilisation-dechets-non", seuils: [{ max: 100, regime: null, label: "Non ICPE" }, { max: 1000, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2716": { intitule: "Transit/tri de déchets non dangereux non inertes", variable: "volume", unite: "m³", description: "Déchets non dangereux non inertes (hors flux déjà visés par 2711-2715) : D 100-1000 m³, E ≥1000 m³. Pas de régime Autorisation.", fiche: "https://aida.ineris.fr/reglementation/2716-transit-regroupement-tri-preparation-vue-reutilisation-dechets-non-dangereux", seuils: [{ max: 100, regime: null, label: "Non ICPE" }, { max: 1000, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2718": { intitule: "Transit, regroupement, tri de déchets dangereux", variable: "quantite", unite: "t", description: "Quantité de déchets dangereux présente : A ≥1 t, D (déclaration avec contrôle périodique) en dessous. Pas de seuil de non-classement : toute installation est au moins en Déclaration. Pas de régime Enregistrement.", fiche: "https://aida.ineris.fr/reglementation/2718-installation-transit-regroupement-tri-dechet-dangereux-a-lexclusion", seuils: [{ max: 1, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2760": { intitule: "Installation de stockage de déchets (hors rubrique 2720)", variable: "quantite", unite: "t", description: "Classement PAR NATURE, sans seuil quantitatif (AIDA, en vigueur, AM 12/12/2014). 2760-1 ISDD=Autorisation ; 2760-2a ISDND implantation isolée=Enregistrement ; 2760-2b autres ISDND=Autorisation ; 2760-3 inertes ISDI=Enregistrement ; 2760-4 mercure métallique=Autorisation.", fiche: "https://aida.ineris.fr/reglementation/2760-installation-stockage-dechets-a-lexclusion-installations-visees-a-rubrique-2720", seuils: [{ max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2770": { intitule: "Traitement thermique de déchets dangereux", variable: "quantite", unite: "t", description: "Autorisation unique sans seuil quantitatif (incinération/co-incinération de déchets dangereux ; biomasse 2910 et installations 2792/2793 exclues).", fiche: "https://aida.ineris.fr/reglementation/2770-installation-traitement-thermique-dechets-dangereux-a-lexclusion-installations", seuils: [{ max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2790": { intitule: "Traitement de déchets dangereux", variable: "quantite", unite: "t", description: "Autorisation unique sans seuil quantitatif (traitement de déchets dangereux non couvert par 2711, 2720, 2760, 2770, 2792, 2793, 2795). Fiche AIDA en vigueur.", fiche: "https://aida.ineris.fr/reglementation/2790-installation-traitement-dechets-dangereux-a-lexclusion-installations-visees", seuils: [{ max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2791": { intitule: "Traitement de déchets non dangereux", variable: "quantite", unite: "t/j", description: "Quantité de déchets traités : A ≥10 t/j, D <10 t/j. Toute installation est au moins en Déclaration (pas de seuil de non-classement).", fiche: "https://aida.ineris.fr/reglementation/2791-installation-traitement-dechets-non-dangereux-a-lexclusion-installations", seuils: [{ max: 10, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2792": { intitule: "Traitement de déchets contenant des PCB/PCT", variable: "quantite", unite: "t", description: "Déchets >50 ppm de PCB totaux. Branche transit/regroupement/tri (2792-1) : D <2 t, A ≥2 t ; branche traitement/décontamination (2792-2) : Autorisation sans seuil.", fiche: "https://aida.ineris.fr/reglementation/2792-traitement-dechets-contenant-pcbpct", seuils: [{ max: 2, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2795": { intitule: "Lavage de fûts, conteneurs et citernes de transport", variable: "debit", unite: "m³/j", description: "Lavage de contenants de matières alimentaires, dangereuses ou de déchets dangereux. Critère = quantité d'eau mise en œuvre : A ≥20 m³/j, D <20 m³/j.", fiche: "https://aida.ineris.fr/reglementation/2795-lavage-futs-conteneurs-citernes-transport-matieres-alimentaires-matieres", seuils: [{ max: 20, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2910": { intitule: "Combustion (combustibles commerciaux : gaz, GPL, fioul, charbon)", variable: "puissance", unite: "MW", description: "Rubrique 2910-A (combustibles définis : gaz naturel, GPL, fioul domestique, charbon, fiouls lourds). Depuis le décret 2018, 20-50 MW = Enregistrement (et non plus Autorisation) ; > 50 MW bascule sur la rubrique IED 3110 (Autorisation).", fiche: "https://aida.ineris.fr/reglementation/2910-combustion-a-lexclusion-installations-visees-rubriques-2770-2771-2971-2931", seuils: [{ max: 1, regime: null, label: "Non ICPE" }, { max: 20, regime: "Declaration", label: "Declaration" }, { max: 50, regime: "Enregistrement", label: "Enregistrement" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2910a": { intitule: "Combustion — combustibles commerciaux/biomasse propre (section A)", variable: "puissance", unite: "MW", description: "Section A de la 2910 : gaz naturel, GPL, biométhane, fioul domestique, charbon, fiouls lourds et biomasse au sens b-i/b-iv. Seuils vérifiés AIDA : 1≤P<20 MW = Déclaration (DC), 20≤P<50 MW = Enregistrement ; ≥50 MW = rubrique IED 3110. Ce n'est PAS une rubrique « biomasse » spécifique (la biomasse autre relève de la section B).", fiche: "https://aida.ineris.fr/reglementation/2910-combustion-a-lexclusion-installations-visees-rubriques-2770-2771-2971-2931", seuils: [{ max: 1, regime: null, label: "Non ICPE" }, { max: 20, regime: "Declaration", label: "Declaration avec controle" }, { max: 50, regime: "Enregistrement", label: "Enregistrement" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2915": { intitule: "Chauffage par fluide caloporteur (corps organiques combustibles)", variable: "volume", unite: "l", description: "Cas T° d'utilisation ≥ point éclair des fluides (vérifié AIDA) : 100-1000 L = Déclaration, > 1000 L = Enregistrement. Pas de régime Autorisation (Autorisation remplacée par Enregistrement via décret 2020-559). (Pour T° < point éclair : seuil unique > 250 L en Déclaration.)", fiche: "https://aida.ineris.fr/reglementation/2915-procedes-chauffage", seuils: [{ max: 100, regime: null, label: "Non ICPE" }, { max: 1000, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2921": { intitule: "Refroidissement évaporatif par dispersion d'eau dans un flux d'air", variable: "puissance", unite: "kW", description: "Tours aéroréfrigérantes humides (vérifié AIDA, décret 2021-976) : puissance thermique évacuée < 3000 kW = Déclaration avec contrôle, ≥ 3000 kW = Enregistrement. Pas de seuil bas (toute installation est classée). Pas d'Autorisation.", fiche: "https://aida.ineris.fr/reglementation/2921-refroidissement-evaporatif-dispersion-deau-flux-dair-genere-ventilation", seuils: [{ max: 3000, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2925": { intitule: "Ateliers de charge d'accumulateurs électriques", variable: "puissance", unite: "kW", description: "Déclaration uniquement (vérifié AIDA). Avec production d'hydrogène (batteries ouvertes) : seuil > 50 kW. Sans production d'hydrogène (batteries étanches) : seuil > 600 kW. Les IRVE ouvertes au public sont exclues (décret 2017-26).", fiche: "https://aida.ineris.fr/reglementation/2925-ateliers-charge-daccumulateurs-electriques", seuils: [{ max: 50, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Declaration", label: "Declaration" }] },
+  "2930": { intitule: "Ateliers de réparation et d'entretien de véhicules et engins à moteur", variable: "surface", unite: "m²", description: "Activité réparation/entretien (rubrique 2930-1) : 2000-5000 m² = Déclaration avec contrôle, > 5000 m² = Enregistrement. Le régime d'Autorisation a été SUPPRIMÉ par la loi 2017-1837 (vérifié AIDA).", fiche: "https://aida.ineris.fr/reglementation/2930-ateliers-reparation-dentretien-vehicules-engins-a-moteur", seuils: [{ max: 2000, regime: null, label: "Non ICPE" }, { max: 5000, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2940": { intitule: "Application/séchage de vernis, peinture, apprêt, colle, enduit sur support quelconque", variable: "quantite", unite: "kg/j", description: "Procédés autres que trempé (pulvérisation, enduction) : 10-100 kg/j = Déclaration avec contrôle, > 100 kg/j = Enregistrement (vérifié AIDA). Plus de régime Autorisation. Procédé au trempé exprimé en litres (100-1000 L = DC, > 1000 L = E) ; poudres résines : 20-200 kg/j = DC, > 200 = E.", fiche: "https://aida.ineris.fr/reglementation/2940-application-cuisson-sechage-vernis-peinture-appret-colle-enduit-etc", seuils: [{ max: 10, regime: null, label: "Non ICPE" }, { max: 100, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Enregistrement", label: "Enregistrement" }] },
+  "2950": { intitule: "Traitement et développement des surfaces photosensibles à base argentique", variable: "surface", unite: "m²/an", description: "Seuils en surface annuelle traitée, cas général (radiographie médicale, arts graphiques, photo, cinéma — vérifié AIDA) : 5000-50000 m²/an = Déclaration avec contrôle, > 50000 m²/an = Autorisation. Radiographie industrielle : 2000-20000 = DC, > 20000 = Autorisation.", fiche: "https://aida.ineris.fr/reglementation/2950-traitement-developpement-surfaces-photosensibles", seuils: [{ max: 5000, regime: null, label: "Non ICPE" }, { max: 50000, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2971": { intitule: "Production de chaleur/électricité à partir de déchets non dangereux préparés en CSR", variable: "quantite", unite: "t/an", description: "En vigueur (arrêtés 23/05/2016 modifiés 2020 et 01/12/2025). Autorisation sans seuil quantitatif ; 2 sous-cas (intégrée à un procédé industriel / autres), les deux en A.", fiche: "https://aida.ineris.fr/reglementation/2971-installation-production-chaleur-delectricite-a-partir-dechets-non-dangereux", seuils: [{ max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "2980": { intitule: "Installation terrestre d'éoliennes (aérogénérateurs)", variable: "puissance", unite: "MW", description: "Autorisation dès qu'un aérogénérateur a un mât ≥50 m (quelle que soit la puissance), sinon (tous mâts 12-50 m) : A si puissance ≥20 MW, D si <20 MW. Non classé si aucun mât n'atteint 12 m.", fiche: "https://aida.ineris.fr/reglementation/2980-installation-terrestre-production-delectricite-a-partir-lenergie-mecanique-vent", seuils: [{ max: 20, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3110": { intitule: "Combustion de combustibles dans des installations ≥ 50 MW", variable: "puissance", unite: "MW", description: "Rubrique IED en vigueur (créée par Décret 2013-375 du 2 mai 2013, AM du 3 août 2018). Seuil unique : puissance thermique nominale totale ≥ 50 MW = Autorisation (pas d'Enregistrement pour les rubriques 3000). En dessous de 50 MW on relève de la 2910.", fiche: "https://aida.ineris.fr/reglementation/3110-combustion", seuils: [{ max: 50, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3210": { intitule: "Grillage ou frittage de minerai métallique (y compris sulfuré)", variable: "quantite", unite: "t/j", description: "Rubrique IED (Annexe I 2.1) sans seuil chiffré : classement en Autorisation dès que l'activité de grillage ou frittage de minerai métallique existe.", fiche: "https://aida.ineris.fr/reglementation/3210-grillage-frittage-minerai-metallique", seuils: [{ max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3230": { intitule: "Transformation des métaux ferreux", variable: "debit", unite: "t/h", description: "IED 3.2.3 : a) laminoirs à chaud > 20 t acier brut/h ; b) forgeage marteaux > 50 kJ/marteau et puissance calorifique > 20 MW ; c) couches de protection métal en fusion > 2 t acier brut/h. Régime Autorisation uniquement. Rubrique en vigueur (loi 2017 a supprimé la TGAP, pas la rubrique). Seuil principal modélisé = laminoirs 20 t/h.", fiche: "https://aida.ineris.fr/reglementation/3230-transformation-metaux-ferreux", seuils: [{ max: 20, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3250": { intitule: "Transformation de métaux et alliages non ferreux", variable: "quantite", unite: "t/j", description: "IED 2.5 : a) production de métaux bruts non ferreux (minerais/concentrés/matières secondaires) sans seuil ; b) fusion/alliage (y compris produits de récupération et fonderies) avec capacité > 4 t/j pour plomb et cadmium ou > 20 t/j pour les autres métaux. Régime unique Autorisation (ni Enregistrement ni Déclaration). Seuils vérifiés sur fiche AIDA.", fiche: "https://aida.ineris.fr/reglementation/3250-transformation-metaux-alliages-non-ferreux", seuils: [{ max: 20, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3310": { intitule: "Production de ciment, chaux et oxyde de magnésium", variable: "quantite", unite: "t/j", description: "IED 3.1 : a) clinker en four rotatif > 500 t/j ou autres fours > 50 t/j ; b) chaux en four > 50 t/j ; c) oxyde de magnésium en four > 50 t/j. Seuil bas modélisé = 50 t/j.", fiche: "https://aida.ineris.fr/reglementation/3310-production-ciment-chaux-oxyde-magnesium", seuils: [{ max: 50, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3410": { intitule: "Fabrication en quantité industrielle de produits chimiques organiques", variable: "quantite", unite: "t/j", description: "IED 4.1 : fabrication par transformation chimique ou biologique de produits chimiques organiques (11 familles). Aucun seuil chiffré : critère = « quantité industrielle » → Autorisation.", fiche: "https://aida.ineris.fr/reglementation/3410-fabrication-produits-chimiques-organiques", seuils: [{ max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3510": { intitule: "Traitement de déchets dangereux", variable: "quantite", unite: "t/j", description: "Rubrique IED (annexe I directive 2010/75/UE) : élimination ou valorisation de déchets dangereux de capacité > 10 t/j (traitement biologique, physico-chimique, mélange, regroupement, régénération, etc.). Toujours soumise à Autorisation, application des MTD obligatoire.", fiche: "https://aida.ineris.fr/reglementation/3510traitement-dechets-dangereux", seuils: [{ max: 10, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3520": { intitule: "Incinération ou coïncinération de déchets", variable: "debit", unite: "t/h", description: "IED 5.2 : a) déchets non dangereux > 3 t/h ; b) déchets dangereux > 10 t/j. Variable modélisée = t/h (non dangereux) ; seuil déchets dangereux exprimé en 10 t/j.", fiche: "https://aida.ineris.fr/reglementation/3520-incineration-coincineration-dechets", seuils: [{ max: 3, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3531": { intitule: "Élimination de déchets non dangereux non inertes", variable: "quantite", unite: "t/j", description: "IED 5.3.a : élimination de déchets non dangereux non inertes (capacité > 50 t/j) — traitement biologique, physico-chimique, prétraitement avant incinération, traitement laitier/cendres, broyage de déchets métalliques. Régime Autorisation uniquement (pas d'Enregistrement pour les rubriques 3xxx IED). À ne pas confondre avec la 3532 (valorisation, > 75 t/j).", fiche: "https://aida.ineris.fr/reglementation/3531-elimination-dechets-non-dangereux", seuils: [{ max: 50, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3540": { intitule: "Installation de stockage de déchets (hors 2720 et 2760-3)", variable: "quantite", unite: "t/j", description: "Rubrique IED (5.4) : installation de stockage de déchets autre que celles des rubriques 2720 et 2760-3, recevant > 10 t/j OU de capacité totale > 25 000 t. Régime unique Autorisation, pas d'Enregistrement ni Déclaration.", fiche: "https://aida.ineris.fr/reglementation/3540-installation-stockage-dechets", seuils: [{ max: 10, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3550": { intitule: "Stockage temporaire de déchets dangereux", variable: "quantite", unite: "t", description: "IED 5.5 : stockage temporaire de déchets dangereux ne relevant pas de la rubrique 3540, en attente d'une activité des rubriques 3510/3520/3540/3560, capacité totale > 50 t ; exclut le stockage sur le site de production en attente de collecte.", fiche: "https://aida.ineris.fr/reglementation/3550-stockage-temporaire-dechets", seuils: [{ max: 50, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3560": { intitule: "Stockage souterrain de déchets dangereux", variable: "quantite", unite: "t", description: "IED 5.6 : stockage souterrain de déchets dangereux avec capacité totale > 50 t (rubrique créée par décret 2013-375, en vigueur).", fiche: "https://aida.ineris.fr/reglementation/3560-stockage-souterrain-dechets-dangereux", seuils: [{ max: 50, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3660": { intitule: "Élevage intensif de volailles ou de porcs", variable: "quantite", unite: "emplacements", description: "IED 6.6 (en vigueur) : a) > 40 000 emplacements volailles ; b) > 2 000 emplacements porcs de production (> 30 kg) ; c) > 750 emplacements truies. Réforme IED 2.0 (décret n°2026-46 du 02/02/26, unités de cheptel) PAS encore en vigueur (art. 2 : entrée différée à l'acte d'exécution de la directive 2010/75/UE).", fiche: "https://aida.ineris.fr/reglementation/3660-elevage-intensif", seuils: [{ max: 40000, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3670": { intitule: "Traitement de surface à l'aide de solvants organiques", variable: "debit", unite: "kg/h", description: "IED 6.7 : traitement de surface (apprêt, impression, dégraissage, peinture, collage, etc.) avec capacité de consommation de solvant organique > 150 kg/h ou > 200 t/an.", fiche: "https://aida.ineris.fr/reglementation/3670-traitement-surface-matieres-dobjets-produits-a-laide-solvants-organiques", seuils: [{ max: 150, regime: null, label: "Non ICPE" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3690": { intitule: "Captage des flux de CO2 en vue du stockage géologique", variable: "quantite", unite: "Mt/an", description: "Rubrique IED (3xxx) EN VIGUEUR, créée par décret n°2013-375 du 02/05/2013. Régime unique Autorisation, SANS seuil quantitatif : le classement dépend de l'origine du CO2 (installations soumises à autorisation), pas d'un tonnage. Intitulé officiel : « Captage des flux de CO2 provenant d'installations classées soumises à autorisation, en vue du stockage géologique ».", fiche: "https://aida.ineris.fr/reglementation/3690-captage-flux-co2", seuils: [{ max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "3710": { intitule: "Traitement des eaux résiduaires en installations autonomes (IED)", variable: "debit", unite: "m³/j", description: "Rubrique IED (cat. 6.11). Intitulé officiel : « Traitement des eaux résiduaires dans des installations autonomes relevant de la rubrique 2750 et qui sont rejetées par une ou plusieurs installations relevant de la section 8 du chapitre V du titre Ier du livre V » (= effluents d'installations IED 3xxx). Régime unique Autorisation, aucun seuil chiffré (vérifié AIDA, nomenclature v57).", fiche: "https://aida.ineris.fr/reglementation/3710-traitement-eaux-residuaires", seuils: [{ max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4110": { intitule: "Toxicité aiguë catégorie 1 (hors uranium et ses composés)", variable: "quantite", unite: "t", description: "Seuils du palier SOLIDES (vérifiés AIDA) : DC 0,2-1 t, A >=1 t. Liquides : DC 50-250 kg, A >=250 kg ; gaz : DC 10-50 kg, A >=50 kg. Seveso bas 5 t / haut 20 t.", fiche: "https://aida.ineris.fr/reglementation/4110-toxicite-aigue-categorie-1-lune-moins-voies-dexposition-a-lexclusion-luranium", seuils: [{ max: 0.2, regime: null, label: "Non ICPE" }, { max: 1, regime: "Declaration", label: "Declaration avec controle" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4120": { intitule: "Toxicité aiguë catégorie 2, pour l'une au moins des voies d'exposition", variable: "quantite", unite: "t", description: "Seuils du palier SOLIDES (vérifiés AIDA) : D 5-50 t, A >=50 t. Liquides : D 1-10 t, A >=10 t ; gaz : D 200 kg-2 t, A >=2 t. Pas de régime Enregistrement. Seveso bas 50 t / haut 200 t.", fiche: "https://aida.ineris.fr/reglementation/4120-toxicite-aigue-categorie-2-lune-moins-voies-dexposition", seuils: [{ max: 5, regime: null, label: "Non ICPE" }, { max: 50, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4130": { intitule: "Toxicité aiguë catégorie 3 (voie d'exposition par inhalation)", variable: "quantite", unite: "t", description: "Seuils du palier SOLIDES (vérifiés AIDA) : D 5-50 t, A >=50 t. Liquides : D 1-10 t, A >=10 t ; gaz : D 200 kg-2 t, A >=2 t. Seveso bas 50 t / haut 200 t.", fiche: "https://aida.ineris.fr/reglementation/4130-toxicite-aigue-categorie-3-voies-dexposition-inhalation", seuils: [{ max: 5, regime: null, label: "Non ICPE" }, { max: 50, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4210": { intitule: "Produits explosifs (hors fabrication industrielle par transformation chimique)", variable: "quantite", unite: "kg", description: "Produits EXPLOSIFS (pas gaz inflammables). Quantite de matiere active : DC 1-100 kg, A >=100 kg. Les seuils precis varient selon la division de risque (1.1 a 1.6). Seveso bas/haut 10 t.", fiche: "https://aida.ineris.fr/reglementation/4210-produits-explosifs-a-lexclusion-fabrication-industrielle-transformation", seuils: [{ max: 1, regime: null, label: "Non ICPE" }, { max: 100, regime: "Declaration", label: "Declaration avec controle" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4310": { intitule: "Gaz inflammables catégorie 1 et 2", variable: "quantite", unite: "t", description: "Gaz inflammables cat. 1 et 2 (H220/H221), non liquefies. Vérifié AIDA : DC 1-10 t, A >=10 t. Seveso bas 10 t / haut 50 t. Pas de regime Enregistrement.", fiche: "https://aida.ineris.fr/reglementation/4310-gaz-inflammables-categorie-1-2", seuils: [{ max: 1, regime: null, label: "Non ICPE" }, { max: 10, regime: "Declaration", label: "Declaration avec controle" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4320": { intitule: "Aérosols inflammables cat. 1/2 (avec gaz infl. 1/2 ou liquide infl. 1)", variable: "quantite", unite: "t", description: "Aerosols extremement inflammables/inflammables cat 1-2 contenant gaz infl. cat 1-2 ou liquides infl. cat 1. Vérifié AIDA : D 15-150 t, A >=150 t. Seveso bas 150 t / haut 500 t.", fiche: "https://aida.ineris.fr/reglementation/4320-aerosols-extremement-inflammables-inflammables-categorie-1-2-contenant-gaz", seuils: [{ max: 15, regime: null, label: "Non ICPE" }, { max: 150, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4330": { intitule: "Liquides inflammables de catégorie 1", variable: "quantite", unite: "t", description: "Liquides infl. cat 1 (et liquides maintenus au-dessus de leur point d'ebullition). Vérifié AIDA : DC 1-10 t, A >=10 t. Seveso bas 10 t / haut 50 t. Pas d'Enregistrement.", fiche: "https://aida.ineris.fr/reglementation/4330-liquides-inflammables-categorie-1-liquides-inflammables-maintenus-a-temperature", seuils: [{ max: 1, regime: null, label: "Non ICPE" }, { max: 10, regime: "Declaration", label: "Declaration avec controle" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4331": { intitule: "Liquides inflammables de catégorie 2 ou 3 (hors rubrique 4330)", variable: "quantite", unite: "t", description: "Vérifié AIDA : DC 50-100 t, E 100-1000 t, A >=1000 t. C'est la rubrique des fiouls/gazole/carburants courants. Seveso bas 5000 t / haut 50000 t.", fiche: "https://aida.ineris.fr/reglementation/4331-liquides-inflammables-categorie-2-categorie-3-a-lexclusion-rubrique-4330", seuils: [{ max: 50, regime: null, label: "Non ICPE" }, { max: 100, regime: "Declaration", label: "Declaration avec controle" }, { max: 1000, regime: "Enregistrement", label: "Enregistrement" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4440": { intitule: "Solides comburants catégorie 1, 2 ou 3", variable: "quantite", unite: "t", description: "4440 = solides COMBURANTS (pas inflammables). Vérifié AIDA : D 2-50 t, A >=50 t, pas d'Enregistrement. Seveso bas 50 t / haut 200 t. En vigueur (AM 01/08/19).", fiche: "https://aida.ineris.fr/reglementation/4440-solides-comburants-categorie-1-2-3", seuils: [{ max: 2, regime: null, label: "Non ICPE" }, { max: 50, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4510": { intitule: "Dangereux pour l'environnement aquatique aiguë 1 ou chronique 1", variable: "quantite", unite: "t", description: "Substances/melanges H400 ou H410. Verifie AIDA : DC 20-100 t, A >=100 t. Seveso bas 100 t / haut 200 t. Pas d'Enregistrement.", fiche: "https://aida.ineris.fr/reglementation/4510-dangereux-lenvironnement-aquatique-categorie-aigue-1-chronique-1", seuils: [{ max: 20, regime: null, label: "Non ICPE" }, { max: 100, regime: "Declaration", label: "Declaration avec controle" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4715": { intitule: "Hydrogène (n° CAS 1333-74-0)", variable: "quantite", unite: "t", description: "Vérifié AIDA : D 100 kg-1 t, A >=1 t. Seveso bas 5 t / haut 50 t. (Stations de distribution H2 < seuil = rubrique 1416.)", fiche: "https://aida.ineris.fr/reglementation/4715-hydrogene-numero-cas-1333-74-0", seuils: [{ max: 0.1, regime: null, label: "Non ICPE" }, { max: 1, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4718": { intitule: "Gaz inflammables liquéfiés cat. 1 et 2 (y compris GPL) et gaz naturel", variable: "quantite", unite: "t", description: "Palier 'autres installations' vérifié AIDA : DC 6-50 t, A >=50 t. En recipients sous pression transportables : A des >=35 t. Seveso bas 50 t / haut 200 t.", fiche: "https://aida.ineris.fr/reglementation/4718-gaz-inflammables-liquefies-categorie-1-2-compris-gpl-gaz-naturel-compris-biogaz", seuils: [{ max: 6, regime: null, label: "Non ICPE" }, { max: 50, regime: "Declaration", label: "Declaration avec controle" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4734": { intitule: "Produits pétroliers spécifiques et carburants de substitution", variable: "quantite", unite: "t", description: "Palier 'autres stockages' vérifié AIDA : DC des 50 t (ou 50 t essence), E des 100 t essence ou 500 t total, A >=1000 t. Stockages enterres : seuils differents (A 2500 t / E 1000 t / DC 250 t total ou 50 t essence). Seveso bas 2500 t / haut 25000 t.", fiche: "https://aida.ineris.fr/reglementation/4734-produits-petroliers-specifiques-carburants-substitution-essences-naphtas", seuils: [{ max: 50, regime: null, label: "Non ICPE" }, { max: 500, regime: "Declaration", label: "Declaration avec controle" }, { max: 1000, regime: "Enregistrement", label: "Enregistrement" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4735": { intitule: "Ammoniac", variable: "quantite", unite: "t", description: "Palier recipients <=50 kg vérifié AIDA : DC 150 kg-5 t, A >=5 t. Recipients >50 kg : DC 150 kg-1,5 t, A >=1,5 t. Seveso bas 50 t / haut 200 t.", fiche: "https://aida.ineris.fr/reglementation/4735-ammoniac", seuils: [{ max: 0.15, regime: null, label: "Non ICPE" }, { max: 5, regime: "Declaration", label: "Declaration avec controle" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4741": { intitule: "Mélanges d'hypochlorite de sodium (< 5 % de chlore actif, H400)", variable: "quantite", unite: "t", description: "Mélanges hypochlorite de sodium, toxicité aquatique aiguë 1 (H400), < 5 % chlore actif. Vérifié AIDA INERIS : DC 20-200 t, A >= 200 t. Pas d'Enregistrement. Seveso bas 200 t / haut 500 t. En vigueur (nomenclature 4000, 1er juin 2015).", fiche: "https://aida.ineris.fr/reglementation/4741-melanges-dhypochlorite-sodium-classes-categorie-toxicite-aquatique-aigue-1-h400", seuils: [{ max: 20, regime: null, label: "Non ICPE" }, { max: 200, regime: "Declaration", label: "Declaration avec controle" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] },
+  "4801": { intitule: "Houille, coke, lignite, charbon de bois, goudron, asphalte, brais et matières bitumineuses", variable: "quantite", unite: "t", description: "Combustibles solides. Vérifié AIDA : D 50-500 t, A >=500 t (pas d'Enregistrement). Remplace l'ancienne rubrique 1520 (abrogée le 1er juin 2015).", fiche: "https://aida.ineris.fr/reglementation/4801-houille-coke-lignite-charbon-bois-goudron-asphalte-brais-matieres-bitumineuses", seuils: [{ max: 50, regime: null, label: "Non ICPE" }, { max: 500, regime: "Declaration", label: "Declaration" }, { max: Infinity, regime: "Autorisation", label: "Autorisation" }] }
 };
 
 const PRESCRIPTION_CATEGORIES = [
@@ -1456,16 +1131,16 @@ const PRESCRIPTION_CATEGORIES = [
 ];
 
 const AIDA_URLS = {
-  '1185': { fiche: 'https://aida.ineris.fr/reglementation/1185-ammoniac', arrete: null },
-  '1435': { fiche: 'https://aida.ineris.fr/reglementation/1435-stations-service', arrete: null },
-  '1436': { fiche: 'https://aida.ineris.fr/reglementation/1436-liquides-inflammables', arrete: null },
+  '1185': { fiche: 'https://aida.ineris.fr/reglementation/1185-gaz-a-effet-serre-fluores-vises-a-lannexe-i-reglement-ue-ndeg-5172014-relatif', arrete: null },
+  '1435': { fiche: 'https://aida.ineris.fr/reglementation/1435-stations-service-installations-ouvertes-non-public-carburants-sont-transferes', arrete: null },
+  '1436': { fiche: 'https://aida.ineris.fr/reglementation/1436-liquides-point-eclair-compris-entre-60deg-93deg-a-lexception-boissons', arrete: null },
   '1450': { fiche: 'https://aida.ineris.fr/reglementation/1450-solides-inflammables', arrete: null },
   '1510': {
     fiche: 'https://aida.ineris.fr/reglementation/1510-stockage-matieres-produits-substances-combustibles-entrepots-couverts',
     arrete: 'https://aida.ineris.fr/reglementation/arrete-110417-relatif-prescriptions-generales-applicables-entrepots-couverts-soumis'
   },
-  '1511': { fiche: 'https://aida.ineris.fr/reglementation/1511-entrepots-frigorifiques', arrete: null },
-  '1520': { fiche: 'https://aida.ineris.fr/reglementation/1520-houille-coke-lignite-charbon', arrete: null },
+  '1511': { fiche: 'https://aida.ineris.fr/reglementation/1511-entrepots-frigorifiques-a-lexception-depots-utilises-stockage-categories', arrete: null },
+  '1520': { fiche: 'https://aida.ineris.fr/reglementation/1520-depots-houille-coke-lignite-charbon-bois-goudron-asphalte-brais-matieres', arrete: null },
   '1530': {
     fiche: 'https://aida.ineris.fr/reglementation/1530-depots-papiers-cartons-materiaux-combustibles-analogues',
     arrete: 'https://aida.ineris.fr/reglementation/arrete-150410-relatif-prescriptions-generales-applicables-depots-papier-carton'
@@ -1474,47 +1149,65 @@ const AIDA_URLS = {
     fiche: 'https://aida.ineris.fr/reglementation/1532-stockage-bois-materiaux-combustibles-analogues',
     arrete: 'https://aida.ineris.fr/reglementation/arrete-110913-relatif-prescriptions-generales-applicables-installations-relevant'
   },
-  '2160': { fiche: 'https://aida.ineris.fr/reglementation/2160-silos-stockage-cereales', arrete: null },
-  '2515': { fiche: 'https://aida.ineris.fr/reglementation/2515-broyage-concassage-criblage', arrete: null },
-  '2516': { fiche: 'https://aida.ineris.fr/reglementation/2516-transit-produits-mineraux', arrete: null },
-  '2517': { fiche: 'https://aida.ineris.fr/reglementation/2517-transit-dechets-non-dangereux', arrete: null },
-  '2518': { fiche: 'https://aida.ineris.fr/reglementation/2518-tri-dechets-menagers', arrete: null },
-  '2560': { fiche: 'https://aida.ineris.fr/reglementation/2560-travail-metaux', arrete: null },
-  '2660': { fiche: 'https://aida.ineris.fr/reglementation/2660-matieres-plastiques', arrete: null },
+  '2160': { fiche: 'https://aida.ineris.fr/reglementation/2160-silos-installations-stockage-vrac-cereales-grains-produits-alimentaires-tout', arrete: null },
+  '2515': { fiche: 'https://aida.ineris.fr/reglementation/2515-broyage-concassage-criblage-ensachage-pulverisation-nettoyage-tamisage-melange', arrete: null },
+  '2516': { fiche: 'https://aida.ineris.fr/reglementation/2516-station-transit-produits-mineraux-pulverulents-non-ensaches-tels-ciments', arrete: null },
+  '2517': { fiche: 'https://aida.ineris.fr/reglementation/2517-station-transit-regroupement-tri-produits-mineraux-dechets-non-dangereux', arrete: null },
+  '2518': { fiche: 'https://aida.ineris.fr/reglementation/2518-installation-production-beton-pret-a-lemploi-equipee-dun-dispositif', arrete: null },
+  '2560': { fiche: 'https://aida.ineris.fr/reglementation/2560-travail-mecanique-metaux-alliages', arrete: null },
+  '2660': { fiche: 'https://aida.ineris.fr/reglementation/2660-fabrication-industrielle-regeneration-polymeres', arrete: null },
   '2662': { fiche: 'https://aida.ineris.fr/reglementation/2662-stockage-polymeres', arrete: null },
-  '2663': { fiche: 'https://aida.ineris.fr/reglementation/2663-stockage-pneumatiques-produits-caoutchouc', arrete: null },
-  '2710': { fiche: 'https://aida.ineris.fr/reglementation/2710-collecte-dechets', arrete: null },
-  '2714': { fiche: 'https://aida.ineris.fr/reglementation/2714-dechets-inertes', arrete: null },
-  '2716': { fiche: 'https://aida.ineris.fr/reglementation/2716-dechets-non-dangereux', arrete: null },
-  '2718': { fiche: 'https://aida.ineris.fr/reglementation/2718-dechets-dangereux', arrete: null },
-  '2760': { fiche: 'https://aida.ineris.fr/reglementation/2760-stockage-dechets', arrete: null },
-  '2910': { fiche: 'https://aida.ineris.fr/reglementation/2910-combustion', arrete: null },
-  '2921': { fiche: 'https://aida.ineris.fr/reglementation/2921-tours-aerorefrigerantes', arrete: null },
-  '2925': { fiche: 'https://aida.ineris.fr/reglementation/2925-charge-accumulateurs', arrete: null },
-  '2930': { fiche: 'https://aida.ineris.fr/reglementation/2930-reparation-vehicules', arrete: null },
-  '2935': { fiche: 'https://aida.ineris.fr/reglementation/2935-parcs-stationnement', arrete: null },
-  '2940': { fiche: 'https://aida.ineris.fr/reglementation/2940-peintures-vernis', arrete: null }
+  '2663': { fiche: 'https://aida.ineris.fr/reglementation/2663-stockage-pneumatiques-produits-composes-dau-moins-50-polymeres', arrete: null },
+  '2710': { fiche: 'https://aida.ineris.fr/reglementation/2710-installation-collecte-dechets-apportes-producteur-initial-dechets-a-lexclusion', arrete: null },
+  '2714': { fiche: 'https://aida.ineris.fr/reglementation/2714-installation-transit-regroupement-tri-preparation-vue-reutilisation-dechets-non', arrete: null },
+  '2716': { fiche: 'https://aida.ineris.fr/reglementation/2716-transit-regroupement-tri-preparation-vue-reutilisation-dechets-non-dangereux', arrete: null },
+  '2718': { fiche: 'https://aida.ineris.fr/reglementation/2718-installation-transit-regroupement-tri-dechet-dangereux-a-lexclusion', arrete: null },
+  '2760': { fiche: 'https://aida.ineris.fr/reglementation/2760-installation-stockage-dechets-a-lexclusion-installations-visees-a-rubrique-2720', arrete: null },
+  '2910': { fiche: 'https://aida.ineris.fr/reglementation/2910-combustion-a-lexclusion-installations-visees-rubriques-2770-2771-2971-2931', arrete: null },
+  '2921': { fiche: 'https://aida.ineris.fr/reglementation/2921-refroidissement-evaporatif-dispersion-deau-flux-dair-genere-ventilation', arrete: null },
+  '2925': { fiche: 'https://aida.ineris.fr/reglementation/2925-ateliers-charge-daccumulateurs-electriques', arrete: null },
+  '2930': { fiche: 'https://aida.ineris.fr/reglementation/2930-ateliers-reparation-dentretien-vehicules-engins-a-moteur', arrete: null },
+  // 2935 : rubrique supprimee de la nomenclature au 01/07/2006 — aucune fiche AIDA
+  '2935': { fiche: null, arrete: null },
+  '2940': { fiche: 'https://aida.ineris.fr/reglementation/2940-application-cuisson-sechage-vernis-peinture-appret-colle-enduit-etc', arrete: null }
 };
 
-// API config — Edge Function Supabase
-const SUPABASE_URL = 'https://awhbjbuxbcxszlxcbpjb.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF3aGJqYnV4YmN4c3pseGNicGpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgzOTM5NTgsImV4cCI6MjA4Mzk2OTk1OH0.za0Cg7EbcPYGlVckQf_8CNmRY9FbaDB-20OCLFZzSV0';
+// API config — Edge Function Supabase (self-host VM, même origine que la page,
+// Caddy proxie /functions/* → Kong). Avant : Cloud dormant awhbjbuxbcxszlxcbpjb.
+const SUPABASE_URL = window.location.origin;
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzc5Nzk2MzUzLCJleHAiOjE5Mzc0NzYzNTN9.AjoXN-ixza0_NW_a-fgT7KQFfvWXaFtahnDoKmER5Dw';
+
+// Modèle dédié au chatbot expert ICPE : Pro (raisonnement) plutôt que Flash.
+// L'extraction des prescriptions reste sur Flash (volume) côté edge function.
+const ICPE_CHAT_MODEL = 'gemini-3.1-pro-preview';
 
 // Chat via Edge Function (chatbot + analyse contextuelle)
-async function callEdgeFunctionChat(prompt, temperature = 0.3, maxTokens = 4000) {
+// Les prompts IA ne sont plus construits ici : ils vivent dans la table
+// ai_prompts (onglet « Prompts IA » de l'admin) et sont assembles cote Edge
+// Function. Le navigateur n'envoie que le contexte structure.
+async function callIcpeFunction(payload) {
   const response = await fetch(`${SUPABASE_URL}/functions/v1/icpe-prescriptions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
     },
-    body: JSON.stringify({ mode: 'chat', prompt, temperature, maxTokens })
+    body: JSON.stringify(payload)
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
     throw new Error(err.error || `Erreur serveur (${response.status})`);
   }
   return await response.json();
+}
+
+// Rubriques selectionnees, mises a plat pour l'Edge Function.
+function selectedRubriquesPayload() {
+  return Array.from(state.selectedRubriques).map(code => ({
+    code,
+    intitule: ICPE_DATA[code]?.intitule || '',
+    regime: getRegimeInfo(code).label
+  }));
 }
 
 async function callEdgeFunction(rubriques, mode) {
@@ -1653,6 +1346,14 @@ const ARRETES_DB = {
     enregistrement: { title: 'Arrete du 12/05/20', url: 'https://aida.ineris.fr/reglementation/arrete-120520-relatif-prescriptions-generales-applicables-installations-relevant-1' }
   }
 };
+
+// Helper: fiche/arrêté AIDA pour une rubrique — fallback sur le champ fiche de l'entrée
+function getAidaUrls(code) {
+  const u = AIDA_URLS[code];
+  if (u && u.fiche) return u;
+  const d = ICPE_DATA[code];
+  return { fiche: (d && d.fiche) || null, arrete: (u && u.arrete) || null };
+}
 
 // Helper: get arrêté URLs for a rubrique + regime
 function getArretesForRubrique(code, regime) {
@@ -2030,6 +1731,7 @@ function renderPrescriptionsTable() {
   headerRow.innerHTML = '<th style="min-width:180px;">Theme</th>';
   tableBody.innerHTML = '';
   noPrescContainer.innerHTML = '';
+  renderGlossary('glossaryStep3', []);
 
   const rubriques = Array.from(state.selectedRubriques);
 
@@ -2050,7 +1752,7 @@ function renderPrescriptionsTable() {
   withoutPresc.forEach(code => {
     const data = ICPE_DATA[code];
     const info = getRegimeInfo(code);
-    const urls = AIDA_URLS[code];
+    const urls = getAidaUrls(code);
     let linkHtml = '';
     if (urls && urls.fiche) {
       linkHtml = `<a href="${urls.fiche}" target="_blank">Fiche AIDA rubrique ${code}</a>`;
@@ -2097,14 +1799,14 @@ function renderPrescriptionsTable() {
         const info = getRegimeInfo(code);
         const regime = info.regime;
         const val = getPrescription(code, regime, cat.id, item);
-        row += `<td class="${val === '-' ? 'empty' : ''}">${val}</td>`;
+        row += `<td class="${val === '-' ? 'empty' : ''}">${formatPresc(val)}</td>`;
 
         if (state.comparisonMode) {
           const nextRegime = getNextRegime(code);
           if (nextRegime) {
             const nextVal = getPrescription(code, nextRegime, cat.id, item);
             const isDiff = nextVal !== val && nextVal !== '-';
-            row += `<td class="${isDiff ? 'diff' : ''} ${nextVal === '-' ? 'empty' : ''}">${nextVal}</td>`;
+            row += `<td class="${isDiff ? 'diff' : ''} ${nextVal === '-' ? 'empty' : ''}">${formatPresc(nextVal)}</td>`;
           }
         }
       });
@@ -2113,6 +1815,8 @@ function renderPrescriptionsTable() {
       tableBody.innerHTML += row;
     });
   });
+
+  renderGlossary('glossaryStep3', withPresc);
 }
 
 function getColSpan(rubriques) {
@@ -2214,58 +1918,12 @@ async function callGemini() {
   panel.classList.add('visible');
   content.innerHTML = '<div class="ai-loading"><div class="ai-spinner"></div>Analyse en cours...</div>';
 
-  const rubriques = Array.from(state.selectedRubriques);
-  const rubriquesInfo = rubriques.map(code => {
-    const data = ICPE_DATA[code];
-    const info = getRegimeInfo(code);
-    return `Rubrique ${code} (${data.intitule}): Regime ${info.label}`;
-  }).join('\n');
-
-  // Inclure les prescriptions extraites pour une analyse pertinente
-  let prescSummary = '';
-  if (state.prescriptionsData) {
-    prescSummary = '\n\nPrescriptions extraites des arretes:\n';
-    for (const code of rubriques) {
-      const rubData = state.prescriptionsData[code];
-      if (!rubData) continue;
-      const regime = Object.keys(rubData)[0];
-      const presc = rubData[regime];
-      if (!presc) continue;
-      prescSummary += `\n--- Rubrique ${code} (${regime}) ---\n`;
-      for (const [cat, fields] of Object.entries(presc)) {
-        if (typeof fields === 'object' && fields !== null) {
-          for (const [key, val] of Object.entries(fields)) {
-            if (val && val !== 'Non precise dans l\'arrete' && val !== 'Selon arrete prefectoral') {
-              prescSummary += `${cat} > ${key}: ${val}\n`;
-            }
-          }
-        }
-      }
-    }
-  }
-
-  const prompt = `Tu es un expert ICPE specialise dans les entrepots et batiments industriels en France.
-
-Voici les rubriques identifiees pour ce projet:
-${rubriquesInfo}
-${prescSummary}
-
-A partir des prescriptions extraites ci-dessus, fournis une analyse contextuelle:
-1. Interactions et cumuls entre les rubriques: quand plusieurs rubriques imposent des prescriptions sur le meme theme, identifie la valeur la PLUS CONTRAIGNANTE (ex: la distance la plus grande, le REI le plus eleve)
-2. Points de vigilance specifiques a cette combinaison
-3. Prescriptions qui se cumulent ou entrent en conflit — avec les valeurs chiffrees
-4. Recommandations pratiques pour le maitre d'ouvrage
-
-Reponds en JSON avec cette structure:
-{
-  "interactions": "texte sur les interactions entre rubriques",
-  "vigilance": ["point 1", "point 2", ...],
-  "cumuls": "texte sur les cumuls de prescriptions",
-  "recommandations": ["reco 1", "reco 2", ...]
-}`;
-
   try {
-    const result = await callEdgeFunctionChat(prompt, 0.2, 4000);
+    const result = await callIcpeFunction({
+      mode: 'analyse',
+      rubriques: selectedRubriquesPayload(),
+      prescriptions: state.prescriptionsData || null
+    });
 
     let text = result.text;
     if (text.startsWith('```json')) text = text.slice(7);
@@ -2350,13 +2008,13 @@ function renderStep4() {
         withPresc.forEach(code => {
           const info = getRegimeInfo(code);
           const val = getPrescription(code, info.regime, cat.id, item);
-          html += `<td class="${val === '-' ? 'empty' : ''}">${val}</td>`;
+          html += `<td class="${val === '-' ? 'empty' : ''}">${formatPresc(val)}</td>`;
         });
         html += '</tr>';
       });
     });
 
-    html += '</tbody></table></div></div>';
+    html += '</tbody></table></div><div id="glossaryStep4"></div></div>';
   }
 
   // Note for rubriques without prescriptions
@@ -2366,7 +2024,7 @@ function renderStep4() {
     withoutPresc.forEach(code => {
       const data = ICPE_DATA[code];
       const info = getRegimeInfo(code);
-      const urls = AIDA_URLS[code];
+      const urls = getAidaUrls(code);
       html += `<p style="margin-bottom:8px;font-size:13px;"><strong>${code}</strong> — ${data.intitule} (${info.label}). `;
       if (urls && urls.fiche) {
         html += `<a href="${urls.fiche}" target="_blank" style="color:var(--accent);">Consulter la fiche AIDA</a>`;
@@ -2377,6 +2035,7 @@ function renderStep4() {
   }
 
   container.innerHTML = html;
+  if (withPresc.length > 0) renderGlossary('glossaryStep4', withPresc);
 
   // Documents
   renderDocuments();
@@ -2387,7 +2046,7 @@ function renderDocuments() {
   grid.innerHTML = '';
 
   state.selectedRubriques.forEach(code => {
-    const urls = AIDA_URLS[code];
+    const urls = getAidaUrls(code);
     if (urls && urls.fiche) {
       grid.innerHTML += `<a href="${urls.fiche}" target="_blank" class="doc-link"><span style="font-size:18px;">&#128196;</span> Fiche AIDA ${code}</a>`;
     }
@@ -2396,7 +2055,7 @@ function renderDocuments() {
     }
   });
 
-  grid.innerHTML += `<a href="https://aida.ineris.fr/sites/default/files/2023-03/BrochureNom_v53public.pdf" target="_blank" class="doc-link"><span style="font-size:18px;">&#128218;</span> Nomenclature complete (PDF)</a>`;
+  grid.innerHTML += `<a href="https://aida.ineris.fr/sites/default/files/2026-07/BrochureNom_v58.pdf" target="_blank" class="doc-link"><span style="font-size:18px;">&#128218;</span> Nomenclature complete (PDF)</a>`;
 }
 
 // ======================================================
@@ -2413,57 +2072,18 @@ async function sendChat() {
   addChatMessage(msg, 'user');
   input.value = '';
 
-  const rubriques = Array.from(state.selectedRubriques);
-  const context = rubriques.map(code => {
-    const data = ICPE_DATA[code];
-    const info = getRegimeInfo(code);
-    return `Rubrique ${code} (${data.intitule}): Regime ${info.label}`;
-  }).join('\n');
-
-  // Inclure les prescriptions extraites dans le contexte du chatbot
-  let prescContext = '';
-  if (state.prescriptionsData) {
-    prescContext = '\n\nPRESCRIPTIONS EXTRAITES DES ARRETES :\n';
-    for (const code of rubriques) {
-      const rubData = state.prescriptionsData[code];
-      if (!rubData) continue;
-      const regime = Object.keys(rubData)[0];
-      const presc = rubData[regime];
-      if (!presc) continue;
-      prescContext += `\n--- Rubrique ${code} (${regime}) ---\n`;
-      for (const [cat, fields] of Object.entries(presc)) {
-        if (typeof fields === 'object' && fields !== null) {
-          for (const [key, val] of Object.entries(fields)) {
-            if (val && val !== 'Non precise dans l\'arrete' && val !== 'Selon arrete prefectoral') {
-              prescContext += `${cat} > ${key}: ${val}\n`;
-            }
-          }
-        }
-      }
-    }
-  }
-
   const loadingId = addChatMessage('Analyse en cours...', 'assistant', true);
 
-  const prompt = `Tu es un expert ICPE (Installations Classees pour la Protection de l'Environnement) specialise dans la reglementation francaise des batiments industriels et entrepots.
-
-Contexte du projet en cours:
-${context}
-${prescContext}
-${document.getElementById('nomProjet').value ? 'Projet: ' + document.getElementById('nomProjet').value : ''}
-${document.getElementById('localisation').value ? 'Localisation: ' + document.getElementById('localisation').value : ''}
-
-Question de l'utilisateur: ${msg}
-
-INSTRUCTIONS :
-- Base tes reponses sur les PRESCRIPTIONS EXTRAITES ci-dessus quand elles sont disponibles
-- Quand plusieurs rubriques ont des prescriptions sur le meme theme, indique la valeur la plus contraignante
-- Cite les rubriques sources (ex: "Rubrique 1510 impose REI 120, plus contraignant que la 1511 qui impose REI 60")
-- Reponds de maniere precise et concise
-- Si tu n'es pas sur d'une information, indique-le clairement`;
-
   try {
-    const result = await callEdgeFunctionChat(prompt, 0.3, 2000);
+    const result = await callIcpeFunction({
+      mode: 'chatbot',
+      question: msg,
+      rubriques: selectedRubriquesPayload(),
+      prescriptions: state.prescriptionsData || null,
+      projet: document.getElementById('nomProjet').value,
+      localisation: document.getElementById('localisation').value,
+      model: ICPE_CHAT_MODEL
+    });
     removeChatMessage(loadingId);
     addChatMessage(result.text, 'assistant');
   } catch (error) {
@@ -2625,6 +2245,79 @@ function exporterCSV() {
   link.click();
 }
 
+// Exports PDF / Excel au visuel Batipro (module src/icpe/exports.ts, chargé
+// à part : il expose window.icpeTools). Les données viennent de l'état courant.
+function buildIcpeExportPayload() {
+  const rubriques = Array.from(state.selectedRubriques);
+  const withPresc = rubriques.filter(code => {
+    const data = ICPE_DATA[code];
+    const info = getRegimeInfo(code);
+    return data.prescriptions && info.regime && data.prescriptions[info.regime];
+  });
+  const dateVal = document.getElementById('dateAnalyse').value;
+  const date = dateVal ? dateVal.split('-').reverse().join('/') : new Date().toLocaleDateString('fr-FR');
+  return {
+    projet: {
+      nom: document.getElementById('nomProjet').value.trim(),
+      client: document.getElementById('client').value.trim(),
+      localisation: document.getElementById('localisation').value.trim(),
+      date
+    },
+    colonnes: withPresc.map(code => ({ code, regime: getRegimeInfo(code).label || 'Non ICPE', intitule: ICPE_DATA[code]?.intitule || '' })),
+    categories: PRESCRIPTION_CATEGORIES.map(cat => ({
+      label: cat.label,
+      rows: cat.items.map(item => ({
+        item,
+        values: withPresc.map(code => getPrescription(code, getRegimeInfo(code).regime, cat.id, item))
+      }))
+    })),
+    sansPrescriptions: rubriques.filter(code => !withPresc.includes(code)).map(code => ({
+      code, intitule: ICPE_DATA[code]?.intitule || '', regime: getRegimeInfo(code).label || 'Non ICPE'
+    }))
+  };
+}
+
+function exporterPDF(btn) {
+  if (!window.icpeTools) { alert('Module d\'export pas encore chargé, réessayez dans un instant.'); return; }
+  window.icpeTools.exportPdf(buildIcpeExportPayload(), btn);
+}
+
+function exporterExcel(btn) {
+  if (!window.icpeTools) { alert('Module d\'export pas encore chargé, réessayez dans un instant.'); return; }
+  window.icpeTools.exportXlsx(buildIcpeExportPayload(), btn);
+}
+
+// Affichage d'une prescription : texte échappé, référence d'article finale
+// « [Art. 6] » / « [Annexe II, point 3] » mise en retrait visuel.
+function escapeHtmlIcpe(str) {
+  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function formatPresc(val) {
+  if (val == null || val === '-') return '-';
+  const text = String(val);
+  const m = text.match(/^([\s\S]*?)\s*\[((?:R[ée]f\.?\s*:?\s*)?[^\[\]]{2,80})\]\s*\.?\s*$/);
+  if (!m) return escapeHtmlIcpe(text);
+  const ref = m[2].replace(/^R[ée]f\.?\s*:?\s*/i, '');
+  return `${escapeHtmlIcpe(m[1])} <span class="presc-ref">[${escapeHtmlIcpe(ref)}]</span>`;
+}
+
+// Lexique des sigles présents dans le tableau (définitions fixes, module export).
+function renderGlossary(containerId, codes) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (!window.icpeTools || !codes || codes.length === 0) { el.innerHTML = ''; return; }
+  const texts = [];
+  codes.forEach(code => {
+    const regime = getRegimeInfo(code).regime;
+    PRESCRIPTION_CATEGORIES.forEach(cat => cat.items.forEach(item => texts.push(getPrescription(code, regime, cat.id, item))));
+  });
+  const entries = window.icpeTools.glossaryFor(texts);
+  if (entries.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="glossary-box"><h4>Lexique — pour lire les prescriptions</h4><dl>${
+    entries.map(([t, d]) => `<dt>${escapeHtmlIcpe(t)}</dt><dd>${escapeHtmlIcpe(d)}</dd>`).join('')
+  }</dl></div>`;
+}
+
 // ======================================================
 // UTILS
 // ======================================================
@@ -2635,6 +2328,7 @@ function formatNumber(n) {
 }
 
 </script>
+  <script type="module" src="/src/icpe/exports.ts"></script>
   <script type="module" src="/src/widgets/user-menu.ts"></script>
 </body>
 </html>

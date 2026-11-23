@@ -5,6 +5,7 @@ import { createChantier, updateChantier, getChantiers, getChantier, deleteChanti
 import { populateDepartmentSelect } from '../departments';
 import { requirePermission, AppProfile } from '../auth/session';
 import { initEventsUI, loadEventsFor } from './events-ui';
+import { listOciDossiers, linkedOciIds, importOciDossier, formatSyncAge, prettyCity, searchKey, OciDossier } from '../oci';
 
 // Permissions de l'utilisateur courant (rempli au démarrage)
 let userPerms = { canCreate: false, canEdit: false, canDelete: false };
@@ -20,7 +21,10 @@ function computePerms(profile: AppProfile) {
 }
 
 function applyPermissionGating() {
-  if (!userPerms.canCreate) (elements.btnNewChantier as HTMLElement).hidden = true;
+  if (!userPerms.canCreate) {
+    (elements.btnNewChantier as HTMLElement).hidden = true;
+    (elements.btnImportErp as HTMLElement).hidden = true;
+  }
   if (!userPerms.canEdit) {
     (elements.btnEditChantier as HTMLElement).hidden = true;
     (elements.btnChangeStatus as HTMLElement).hidden = true;
@@ -52,6 +56,16 @@ const elements = {
   chantiersList: document.getElementById('chantiers-list')!,
   chantiersCount: document.getElementById('chantiers-count')!,
   btnNewChantier: document.getElementById('btn-new-chantier')!,
+  btnImportErp: document.getElementById('btn-import-erp')!,
+
+  // Import ERP
+  erpModal: document.getElementById('erp-modal')!,
+  erpModalClose: document.getElementById('erp-modal-close')!,
+  erpSearch: document.getElementById('erp-search') as HTMLInputElement,
+  erpList: document.getElementById('erp-list')!,
+  erpSyncAge: document.getElementById('erp-sync-age')!,
+  erpPhaseBtns: document.querySelectorAll<HTMLButtonElement>('#erp-modal [data-phase]'),
+  formErpNote: document.getElementById('form-erp-note')!,
   filterBtns: document.querySelectorAll('.filter-btn'),
 
   // Modal
@@ -75,6 +89,8 @@ const elements = {
 
   // Detail view
   detailName: document.getElementById('detail-name')!,
+  detailErpField: document.getElementById('detail-erp-field')!,
+  detailErp: document.getElementById('detail-erp')!,
   detailStatus: document.getElementById('detail-status')!,
   detailClient: document.getElementById('detail-client')!,
   detailLocation: document.getElementById('detail-location')!,
@@ -176,6 +192,20 @@ const PROJECT_TYPE_LABELS: Record<string, string> = {
   restructuration: 'Restructuration'
 };
 
+function typeLabel(c: Chantier): string {
+  return c.project_type ? (PROJECT_TYPE_LABELS[c.project_type] || c.project_type) : 'À préciser';
+}
+
+function sectorLabel(c: Chantier): string {
+  return c.client_sector ? (SECTOR_LABELS[c.client_sector] || c.client_sector) : 'à préciser';
+}
+
+function erpChip(c: Chantier): string {
+  if (!c.oci) return '';
+  const phase = c.oci.phase ? ` · ${escapeHtml(c.oci.phase)}` : '';
+  return `<span class="erp-chip" title="Importé de l'ERP Batipro">${escapeHtml(c.oci.num_dossier)}${phase}</span>`;
+}
+
 // --- VIEWS ---
 function showView(view: 'list' | 'detail') {
   state.currentView = view;
@@ -211,10 +241,14 @@ function renderChantiersList() {
       <div class="empty-state">
         <div class="empty-icon">🏗️</div>
         <p>Aucun chantier ${state.statusFilter === 'active' ? 'actif' : state.statusFilter === 'completed' ? 'terminé' : ''}</p>
-        <button class="btn-secondary btn-small" id="empty-new-btn">Créer un chantier</button>
+        ${userPerms.canCreate ? `<div class="empty-actions">
+          <button class="btn-secondary btn-small" id="empty-import-btn">Importer de l'ERP</button>
+          <button class="btn-secondary btn-small" id="empty-new-btn">Créer un chantier</button>
+        </div>` : ''}
       </div>
     `;
     document.getElementById('empty-new-btn')?.addEventListener('click', () => openModal());
+    document.getElementById('empty-import-btn')?.addEventListener('click', () => openErpModal());
     return;
   }
 
@@ -224,12 +258,15 @@ function renderChantiersList() {
     <div class="chantier-card" data-id="${escapeHtml(chantier.id)}">
       <div class="chantier-card-header">
         <h3>${escapeHtml(chantier.name)}</h3>
-        <span class="status-badge ${STATUS_CLASSES[chantier.status]}">${STATUS_LABELS[chantier.status]}</span>
+        <div class="chantier-card-badges">
+          ${erpChip(chantier)}
+          <span class="status-badge ${STATUS_CLASSES[chantier.status]}">${STATUS_LABELS[chantier.status]}</span>
+        </div>
       </div>
       <div class="chantier-card-body">
         ${chantier.client_name ? `<div class="chantier-meta"><span class="meta-label">Client</span> ${escapeHtml(chantier.client_name)}</div>` : ''}
-        <div class="chantier-meta"><span class="meta-label">Lieu</span> ${escapeHtml(chantier.city)} (${escapeHtml(chantier.department)})</div>
-        <div class="chantier-meta"><span class="meta-label">Type</span> ${PROJECT_TYPE_LABELS[chantier.project_type] || chantier.project_type}</div>
+        <div class="chantier-meta"><span class="meta-label">Lieu</span> ${escapeHtml(chantier.city || '—')}${chantier.department ? ` (${escapeHtml(chantier.department)})` : ''}</div>
+        <div class="chantier-meta"><span class="meta-label">Type</span> <span class="${chantier.project_type ? '' : 'to-specify'}">${escapeHtml(typeLabel(chantier))}</span></div>
         ${chantier.surface ? `<div class="chantier-meta"><span class="meta-label">Surface</span> ${chantier.surface.toLocaleString('fr-FR')} m²</div>` : ''}
       </div>
       <div class="chantier-card-footer">
@@ -264,8 +301,12 @@ async function showChantierDetail(id: string) {
     elements.detailStatus.className = `status-badge ${STATUS_CLASSES[chantier.status]}`;
     elements.detailStatus.textContent = STATUS_LABELS[chantier.status];
     elements.detailClient.textContent = chantier.client_name || 'Non renseigné';
-    elements.detailLocation.textContent = `${chantier.city} (${chantier.department})${chantier.address ? ' — ' + chantier.address : ''}`;
-    elements.detailType.textContent = `${PROJECT_TYPE_LABELS[chantier.project_type] || chantier.project_type} — ${SECTOR_LABELS[chantier.client_sector] || chantier.client_sector}`;
+    elements.detailErpField.hidden = !chantier.oci;
+    if (chantier.oci) {
+      elements.detailErp.textContent = `${chantier.oci.num_dossier}${chantier.oci.phase ? ' — phase ' + chantier.oci.phase : ''}`;
+    }
+    elements.detailLocation.textContent = `${chantier.city || '—'}${chantier.department ? ` (${chantier.department})` : ''}${chantier.address ? ' — ' + chantier.address : ''}`;
+    elements.detailType.textContent = `${typeLabel(chantier)} — ${sectorLabel(chantier)}`;
     elements.detailSurface.textContent = chantier.surface ? `${chantier.surface.toLocaleString('fr-FR')} m²` : 'Non renseigné';
     elements.detailDescription.textContent = chantier.description || 'Aucune description';
     elements.detailArticleCount.textContent = `${articleCount} article${articleCount !== 1 ? 's' : ''}`;
@@ -331,13 +372,20 @@ async function loadChantierArticles(chantierId: string) {
 }
 
 // --- MODAL ---
-function openModal(chantier?: Chantier) {
-  elements.modalTitle.textContent = chantier ? 'Modifier le chantier' : 'Nouveau chantier';
+function openModal(chantier?: Chantier, opts: { justImported?: boolean } = {}) {
+  elements.modalTitle.textContent = opts.justImported ? 'Compléter le projet importé' : chantier ? 'Modifier le chantier' : 'Nouveau chantier';
+  elements.formErpNote.hidden = !chantier?.oci;
+  if (chantier?.oci) {
+    elements.formErpNote.textContent = opts.justImported
+      ? `Repris de l'ERP (${chantier.oci.num_dossier}). Précisez le secteur et le type : ils guident la rédaction des articles.`
+      : `Lié au dossier ERP ${chantier.oci.num_dossier}. Les modifications faites ici ne changent pas l'ERP.`;
+  }
   elements.formId.value = chantier?.id || '';
   elements.formName.value = chantier?.name || '';
   elements.formClientName.value = chantier?.client_name || '';
-  elements.formClientSector.value = chantier?.client_sector || 'industriel';
-  elements.formProjectType.value = chantier?.project_type || 'construction';
+  // Création manuelle : valeurs par défaut historiques ; chantier existant : « À préciser » si vide.
+  elements.formClientSector.value = chantier ? (chantier.client_sector || '') : 'industriel';
+  elements.formProjectType.value = chantier ? (chantier.project_type || '') : 'construction';
   elements.formAddress.value = chantier?.address || '';
   elements.formCity.value = chantier?.city || '';
   elements.formDepartment.value = chantier?.department || '25';
@@ -346,6 +394,7 @@ function openModal(chantier?: Chantier) {
   elements.formKeywords.value = chantier?.seo_keywords || '';
   elements.formStartDate.value = chantier?.start_date || '';
   elements.modal.hidden = false;
+  if (opts.justImported) elements.formClientSector.focus();
 }
 
 function closeModal() {
@@ -358,8 +407,8 @@ async function handleSaveChantier(e: Event) {
   const chantierData: NewChantier = {
     name: elements.formName.value.trim(),
     client_name: elements.formClientName.value.trim() || null,
-    client_sector: elements.formClientSector.value,
-    project_type: elements.formProjectType.value,
+    client_sector: elements.formClientSector.value || null,
+    project_type: elements.formProjectType.value || null,
     address: elements.formAddress.value.trim() || null,
     city: elements.formCity.value.trim(),
     department: elements.formDepartment.value,
@@ -442,6 +491,116 @@ async function handleChangeStatus() {
   }
 }
 
+// --- IMPORT ERP (OCI) ---
+const erpState = {
+  dossiers: [] as OciDossier[],
+  linked: new Map<string, string>(),  // id ERP → id chantier
+  phase: 'Projet',
+  importing: null as string | null,
+};
+
+async function openErpModal() {
+  elements.erpModal.hidden = false;
+  elements.erpSearch.value = '';
+  elements.erpList.innerHTML = `<p class="erp-empty">Chargement des dossiers de l'ERP…</p>`;
+  elements.erpSearch.focus();
+  try {
+    const [dossiers, linked] = await Promise.all([listOciDossiers(['Projet', 'Chantier']), linkedOciIds()]);
+    erpState.dossiers = dossiers;
+    erpState.linked = linked;
+    const age = formatSyncAge(dossiers);
+    elements.erpSyncAge.textContent = age ? `Données ERP mises à jour ${age}.` : '';
+    document.querySelectorAll<HTMLElement>('#erp-modal [data-count]').forEach(el => {
+      el.textContent = String(dossiers.filter(d => d.phase === el.dataset.count).length);
+    });
+    renderErpList();
+  } catch (error) {
+    console.error('Erreur chargement ERP:', error);
+    elements.erpList.innerHTML = `<p class="erp-empty error">Impossible de charger les dossiers de l'ERP.</p>`;
+  }
+}
+
+function closeErpModal() {
+  elements.erpModal.hidden = true;
+}
+
+function renderErpList() {
+  if (erpState.dossiers.length === 0) {
+    elements.erpList.innerHTML = `<p class="erp-empty">Aucun dossier ERP disponible pour l'instant. La synchronisation avec l'ERP n'a pas encore tourné, réessayez dans une demi-heure.</p>`;
+    return;
+  }
+  const q = searchKey(elements.erpSearch.value);
+  const rows = erpState.dossiers.filter(d =>
+    d.phase === erpState.phase && (!q || searchKey(d.nom, d.client_nom, d.ville, d.num_dossier, d.code_postal).includes(q))
+  );
+  if (rows.length === 0) {
+    elements.erpList.innerHTML = `<p class="erp-empty">Aucun ${erpState.phase === 'Projet' ? 'projet' : 'chantier'} ne correspond à « ${escapeHtml(elements.erpSearch.value)} ».</p>`;
+    return;
+  }
+  elements.erpList.innerHTML = rows.map(d => {
+    const chantierId = erpState.linked.get(d.id);
+    const place = [prettyCity(d.ville), d.code_postal].filter(Boolean).join(' ');
+    const updated = d.erp_updated_at ? new Date(d.erp_updated_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : null;
+    const action = chantierId
+      ? `<button type="button" class="erp-open" data-open="${escapeHtml(chantierId)}">Déjà importé · Ouvrir</button>`
+      : `<button type="button" class="erp-import" data-import="${escapeHtml(d.id)}">Importer</button>`;
+    return `
+      <div class="erp-row${chantierId ? ' is-linked' : ''}">
+        <div class="erp-row-main">
+          <div class="erp-row-title"><span class="erp-num">${escapeHtml(d.num_dossier)}</span> ${escapeHtml(d.nom)}</div>
+          <div class="erp-row-meta">${escapeHtml(place || 'Lieu non renseigné')}${d.responsable ? ` · ${escapeHtml(d.responsable)}` : ''}${updated ? ` · modifié le ${updated}` : ''}</div>
+        </div>
+        ${action}
+      </div>`;
+  }).join('');
+}
+
+async function handleErpImport(ociId: string, btn: HTMLButtonElement) {
+  if (erpState.importing) return;
+  erpState.importing = ociId;
+  btn.disabled = true;
+  btn.textContent = 'Import…';
+  try {
+    const { id, name } = await importOciDossier(ociId);
+    erpState.linked.set(ociId, id);
+    closeErpModal();
+    showToast(`« ${name} » ajouté à la gestion chantier`, 'success');
+    await loadChantiers();
+    await showChantierDetail(id);
+    if (userPerms.canEdit && state.currentChantier) openModal(state.currentChantier, { justImported: true });
+  } catch (error) {
+    console.error('Erreur import ERP:', error);
+    showToast(`Import impossible : ${(error as Error).message}`, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Importer';
+  } finally {
+    erpState.importing = null;
+  }
+}
+
+function initErpModal() {
+  elements.btnImportErp.addEventListener('click', openErpModal);
+  elements.erpModalClose.addEventListener('click', closeErpModal);
+  elements.erpModal.addEventListener('click', (e) => {
+    if (e.target === elements.erpModal) closeErpModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !elements.erpModal.hidden) closeErpModal();
+  });
+  elements.erpSearch.addEventListener('input', renderErpList);
+  elements.erpPhaseBtns.forEach(btn => btn.addEventListener('click', () => {
+    elements.erpPhaseBtns.forEach(b => b.classList.toggle('active', b === btn));
+    erpState.phase = btn.dataset.phase || 'Projet';
+    renderErpList();
+  }));
+  elements.erpList.addEventListener('click', (e) => {
+    const target = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
+    if (!target) return;
+    if (target.dataset.import) handleErpImport(target.dataset.import, target);
+    else if (target.dataset.open) { closeErpModal(); showChantierDetail(target.dataset.open); }
+  });
+}
+
 // --- INIT ---
 async function init() {
   console.log('🏗️ Informations Chantier - Initialisation...');
@@ -460,6 +619,7 @@ async function init() {
 
   // New chantier button
   elements.btnNewChantier.addEventListener('click', () => openModal());
+  initErpModal();
 
   // Filter buttons
   elements.filterBtns.forEach(btn => {
